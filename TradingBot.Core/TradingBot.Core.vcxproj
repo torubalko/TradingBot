@@ -28,6 +28,8 @@
   <ItemGroup>
     <ClInclude Include="BinanceConnection.h" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="JsonParser.h" />
+    <ClInclude Include="Types.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

@@ -16,6 +16,12 @@
     <Filter Include="Network">
       <UniqueIdentifier>{4acc7442-2480-4017-9517-b6bb8a81766f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Models">
+      <UniqueIdentifier>{ad90866a-62a0-4160-b06e-e76380b8ffa3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils">
+      <UniqueIdentifier>{d7ee2f86-3755-498a-9a51-9460bb3d383f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Environment.cpp">
@@ -34,6 +40,12 @@
     </ClInclude>
     <ClInclude Include="BinanceConnection.h">
       <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Types.h">
+      <Filter>Models</Filter>
+    </ClInclude>
+    <ClInclude Include="JsonParser.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
