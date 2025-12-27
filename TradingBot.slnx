@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="TradingBot.Core/TradingBot.Core.vcxproj" Id="4bea9901-e0a0-4e3d-9c6b-6154638b19dc" />
+  <Project Path="TradingBot.Runner/TradingBot.Runner.vcxproj" Id="5ac7aa39-9553-4727-a532-7d8e1be6bf79" />
+</Solution>
