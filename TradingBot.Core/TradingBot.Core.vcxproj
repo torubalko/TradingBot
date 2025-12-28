@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="BinanceConnection.cpp" />
     <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="JsonParser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -28,7 +29,9 @@
   <ItemGroup>
     <ClInclude Include="BinanceConnection.h" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
+    <ClInclude Include="OrderBook.h" />
     <ClInclude Include="Types.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
