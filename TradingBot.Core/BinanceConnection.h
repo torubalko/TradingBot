@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <functional> // Grok просил добавить
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
@@ -18,16 +19,15 @@ namespace TradingBot::Core::Network {
 
     class BinanceConnection {
     public:
-        //  онструктор принимает указатель на SharedState
         BinanceConnection(std::shared_ptr<SharedState> state);
         ~BinanceConnection();
 
         void Connect(const std::string& symbol, bool useTestnet = false);
         void Stop();
 
-        // Callback больше не об€зателен, так как мы пишем сразу в State, 
-        // но оставим дл€ совместимости, если нужен.
-        std::function<void(const std::string&)> OnMessage;
+    private:
+        // “еперь это приватный метод класса, а не "вис€ча€" функци€
+        void DownloadSnapshot(const std::string& symbol, bool useTestnet);
 
     private:
         std::shared_ptr<SharedState> state_;

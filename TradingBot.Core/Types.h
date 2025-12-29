@@ -2,24 +2,27 @@
 #include <vector>
 #include <string>
 
-namespace TradingBot::Core::Models {
+namespace TradingBot::Core {
 
-    // Используем double для простоты. 
-    // В будущем для идеальной точности можно перейти на Decimal, 
-    // но для скальпинга double (8 байт) пока хватит.
-    using Price = double;
-    using Volume = double;
-
-    // Один уровень стакана: Цена + Объем
+    // Базовая структура уровня цены
     struct OrderBookLevel {
-        Price price;
-        Volume quantity;
+        double price;
+        double quantity;
     };
 
-    // Весь пакет обновления (snapshot или update)
+    // Структура для Снапшота (REST)
+    struct OrderBookSnapshot {
+        long long lastUpdateId;
+        std::vector<OrderBookLevel> bids;
+        std::vector<OrderBookLevel> asks;
+    };
+
+    // Структура для Обновления (WebSocket)
+    // Именно на неё ругался компилятор (C2027), так как не видел её определения
     struct OrderBookUpdate {
-        std::string symbol;
-        std::vector<OrderBookLevel> bids; // Покупки (Зеленые)
-        std::vector<OrderBookLevel> asks; // Продажи (Красные)
+        long long u; // Final update ID
+        long long U; // First update ID
+        std::vector<OrderBookLevel> bids;
+        std::vector<OrderBookLevel> asks;
     };
 }

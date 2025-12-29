@@ -1,10 +1,12 @@
 #pragma once
 #include <d3d11.h>
-#include <wrl/client.h> // Для ComPtr
+#include <d2d1.h>       // Direct2D
+#include <dwrite.h>     // DirectWrite
+#include <wrl/client.h>
 #include <DirectXMath.h>
 #include <vector>
+#include <string>
 
-// Используем ComPtr для автоматического управления памятью DX11
 using Microsoft::WRL::ComPtr;
 
 struct Vertex {
@@ -20,12 +22,13 @@ public:
     bool Initialize(HWND hWnd);
     void BeginFrame(float r, float g, float b);
     void EndFrame();
-
-    // Продвинутый рендеринг (Батчинг)
     void DrawRect(float x, float y, float w, float h, float r, float g, float b, float a);
-    void FlushBatch(); // Отрисовать накопленное
+
+    // ОБНОВЛЕНО: Добавлен параметр height для центрирования
+    void DrawTextString(const std::wstring& text, float x, float y, float height, float fontSize, float r, float g, float b, float a);
 
 private:
+    void FlushBatch();
     void CreateShaders();
 
     ComPtr<ID3D11Device> device;
@@ -38,7 +41,14 @@ private:
     ComPtr<ID3D11InputLayout> inputLayout;
     ComPtr<ID3D11Buffer> vertexBuffer;
 
-    // Батчинг
+    // D2D
+    ComPtr<ID2D1Factory> d2dFactory;
+    ComPtr<ID2D1RenderTarget> d2dRenderTarget;
+    ComPtr<ID2D1SolidColorBrush> d2dBrush;
+    ComPtr<IDWriteFactory> writeFactory;
+    ComPtr<IDWriteTextFormat> textFormat;
+
     std::vector<Vertex> batchVertices;
-    static const int MAX_VERTICES = 2048; // Размер буфера
+    static const int MAX_VERTICES = 4096;
+    bool isD2DDrawing = false;
 };

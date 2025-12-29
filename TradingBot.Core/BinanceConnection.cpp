@@ -1,39 +1,36 @@
 #include "BinanceConnection.h"
 #include "JsonParser.h"
+#include "Types.h"  // <--- ВАЖНО: Добавили это, чтобы видеть OrderBookUpdate
 #include <iostream>
-#include <algorithm> // Для std::transform (toupper)
-
-// Подключаем HTTP библиотеки для скачивания снимка
+#include <algorithm> 
+#include <cctype>    
 #include <boost/beast/http.hpp>
 
 namespace TradingBot::Core::Network {
 
     BinanceConnection::BinanceConnection(std::shared_ptr<SharedState> state)
         : state_(state) {
-        ctx_.set_default_verify_paths();
+        ctx_.set_verify_mode(boost::asio::ssl::verify_none);
     }
 
     BinanceConnection::~BinanceConnection() {
+        Stop();
     }
 
     void BinanceConnection::Stop() {
         running_ = false;
-        ioc_.stop();
+        if (!ioc_.stopped()) ioc_.stop();
     }
 
-    // Вспомогательная функция (Статическая, чтобы не засорять класс)
-    static void DownloadSnapshot(net::io_context& ioc, ssl::context& ctx, std::shared_ptr<SharedState> state, const std::string& symbol, bool useTestnet) {
+    void BinanceConnection::DownloadSnapshot(const std::string& symbol, bool useTestnet) {
         try {
-            std::cout << "[Snapshot] Downloading OrderBook for " << symbol << "..." << std::endl;
-
             std::string host = useTestnet ? "testnet.binancefuture.com" : "fapi.binance.com";
             std::string target = "/fapi/v1/depth?symbol=" + symbol + "&limit=1000";
 
-            tcp::resolver resolver(ioc);
-            beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+            tcp::resolver resolver(ioc_);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc_, ctx_);
 
-            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
-                throw beast::system_error(beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()), "SNI Error");
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) return;
 
             auto const results = resolver.resolve(host, "443");
             beast::get_lowest_layer(stream).connect(results);
@@ -49,53 +46,46 @@ namespace TradingBot::Core::Network {
             http::response<http::string_body> res;
             http::read(stream, buffer, res);
 
-            // Парсим
+            // JsonParser теперь должен возвращать Core::OrderBookSnapshot
             auto snap = Utils::JsonParser::ParseSnapshot(res.body());
 
             if (!snap.bids.empty()) {
-                state->ApplyUpdate(snap.bids, snap.asks);
-                std::cout << "[Snapshot] Loaded " << snap.bids.size() << " levels." << std::endl;
+                state_->ApplyUpdate(snap.bids, snap.asks);
             }
 
             beast::error_code ec;
             stream.shutdown(ec);
         }
         catch (std::exception const& e) {
-            std::cerr << "[Snapshot Failed] " << e.what() << std::endl;
+            std::cerr << "[Snapshot Error] " << e.what() << std::endl;
         }
     }
 
     void BinanceConnection::Connect(const std::string& symbol, bool useTestnet) {
-        // 1. Скачиваем снимок (Uppercase symbol)
         std::string upperSymbol = symbol;
+        std::string lowerSymbol = symbol;
         std::transform(upperSymbol.begin(), upperSymbol.end(), upperSymbol.begin(), ::toupper);
+        std::transform(lowerSymbol.begin(), lowerSymbol.end(), lowerSymbol.begin(), ::tolower);
 
-        DownloadSnapshot(ioc_, ctx_, state_, upperSymbol, useTestnet);
+        DownloadSnapshot(upperSymbol, useTestnet);
 
-        // 2. Запускаем WebSocket
         try {
             std::string host = useTestnet ? "stream.binancefuture.com" : "fstream.binance.com";
+            std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms";
 
-            // Инкрементальный поток (самый быстрый)
-            std::string target = "/stream?streams=" + symbol + "@depth@100ms";
-
-            auto const port = "443";
             tcp::resolver resolver(ioc_);
-            auto const results = resolver.resolve(host, port);
+            auto const results = resolver.resolve(host, "443");
 
             websocket::stream<beast::ssl_stream<tcp::socket>> ws(ioc_, ctx_);
             auto ep = net::connect(get_lowest_layer(ws), results);
-
-            net::socket_base::receive_buffer_size option(1024 * 1024);
+            net::socket_base::receive_buffer_size option(8192 * 8);
             get_lowest_layer(ws).set_option(option);
 
             if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str()))
-                throw beast::system_error(beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()), "SNI Error");
+                throw std::runtime_error("SNI Error");
 
             ws.next_layer().handshake(ssl::stream_base::client);
             std::string host_header = host + ":" + std::to_string(ep.port());
-
-            std::cout << "[Network] Listening to stream: " << target << std::endl;
             ws.handshake(host_header, target);
 
             beast::flat_buffer buffer;
@@ -103,15 +93,17 @@ namespace TradingBot::Core::Network {
                 ws.read(buffer);
                 std::string msg = beast::buffers_to_string(buffer.data());
 
+                // Здесь возникала ошибка C2027, потому что компилятор не знал структуру update
+                // Теперь, благодаря #include "Types.h", он знает поля .bids и .asks
                 auto update = Utils::JsonParser::ParseDepthUpdate(msg);
-                if (!update.bids.empty() || !update.asks.empty()) {
-                    state_->ApplyUpdate(update.bids, update.asks);
-                }
+                state_->ApplyUpdate(update.bids, update.asks);
+
                 buffer.consume(buffer.size());
             }
         }
         catch (std::exception const& e) {
             std::cerr << "[WS Error] " << e.what() << std::endl;
+            throw;
         }
     }
 }
