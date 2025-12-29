@@ -1,68 +1,73 @@
 #include "JsonParser.h"
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <iostream>
-#include <vector>
-#include <string>
-#include <algorithm>
 
 namespace TradingBot::Core::Utils {
 
-    void ParseLevels(const std::string& json, std::vector<Models::OrderBookLevel>& levels) {
-        size_t pos = 0;
-        while ((pos = json.find('[', pos)) != std::string::npos) {
-            size_t end = json.find(']', pos);
-            if (end == std::string::npos) break;
+    using namespace boost::property_tree;
 
-            std::string pairStr = json.substr(pos + 1, end - pos - 1);
-            size_t comma = pairStr.find(',');
-
-            if (comma != std::string::npos) {
-                try {
-                    std::string sPrice = pairStr.substr(1, comma - 2);
-                    std::string sVol = pairStr.substr(comma + 2);
-
-                    // Чистим кавычки (они есть в стриме, но могут отсутствовать в числах REST API)
-                    sPrice.erase(remove(sPrice.begin(), sPrice.end(), '\"'), sPrice.end());
-                    sVol.erase(remove(sVol.begin(), sVol.end(), '\"'), sVol.end());
-
-                    levels.push_back({ std::stod(sPrice), std::stod(sVol) });
+    // Вспомогательная функция для парсинга массива уровней [[price, qty], ...]
+    std::vector<OrderBookLevel> ParseLevels(const ptree& node) {
+        std::vector<OrderBookLevel> levels;
+        for (const auto& item : node) {
+            // item.second - это массив ["price", "qty"]
+            auto it = item.second.begin();
+            if (it != item.second.end()) {
+                double price = std::stod(it->second.data());
+                ++it;
+                if (it != item.second.end()) {
+                    double qty = std::stod(it->second.data());
+                    levels.push_back({ price, qty });
                 }
-                catch (...) {}
             }
-            pos = end + 1;
         }
+        return levels;
     }
 
-    Models::OrderBookUpdate JsonParser::ParseDepthUpdate(const std::string& json) {
-        Models::OrderBookUpdate update;
+    OrderBookSnapshot JsonParser::ParseSnapshot(const std::string& json) {
+        OrderBookSnapshot snapshot;
+        try {
+            ptree pt;
+            std::stringstream ss(json);
+            read_json(ss, pt);
 
-        // 1. Пробуем найти короткие ключи (WebSocket)
-        size_t bidsPos = json.find("\"b\":[");
-        if (bidsPos == std::string::npos) bidsPos = json.find("\"bids\":["); // Пробуем длинные (REST)
-
-        if (bidsPos != std::string::npos) {
-            size_t closeBracket = json.find("]]", bidsPos);
-            if (closeBracket != std::string::npos)
-                ParseLevels(json.substr(bidsPos, closeBracket - bidsPos), update.bids);
+            snapshot.lastUpdateId = pt.get<long long>("lastUpdateId");
+            snapshot.bids = ParseLevels(pt.get_child("bids"));
+            snapshot.asks = ParseLevels(pt.get_child("asks"));
         }
+        catch (const std::exception& e) {
+            std::cerr << "[JsonParser] Snapshot error: " << e.what() << std::endl;
+        }
+        return snapshot;
+    }
 
-        // 2. Пробуем найти аски
-        size_t asksPos = json.find("\"a\":[");
-        if (asksPos == std::string::npos) asksPos = json.find("\"asks\":["); // Пробуем длинные (REST)
+    OrderBookUpdate JsonParser::ParseDepthUpdate(const std::string& json) {
+        OrderBookUpdate update;
+        try {
+            ptree pt;
+            std::stringstream ss(json);
+            read_json(ss, pt);
 
-        if (asksPos != std::string::npos) {
-            size_t closeBracket = json.find("]]", asksPos);
-            if (closeBracket != std::string::npos)
-                ParseLevels(json.substr(asksPos, closeBracket - asksPos), update.asks);
+            // В WebSocket данные лежат внутри объекта "data" (если поток комбинированный)
+            // Но в нашем случае (прямой поток) поля могут быть в корне.
+            // Проверим наличие поля "data", если нет - читаем из корня.
+            const ptree* root = &pt;
+            if (pt.count("data")) {
+                root = &pt.get_child("data");
+            }
+
+            update.u = root->get<long long>("u"); // Final update ID
+            update.U = root->get<long long>("U"); // First update ID
+
+            // "b" - bids, "a" - asks
+            if (root->count("b")) update.bids = ParseLevels(root->get_child("b"));
+            if (root->count("a")) update.asks = ParseLevels(root->get_child("a"));
+        }
+        catch (const std::exception& e) {
+            // Иногда приходят сообщения другого типа (ping/pong), это не страшно
+            // std::cerr << "[JsonParser] Update error: " << e.what() << std::endl;
         }
         return update;
-    }
-
-    // Для снимка используем ту же логику, так как структура похожа
-    Models::OrderBookSnapshot JsonParser::ParseSnapshot(const std::string& json) {
-        Models::OrderBookSnapshot snap;
-        auto update = ParseDepthUpdate(json);
-        snap.bids = update.bids;
-        snap.asks = update.asks;
-        return snap;
     }
 }
