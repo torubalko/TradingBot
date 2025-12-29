@@ -3,7 +3,7 @@
 #include <mutex>
 #include <vector>
 #include <algorithm>
-#include "Types.h" // Подключаем наши структуры
+#include "Types.h" 
 
 namespace TradingBot::Core {
 
@@ -14,18 +14,23 @@ namespace TradingBot::Core {
 
     class SharedState {
     public:
-        // Теперь принимаем векторы OrderBookLevel (как в Types.h)
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
             const std::vector<OrderBookLevel>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
 
+            // "Магическое число" для сравнения с нулем
+            double epsilon = 0.0000001;
+
+            // Обновляем Bids
             for (const auto& level : bids) {
-                if (level.quantity == 0) Bids.erase(level.price);
+                // ИСПРАВЛЕНО: Если объем почти ноль - удаляем
+                if (level.quantity < epsilon) Bids.erase(level.price);
                 else Bids[level.price] = level.quantity;
             }
 
+            // Обновляем Asks
             for (const auto& level : asks) {
-                if (level.quantity == 0) Asks.erase(level.price);
+                if (level.quantity < epsilon) Asks.erase(level.price);
                 else Asks[level.price] = level.quantity;
             }
         }
@@ -34,14 +39,14 @@ namespace TradingBot::Core {
             std::lock_guard<std::mutex> lock(mutex_);
             RenderSnapshot snap;
 
-            // ASKS: Дешевые -> Дорогие (ВВЕРХ)
+            // 1. ASKS (Сортировка 100, 101, 102...)
             int count = 0;
             for (auto it = Asks.begin(); it != Asks.end() && count < depth; ++it) {
                 snap.Asks.push_back({ it->first, it->second });
                 count++;
             }
 
-            // BIDS: Дорогие -> Дешевые (ВНИЗ)
+            // 2. BIDS (Сортировка 99, 98, 97...)
             count = 0;
             for (auto it = Bids.rbegin(); it != Bids.rend() && count < depth; ++it) {
                 snap.Bids.push_back({ it->first, it->second });

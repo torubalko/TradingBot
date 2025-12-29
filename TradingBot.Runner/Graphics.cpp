@@ -7,7 +7,6 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 
-// Шейдеры без изменений
 const char* VS_SRC = R"(
 struct VS_IN { float3 pos : POSITION; float4 col : COLOR; };
 struct PS_IN { float4 pos : SV_POSITION; float4 col : COLOR; };
@@ -33,8 +32,15 @@ Graphics::Graphics() {
 Graphics::~Graphics() {}
 
 bool Graphics::Initialize(HWND hWnd) {
+    RECT rc;
+    GetClientRect(hWnd, &rc);
+    width_ = (float)(rc.right - rc.left);
+    height_ = (float)(rc.bottom - rc.top);
+
     DXGI_SWAP_CHAIN_DESC scd = {};
     scd.BufferCount = 1;
+    scd.BufferDesc.Width = (UINT)width_;
+    scd.BufferDesc.Height = (UINT)height_;
     scd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     scd.OutputWindow = hWnd;
@@ -50,7 +56,6 @@ bool Graphics::Initialize(HWND hWnd) {
     swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
     device->CreateRenderTargetView(backBuffer.Get(), NULL, &target);
 
-    // D2D Init
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2dFactory.GetAddressOf());
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)writeFactory.GetAddressOf());
 
@@ -64,22 +69,20 @@ bool Graphics::Initialize(HWND hWnd) {
     d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
     d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
 
-    // Настройка шрифта
     writeFactory->CreateTextFormat(
         L"Segoe UI", NULL,
-        DWRITE_FONT_WEIGHT_SEMI_BOLD, // Полужирный для четкости
+        DWRITE_FONT_WEIGHT_SEMI_BOLD,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
         12.0f,
         L"en-us",
         &textFormat
     );
-    // ВАЖНО: Центрируем текст по вертикали внутри переданной области
+    // Важно: Центрируем по вертикали
     textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-    // Выравнивание по левому краю (можно поменять на CENTER если хотите)
     textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
 
-    D3D11_VIEWPORT vp = { 0, 0, 500, 800, 0.0f, 1.0f };
+    D3D11_VIEWPORT vp = { 0, 0, width_, height_, 0.0f, 1.0f };
     context->RSSetViewports(1, &vp);
 
     CreateShaders();
@@ -133,40 +136,46 @@ void Graphics::FlushBatch() {
     batchVertices.clear();
 }
 
-void Graphics::DrawRect(float x, float y, float w, float h, float r, float g, float b, float a) {
-    if (batchVertices.size() + 6 >= MAX_VERTICES) FlushBatch();
-    float left = x, right = x + w, top = y, bottom = y - h;
-    batchVertices.push_back({ left, bottom, 0, r,g,b,a });
-    batchVertices.push_back({ left, top,    0, r,g,b,a });
-    batchVertices.push_back({ right,bottom, 0, r,g,b,a });
-    batchVertices.push_back({ right,bottom, 0, r,g,b,a });
-    batchVertices.push_back({ left, top,    0, r,g,b,a });
-    batchVertices.push_back({ right, top,   0, r,g,b,a });
+// === КОНВЕРТАЦИЯ ПИКСЕЛЕЙ В GPU КООРДИНАТЫ ===
+float Graphics::PixelToNdcX(float x) {
+    // 0 -> -1, Width -> 1
+    return (x / width_) * 2.0f - 1.0f;
 }
 
-// === ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ТЕКСТА ===
-void Graphics::DrawTextString(const std::wstring& text, float x, float y, float height, float fontSize, float r, float g, float b, float a) {
+float Graphics::PixelToNdcY(float y) {
+    // 0 -> 1, Height -> -1 (Y перевернут в DirectX)
+    return 1.0f - (y / height_) * 2.0f;
+}
+
+// === РИСОВАНИЕ ПРЯМОУГОЛЬНИКА ПО ПИКСЕЛЯМ ===
+void Graphics::DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a) {
+    if (batchVertices.size() + 6 >= MAX_VERTICES) FlushBatch();
+
+    // Конвертируем границы из пикселей в -1..1
+    float left = PixelToNdcX(x);
+    float right = PixelToNdcX(x + w);
+    float top = PixelToNdcY(y);
+    float bottom = PixelToNdcY(y + h);
+
+    batchVertices.push_back({ left,  bottom, 0, r,g,b,a });
+    batchVertices.push_back({ left,  top,    0, r,g,b,a });
+    batchVertices.push_back({ right, bottom, 0, r,g,b,a });
+    batchVertices.push_back({ right, bottom, 0, r,g,b,a });
+    batchVertices.push_back({ left,  top,    0, r,g,b,a });
+    batchVertices.push_back({ right, top,    0, r,g,b,a });
+}
+
+// === РИСОВАНИЕ ТЕКСТА ПО ПИКСЕЛЯМ ===
+void Graphics::DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a) {
     FlushBatch();
     if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
 
-    D2D1_SIZE_F size = d2dRenderTarget->GetSize();
-
-    // X конвертируем как обычно
-    float screenX = (x + 1.0f) * 0.5f * size.width;
-
-    // Y (верхняя грань в DirectX) -> Y (в пикселях D2D)
-    float screenTop = (1.0f - y) * 0.5f * size.height;
-
-    // Нижняя грань (DirectX Y - height) -> Пиксели
-    float screenBottom = (1.0f - (y - height)) * 0.5f * size.height;
-
-    // Рамка для текста точно совпадает с баром по высоте
-    // Ширина +400px, чтобы текст точно влез
-    D2D1_RECT_F layoutRect = D2D1::RectF(screenX, screenTop, screenX + 400.0f, screenBottom);
-
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
 
-    // Благодаря SetParagraphAlignment(CENTER) текст сам встанет ровно посередине между Top и Bottom
+    // В Direct2D координаты пиксельные по умолчанию (0,0 - левый верх)
+    // Немного сдвигаем текст вверх (-1.0f), чтобы компенсировать отступы шрифта
+    D2D1_RECT_F layoutRect = D2D1::RectF(x, y - 2.0f, x + w, y + h - 2.0f);
+
     d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormat.Get(), layoutRect, d2dBrush.Get());
 }
 
