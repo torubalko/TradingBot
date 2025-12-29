@@ -1,53 +1,25 @@
 ﻿#include <iostream>
 #include <string>
-#include <iomanip> // Для красивого вывода чисел
-
 #include "BinanceConnection.h"
-#include "JsonParser.h" // Подключаем наш новый парсер
 
-// Порог "Плотности". Если объем заявки больше этого числа (в монетах BTC), мы будем кричать.
-// 5 BTC ~ 200,000$ (для примера)
-const double DENSITY_THRESHOLD = 5.0;
+// Убираем лишние инклуды парсера, так как нам нужен только сырой вывод
 
 int main() {
+    // Настраиваем консоль (русский язык + точка как разделитель для надежности)
     setlocale(LC_ALL, "ru_RU.UTF-8");
-    std::cout << "=== ПОИСК ПЛОТНОСТЕЙ (СКАЛЬПИНГ) ===" << std::endl;
-    std::cout << "Порог плотности: " << DENSITY_THRESHOLD << " BTC" << std::endl;
+    setlocale(LC_NUMERIC, "C");
+
+    std::cout << "=== РЕЖИМ СЫРОГО ПОТОКА (RAW STREAM) ===" << std::endl;
+    std::cout << "Подключение к Binance Futures..." << std::endl;
 
     TradingBot::Core::Network::BinanceConnection client;
 
+    // В этот раз мы не парсим JSON, а просто выводим строку как есть
     client.OnMessage = [](const std::string& data) {
-        // 1. Парсим сообщение
-        auto update = TradingBot::Core::Utils::JsonParser::ParseDepthUpdate(data);
-
-        // Если вектор пустой - значит это было служебное сообщение, пропускаем
-        if (update.bids.empty() && update.asks.empty()) return;
-
-        // 2. Анализируем стакан на наличие КРУПНЫХ заявок
-
-        // Проверяем Bids (Покупатели)
-        for (const auto& level : update.bids) {
-            if (level.quantity >= DENSITY_THRESHOLD) {
-                std::cout << "\n[!!!] ПЛОТНОСТЬ НА ПОКУПКУ: "
-                    << level.quantity << " BTC по цене " << level.price << std::endl;
-            }
-        }
-
-        // Проверяем Asks (Продавцы)
-        for (const auto& level : update.asks) {
-            if (level.quantity >= DENSITY_THRESHOLD) {
-                std::cout << "\n[!!!] ПЛОТНОСТЬ НА ПРОДАЖУ: "
-                    << level.quantity << " BTC по цене " << level.price << std::endl;
-            }
-        }
-
-        // Просто чтобы видеть, что бот жив, выводим лучший бид иногда
-        // (std::cout работает быстро, но не мгновенно, позже уберем лишний вывод)
-        if (!update.bids.empty()) {
-            std::cout << "\rBest Bid: " << update.bids[0].price << "   " << std::flush;
-        }
+        std::cout << "[MSG] " << data << std::endl;
         };
 
+    // Запускаем подключение
     client.Connect("btcusdt");
 
     return 0;
