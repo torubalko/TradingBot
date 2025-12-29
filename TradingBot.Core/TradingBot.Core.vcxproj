@@ -32,6 +32,7 @@
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
     <ClInclude Include="OrderBook.h" />
+    <ClInclude Include="SharedState.h" />
     <ClInclude Include="Types.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

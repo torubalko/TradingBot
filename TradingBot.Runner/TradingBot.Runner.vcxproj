@@ -110,7 +110,7 @@
       <AdditionalIncludeDirectories>C:\BOT\TradingBot\TradingBot.Core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -126,11 +126,12 @@
       <AdditionalIncludeDirectories>C:\BOT\TradingBot\TradingBot.Core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="TradingBot.Runner.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -140,6 +141,9 @@
     <ProjectReference Include="..\TradingBot.Core\TradingBot.Core.vcxproj">
       <Project>{4bea9901-e0a0-4e3d-9c6b-6154638b19dc}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Graphics.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

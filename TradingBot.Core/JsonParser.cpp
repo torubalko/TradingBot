@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 namespace TradingBot::Core::Utils {
 
@@ -19,8 +20,9 @@ namespace TradingBot::Core::Utils {
                     std::string sPrice = pairStr.substr(1, comma - 2);
                     std::string sVol = pairStr.substr(comma + 2);
 
-                    if (!sVol.empty() && sVol.back() == '"') sVol.pop_back();
-                    if (!sVol.empty() && sVol.front() == '"') sVol.erase(0, 1);
+                    // Чистим кавычки (они есть в стриме, но могут отсутствовать в числах REST API)
+                    sPrice.erase(remove(sPrice.begin(), sPrice.end(), '\"'), sPrice.end());
+                    sVol.erase(remove(sVol.begin(), sVol.end(), '\"'), sVol.end());
 
                     levels.push_back({ std::stod(sPrice), std::stod(sVol) });
                 }
@@ -33,24 +35,20 @@ namespace TradingBot::Core::Utils {
     Models::OrderBookUpdate JsonParser::ParseDepthUpdate(const std::string& json) {
         Models::OrderBookUpdate update;
 
-        // --- АДАПТАЦИЯ ПОД TIGER (COMBINED STREAMS) ---
-        // Ищем поле "data", где лежит настоящий стакан
-        size_t dataPos = json.find("\"data\"");
-        size_t startSearch = 0;
+        // 1. Пробуем найти короткие ключи (WebSocket)
+        size_t bidsPos = json.find("\"b\":[");
+        if (bidsPos == std::string::npos) bidsPos = json.find("\"bids\":["); // Пробуем длинные (REST)
 
-        if (dataPos != std::string::npos) {
-            startSearch = dataPos; // Если нашли обертку, ищем внутри неё
-        }
-        // -----------------------------------------------
-
-        size_t bidsPos = json.find("\"b\"", startSearch); // Ищем "b" (bids)
         if (bidsPos != std::string::npos) {
             size_t closeBracket = json.find("]]", bidsPos);
             if (closeBracket != std::string::npos)
                 ParseLevels(json.substr(bidsPos, closeBracket - bidsPos), update.bids);
         }
 
-        size_t asksPos = json.find("\"a\"", startSearch); // Ищем "a" (asks)
+        // 2. Пробуем найти аски
+        size_t asksPos = json.find("\"a\":[");
+        if (asksPos == std::string::npos) asksPos = json.find("\"asks\":["); // Пробуем длинные (REST)
+
         if (asksPos != std::string::npos) {
             size_t closeBracket = json.find("]]", asksPos);
             if (closeBracket != std::string::npos)
@@ -59,11 +57,12 @@ namespace TradingBot::Core::Utils {
         return update;
     }
 
+    // Для снимка используем ту же логику, так как структура похожа
     Models::OrderBookSnapshot JsonParser::ParseSnapshot(const std::string& json) {
-        // Снапшоты пока не меняем, они приходят по HTTP
         Models::OrderBookSnapshot snap;
-        // (Логика снапшота остается старой, так как это HTTP запрос, а не WS)
-        // ... код для снапшота такой же ...
+        auto update = ParseDepthUpdate(json);
+        snap.bids = update.bids;
+        snap.asks = update.asks;
         return snap;
     }
 }

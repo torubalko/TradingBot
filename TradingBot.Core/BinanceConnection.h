@@ -1,13 +1,11 @@
 #pragma once
-
 #include <string>
-#include <functional>
 #include <memory>
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
-#include <boost/beast/websocket/ssl.hpp>
 #include <boost/asio/strand.hpp>
+#include "SharedState.h"
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -20,17 +18,21 @@ namespace TradingBot::Core::Network {
 
     class BinanceConnection {
     public:
-        BinanceConnection();
+        // Конструктор принимает указатель на SharedState
+        BinanceConnection(std::shared_ptr<SharedState> state);
         ~BinanceConnection();
 
-        // useTestnet = true  -> Подключение к тестовой сети (деньги ненастоящие)
-        // useTestnet = false -> Подключение к реальной бирже (по умолчанию)
         void Connect(const std::string& symbol, bool useTestnet = false);
+        void Stop();
 
+        // Callback больше не обязателен, так как мы пишем сразу в State, 
+        // но оставим для совместимости, если нужен.
         std::function<void(const std::string&)> OnMessage;
 
     private:
+        std::shared_ptr<SharedState> state_;
         net::io_context ioc_;
         ssl::context ctx_{ ssl::context::tlsv12_client };
+        bool running_ = true;
     };
 }
