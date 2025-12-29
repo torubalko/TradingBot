@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include <cmath> 
+#include <cmath>
 #include <boost/beast/core.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
@@ -22,17 +22,25 @@
 using namespace TradingBot::Core;
 using namespace TradingBot::Core::Network;
 
+// Глобальные переменные
 std::unique_ptr<Graphics> g_Graphics;
 std::shared_ptr<SharedState> g_SharedState;
 std::atomic<bool> g_Running(true);
 
-// Форматирование цен
+// --- УПРАВЛЕНИЕ СЖАТИЕМ ---
+// Базовый шаг цены (для BTC это 0.1)
+// В идеале его надо брать из InstrumentInfo, но пока зададим жестко для BTC
+const double BASE_TICK_SIZE = 0.1;
+
+// Текущий множитель сжатия (1, 2, 5, 10, 20, 50, 100...)
+int g_ScaleIndex = 0;
+std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 };
+
 std::wstring FormatPrice(double price) {
     std::wstringstream ss;
     ss << std::fixed;
     double roundedPrice = price;
 
-    // Округляем, чтобы убрать шум (95123.4999 -> 95123.5)
     if (price >= 1000.0) {
         roundedPrice = std::round(price * 10.0) / 10.0;
         ss << std::setprecision(1) << roundedPrice;
@@ -68,10 +76,28 @@ void NetworkThreadFunc() {
     }
 }
 
+// Обработчик сообщений (Здесь ловим колесико)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
+    case WM_MOUSEWHEEL:
+    {
+        // Получаем направление прокрутки
+        short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (zDelta > 0) {
+            // Крутим от себя -> Сжимаем стакан (увеличиваем индекс)
+            if (g_ScaleIndex < g_Scales.size() - 1) g_ScaleIndex++;
+        }
+        else {
+            // Крутим к себе -> Разжимаем стакан
+            if (g_ScaleIndex > 0) g_ScaleIndex--;
+        }
+    }
+    return 0;
     case WM_SIZE: return 0;
-    case WM_DESTROY: PostQuitMessage(0); g_Running = false; return 0;
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        g_Running = false;
+        return 0;
     }
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
@@ -100,7 +126,13 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         else {
             g_Graphics->BeginFrame(0.12f, 0.12f, 0.14f);
 
-            auto snap = g_SharedState->GetSnapshotForRender(60);
+            // 1. Вычисляем текущий шаг цены
+            // Scale = 1 -> шаг 0.1
+            // Scale = 10 -> шаг 1.0 (агрегация x10)
+            double currentStep = BASE_TICK_SIZE * g_Scales[g_ScaleIndex];
+
+            // 2. Получаем уже сжатые данные
+            auto snap = g_SharedState->GetSnapshotForRender(60, currentStep);
 
             double maxVol = 1.0;
             for (auto& p : snap.Bids) if (p.second > maxVol) maxVol = p.second;
@@ -109,21 +141,18 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
             float screenHeight = g_Graphics->GetHeight();
             float screenWidth = g_Graphics->GetWidth();
-
-            // ЦЕНТР ЭКРАНА
             float centerY = screenHeight / 2.0f;
-            float rowHeight = 22.0f; // Высота строки
 
-            // === РИСУЕМ ЖЕЛТУЮ ЛИНИЮ СПРЕДА ===
-            // Рисуем прямоугольник высотой 2px прямо по центру
+            float rowHeight = 22.0f;
+            float gap = 2.0f;
+
+            // --- РИСУЕМ ЖЕЛТУЮ ЛИНИЮ СПРЕДА ---
             g_Graphics->DrawRectPixels(0, centerY - 1.0f, screenWidth, 2.0f, 1.0f, 0.8f, 0.0f, 0.8f);
 
-            // --- 1. ASKS (ВВЕРХ от желтой линии) ---
-            // Начинаем рисовать сразу НАД линией
+            // --- 1. ASKS (ВВЕРХ) ---
             float currentY = centerY - rowHeight - 2.0f;
-
             for (const auto& level : snap.Asks) {
-                if (currentY < -rowHeight) break; // Ушли за экран
+                if (currentY < -rowHeight) break;
 
                 float width = (float)((level.second / maxVol) * (screenWidth * 0.8f));
                 if (width > screenWidth - 20) width = screenWidth - 20;
@@ -138,10 +167,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                 currentY -= rowHeight;
             }
 
-            // --- 2. BIDS (ВНИЗ от желтой линии) ---
-            // Начинаем рисовать сразу ПОД линией
+            // --- 2. BIDS (ВНИЗ) ---
             currentY = centerY + 2.0f;
-
             for (const auto& level : snap.Bids) {
                 if (currentY > screenHeight) break;
 
@@ -157,6 +184,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
                 currentY += rowHeight;
             }
+
+            // Можно нарисовать текущее сжатие где-то в углу для отладки
+            // (опционально)
 
             g_Graphics->EndFrame();
         }
