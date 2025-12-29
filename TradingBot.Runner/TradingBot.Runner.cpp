@@ -1,159 +1,118 @@
-﻿#include "BinanceConnection.h"
-#include "Graphics.h"
-#include "SharedState.h"
-#include <string>
-#include <thread>
-#include <vector>
-#include <cmath>
-#include <iostream>
+﻿// 1. СТАНДАРТНЫЕ БИБЛИОТЕКИ
 #include <atomic>
+#include <thread>
+#include <memory>
+#include <string>
+#include <vector>
 
-Graphics gfx;
-std::shared_ptr<TradingBot::Core::SharedState> sharedState;
-std::shared_ptr<TradingBot::Core::Network::BinanceConnection> client;
-std::atomic<bool> running{ true };
+// 2. BOOST
+#include <boost/beast/core.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind/bind.hpp>
 
-const bool DIGITS[10][7] = {
-    {1,1,1,0,1,1,1}, {0,0,1,0,0,1,0}, {1,0,1,1,1,0,1}, {1,0,1,1,0,1,1}, {0,1,1,1,0,1,0},
-    {1,1,0,1,0,1,1}, {1,1,0,1,1,1,1}, {1,0,1,0,0,1,0}, {1,1,1,1,1,1,1}, {1,1,1,1,0,1,1}
-};
+// 3. WINDOWS (Настройки для компиляции)
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
 
-void DrawDigit(float x, float y, int d, float size, float r, float g, float b) {
-    if (d < 0 || d > 9) return;
-    float t = size;
-    float len = size * 3.0f;
-    if (DIGITS[d][0]) gfx.DrawRect(x + t, y, len, t, r, g, b);
-    if (DIGITS[d][1]) gfx.DrawRect(x, y + t, t, len, r, g, b);
-    if (DIGITS[d][2]) gfx.DrawRect(x + len + t, y + t, t, len, r, g, b);
-    if (DIGITS[d][3]) gfx.DrawRect(x + t, y + len + t, len, t, r, g, b);
-    if (DIGITS[d][4]) gfx.DrawRect(x, y + len + 2 * t, t, len, r, g, b);
-    if (DIGITS[d][5]) gfx.DrawRect(x + len + t, y + len + 2 * t, t, len, r, g, b);
-    if (DIGITS[d][6]) gfx.DrawRect(x + t, y + 2 * len + 2 * t, len, t, r, g, b);
-}
+// 4. НАШИ ЗАГОЛОВКИ
+#include "Graphics.h"
+#include "../TradingBot.Core/SharedState.h"
+#include "../TradingBot.Core/BinanceConnection.h"
 
-void DrawNumber(float x, float y, double val, int precision, float size, float r, float g, float b) {
-    std::string s = std::to_string(val);
-    size_t dot = s.find('.');
-    if (dot != std::string::npos) s = s.substr(0, dot + 1 + precision);
-    float curX = x;
-    float step = size * 6.0f;
-    for (char c : s) {
-        if (c == '.') {
-            gfx.DrawRect(curX + size, y + size * 7, size, size, r, g, b);
-            curX += size * 3;
-        }
-        else {
-            DrawDigit(curX, y, c - '0', size, r, g, b);
-            curX += step;
+using namespace TradingBot::Core;
+using namespace TradingBot::Core::Network;
+
+// Глобальные переменные
+std::unique_ptr<Graphics> g_Graphics;
+std::shared_ptr<SharedState> g_SharedState;
+std::atomic<bool> g_Running(true);
+
+// Сетевой поток
+void NetworkThreadFunc() {
+    try {
+        boost::asio::io_context ioc;
+
+        // Заглушка, чтобы поток жил, пока мы тестируем графику
+        while (g_Running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
+    catch (const std::exception& e) {
+        OutputDebugStringA(e.what());
+    }
 }
 
-void Render() {
-   
-
-    auto snap = sharedState->GetSnapshotForRender(80);
-    int w = gfx.GetWidth();
-    int h = gfx.GetHeight();
-
-    gfx.BeginFrame(0.0f, 0.0f, 0.4f); // Тёмно-синий фон
-
-    gfx.DrawRect(100, 100, 300, 300, 1.0f, 0.0f, 0.0f); // Тестовый квадрат
-
-    if (snap.Asks.empty() && snap.Bids.empty()) {
-        gfx.EndFrame();
-        return;
-    }
-
-    float cy = h / 2.0f;
-    float rowH = 22.0f;
-    float fontSz = 1.0f;
-    float maxVol = 2.0f;
-    float priceX = w - 90.0f;
-    float volW = w - 100.0f;
-
-    // Asks
-    for (size_t i = 0; i < snap.Asks.size(); ++i) {
-        float y = cy - (i + 1) * rowH;
-        if (y < -rowH) continue;
-        double p = snap.Asks[i].first;
-        double v = snap.Asks[i].second;
-        float barLen = (float)((v / maxVol) * volW);
-        if (barLen > volW) barLen = volW;
-        gfx.DrawRect(0, y, (float)w, 1, 0.2f, 0.2f, 0.2f);
-        gfx.DrawRect(priceX - barLen - 10, y + 2, barLen, rowH - 4, 0.8f, 0.2f, 0.2f);
-        DrawNumber(priceX, y + 5, p, 1, fontSz, 1.0f, 1.0f, 1.0f);
-        if (v > 0.01) DrawNumber(priceX - barLen - 50, y + 5, v, 3, fontSz, 0.7f, 0.7f, 0.7f);
-    }
-
-    // Bids
-    for (size_t i = 0; i < snap.Bids.size(); ++i) {
-        float y = cy + i * rowH;
-        if (y > h) break;
-        double p = snap.Bids[i].first;
-        double v = snap.Bids[i].second;
-        float barLen = (float)((v / maxVol) * volW);
-        if (barLen > volW) barLen = volW;
-        gfx.DrawRect(0, y, (float)w, 1, 0.2f, 0.2f, 0.2f);
-        gfx.DrawRect(priceX - barLen - 10, y + 2, barLen, rowH - 4, 0.2f, 0.8f, 0.2f);
-        DrawNumber(priceX, y + 5, p, 1, fontSz, 1.0f, 1.0f, 1.0f);
-        if (v > 0.01) DrawNumber(priceX - barLen - 50, y + 5, v, 3, fontSz, 0.7f, 0.7f, 0.7f);
-    }
-
-    gfx.DrawRect(0, cy - 1, (float)w, 3, 1.0f, 1.0f, 0.0f); // Спред
-
-    gfx.EndFrame();
-}
-
-LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    if (uMsg == WM_CLOSE || uMsg == WM_DESTROY) {
-        running = false;
+// Обработчик сообщений
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+    case WM_SIZE:
+        return 0;
+    case WM_DESTROY:
         PostQuitMessage(0);
+        g_Running = false;
         return 0;
     }
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-int RunBot(HINSTANCE hInstance) {
-    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_OWNDC, WndProc, 0, 0, hInstance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"TigerBotClass", nullptr };
+// ТОЧКА ВХОДА
+int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
+    // 1. Инициализация логики
+    g_SharedState = std::make_shared<SharedState>();
+
+    // 2. Старт сети
+    std::thread networkThread(NetworkThreadFunc);
+
+    // 3. Регистрация класса окна
+    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"TigerBotZone", NULL };
     RegisterClassEx(&wc);
 
-    int scrW = GetSystemMetrics(SM_CXSCREEN);
-    int scrH = GetSystemMetrics(SM_CYSCREEN);
-    int winW = 500;
-    int winH = 900;
+    // 4. Создание окна
+    HWND hWnd = CreateWindow(L"TigerBotZone", L"TigerBot HFT (DX11)",
+        WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800,
+        NULL, NULL, wc.hInstance, NULL);
 
-    HWND hwnd = CreateWindowEx(0, L"TigerBotClass", L"TIGER X - DIRECTX ENGINE",
-        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        (scrW - winW) / 2, (scrH - winH) / 2, winW, winH,
-        nullptr, nullptr, hInstance, nullptr);
+    // 5. Инициализация Графики
+    g_Graphics = std::make_unique<Graphics>();
+    if (!g_Graphics->Initialize(hWnd)) {
+        MessageBox(NULL, L"DirectX 11 Init Failed", L"Error", MB_ICONERROR);
 
-    if (!gfx.Initialize(hwnd, winW, winH)) return -1;
+        // ВАЖНОЕ ДОПОЛНЕНИЕ: Если графика не стартанула, нужно тоже остановить поток, иначе краш
+        g_Running = false;
+        if (networkThread.joinable()) {
+            networkThread.join();
+        }
 
-    sharedState = std::make_shared<TradingBot::Core::SharedState>();
-    client = std::make_shared<TradingBot::Core::Network::BinanceConnection>(sharedState);
+        return 1;
+    }
 
-    std::thread netThread([&]() { client->Connect("btcusdt", false); });
-    netThread.detach();
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
 
-    MSG msg = {};
-    while (running) {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            if (msg.message == WM_QUIT) break;
+    // 6. Главный цикл
+    MSG msg;
+    ZeroMemory(&msg, sizeof(msg));
+
+    while (msg.message != WM_QUIT) {
+        if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
         else {
-            Render();
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            // --- РЕНДЕР ---
+            g_Graphics->BeginFrame(0.0f, 0.2f, 0.5f);
+            g_Graphics->DrawRect(-0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f);
+            g_Graphics->EndFrame();
         }
     }
 
-    client->Stop();
-    
-    return 0;
-}
+    // 7. ЗАВЕРШЕНИЕ РАБОТЫ (ИСПРАВЛЕНИЕ КРАША)
+    g_Running = false; // Сигнализируем потоку на выход
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
-    return RunBot(hInstance);
+    if (networkThread.joinable()) {
+        networkThread.join(); // Ждем, пока поток завершится
+    }
+
+    return (int)msg.wParam;
 }
