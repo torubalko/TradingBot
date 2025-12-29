@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <cmath> 
 #include <boost/beast/core.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
@@ -25,6 +26,35 @@ std::unique_ptr<Graphics> g_Graphics;
 std::shared_ptr<SharedState> g_SharedState;
 std::atomic<bool> g_Running(true);
 
+// Форматирование цен
+std::wstring FormatPrice(double price) {
+    std::wstringstream ss;
+    ss << std::fixed;
+    double roundedPrice = price;
+
+    // Округляем, чтобы убрать шум (95123.4999 -> 95123.5)
+    if (price >= 1000.0) {
+        roundedPrice = std::round(price * 10.0) / 10.0;
+        ss << std::setprecision(1) << roundedPrice;
+    }
+    else if (price >= 10.0) {
+        roundedPrice = std::round(price * 100.0) / 100.0;
+        ss << std::setprecision(2) << roundedPrice;
+    }
+    else if (price >= 1.0) {
+        roundedPrice = std::round(price * 1000.0) / 1000.0;
+        ss << std::setprecision(3) << roundedPrice;
+    }
+    else if (price < 0.001) {
+        ss << std::setprecision(8) << price;
+    }
+    else {
+        roundedPrice = std::round(price * 100000.0) / 100000.0;
+        ss << std::setprecision(5) << roundedPrice;
+    }
+    return ss.str();
+}
+
 void NetworkThreadFunc() {
     while (g_Running) {
         try {
@@ -32,8 +62,7 @@ void NetworkThreadFunc() {
             connection->Connect("BTCUSDT", false);
         }
         catch (const std::exception& e) {
-            std::string err = "[NET ERROR] "; err += e.what(); err += "\n";
-            OutputDebugStringA(err.c_str());
+            OutputDebugStringA(e.what());
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
     }
@@ -71,50 +100,62 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         else {
             g_Graphics->BeginFrame(0.12f, 0.12f, 0.14f);
 
-            auto snap = g_SharedState->GetSnapshotForRender(50); // Берем 50 уровней
+            auto snap = g_SharedState->GetSnapshotForRender(60);
 
-            // Расчет масштаба
             double maxVol = 1.0;
             for (auto& p : snap.Bids) if (p.second > maxVol) maxVol = p.second;
             for (auto& p : snap.Asks) if (p.second > maxVol) maxVol = p.second;
-            if (maxVol < 100) maxVol = 100; // Минимальный масштаб, чтобы не дергалось на пустом рынке
+            if (maxVol < 100) maxVol = 100;
 
-            float barHeight = 0.04f;
-            float startX = -0.98f;
-            float gap = 0.002f; // Стык в стык
+            float screenHeight = g_Graphics->GetHeight();
+            float screenWidth = g_Graphics->GetWidth();
 
-            // --- 1. ASKS (Рисуем ВВЕРХ от центра) ---
-            float currentY = gap;
+            // ЦЕНТР ЭКРАНА
+            float centerY = screenHeight / 2.0f;
+            float rowHeight = 22.0f; // Высота строки
+
+            // === РИСУЕМ ЖЕЛТУЮ ЛИНИЮ СПРЕДА ===
+            // Рисуем прямоугольник высотой 2px прямо по центру
+            g_Graphics->DrawRectPixels(0, centerY - 1.0f, screenWidth, 2.0f, 1.0f, 0.8f, 0.0f, 0.8f);
+
+            // --- 1. ASKS (ВВЕРХ от желтой линии) ---
+            // Начинаем рисовать сразу НАД линией
+            float currentY = centerY - rowHeight - 2.0f;
+
             for (const auto& level : snap.Asks) {
-                float width = (float)((level.second / maxVol) * 1.5f);
-                if (width > 1.9f) width = 1.9f; // Ограничитель ширины
+                if (currentY < -rowHeight) break; // Ушли за экран
 
-                // Красный фон
-                g_Graphics->DrawRect(startX, currentY + barHeight, width, barHeight - 0.002f, 0.8f, 0.25f, 0.25f, 1.0f);
+                float width = (float)((level.second / maxVol) * (screenWidth * 0.8f));
+                if (width > screenWidth - 20) width = screenWidth - 20;
+
+                g_Graphics->DrawRectPixels(0, currentY, width, rowHeight - 1.0f, 0.8f, 0.25f, 0.25f, 1.0f);
 
                 std::wstringstream ss;
-                ss << std::fixed << std::setprecision(1) << level.first << L"  " << (int)level.second;
+                ss << FormatPrice(level.first) << L"  " << (int)std::round(level.second);
 
-                g_Graphics->DrawTextString(ss.str(), startX + 0.02f, currentY + barHeight, barHeight - 0.002f, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+                g_Graphics->DrawTextPixels(ss.str(), 10.0f, currentY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 
-                currentY += barHeight;
+                currentY -= rowHeight;
             }
 
-            // --- 2. BIDS (Рисуем ВНИЗ от центра) ---
-            currentY = -gap;
-            for (const auto& level : snap.Bids) {
-                float width = (float)((level.second / maxVol) * 1.5f);
-                if (width > 1.9f) width = 1.9f;
+            // --- 2. BIDS (ВНИЗ от желтой линии) ---
+            // Начинаем рисовать сразу ПОД линией
+            currentY = centerY + 2.0f;
 
-                // Зеленый фон
-                g_Graphics->DrawRect(startX, currentY, width, barHeight - 0.002f, 0.25f, 0.8f, 0.25f, 1.0f);
+            for (const auto& level : snap.Bids) {
+                if (currentY > screenHeight) break;
+
+                float width = (float)((level.second / maxVol) * (screenWidth * 0.8f));
+                if (width > screenWidth - 20) width = screenWidth - 20;
+
+                g_Graphics->DrawRectPixels(0, currentY, width, rowHeight - 1.0f, 0.25f, 0.8f, 0.25f, 1.0f);
 
                 std::wstringstream ss;
-                ss << std::fixed << std::setprecision(1) << level.first << L"  " << (int)level.second;
+                ss << FormatPrice(level.first) << L"  " << (int)std::round(level.second);
 
-                g_Graphics->DrawTextString(ss.str(), startX + 0.02f, currentY, barHeight - 0.002f, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+                g_Graphics->DrawTextPixels(ss.str(), 10.0f, currentY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 
-                currentY -= barHeight;
+                currentY += rowHeight;
             }
 
             g_Graphics->EndFrame();
