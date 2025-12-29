@@ -56,5 +56,8 @@
     <ClInclude Include="HttpClient.h">
       <Filter>Network</Filter>
     </ClInclude>
+    <ClInclude Include="SharedState.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
