@@ -4,70 +4,63 @@
 namespace TradingBot::Core::Network {
 
     BinanceConnection::BinanceConnection() {
-        // Загружаем сертификаты по умолчанию, чтобы доверять серверу Binance
         ctx_.set_default_verify_paths();
     }
 
     BinanceConnection::~BinanceConnection() {
-        // Деструктор
     }
 
-    void BinanceConnection::Connect(const std::string& symbol) {
+    void BinanceConnection::Connect(const std::string& symbol, bool useTestnet) {
         try {
-            // Адрес Binance Futures
-            auto const host = "fstream.binance.com";
+            std::string host;
+            if (useTestnet) {
+                host = "stream.binancefuture.com";
+            }
+            else {
+                host = "fstream.binance.com";
+            }
+
+            // САМЫЙ СЫРОЙ ПОТОК: diff-depth (все изменения стакана)
+            // Он не вешает сеть как depth500, но дает данные по всей глубине.
+            std::string target = "/stream?streams=" + symbol + "@depth@100ms";
+
             auto const port = "443";
-
-            // Формируем запрос: подписка на стакан (Depth)
-            // @depth20@100ms = топ 20 цен, обновление 10 раз в секунду
-            std::string target = "/ws/" + symbol + "@depth20@100ms";
-
-            // 1. Находим IP адрес сервера
             tcp::resolver resolver(ioc_);
             auto const results = resolver.resolve(host, port);
 
-            // 2. Создаем защищенный WebSocket поток
             websocket::stream<beast::ssl_stream<tcp::socket>> ws(ioc_, ctx_);
-
-            // 3. Подключаемся по TCP (физическое соединение)
             auto ep = net::connect(get_lowest_layer(ws), results);
 
-            // 4. Настраиваем SSL (обязательно указываем имя хоста - SNI)
-            if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host))
-                throw beast::system_error(
-                    beast::error_code(static_cast<int>(::ERR_get_error()),
-                        net::error::get_ssl_category()),
-                    "Failed to set SNI Hostname");
+            // Тюнинг буфера (оставляем 1МБ, чтобы наверняка)
+            net::socket_base::receive_buffer_size option(1024 * 1024);
+            get_lowest_layer(ws).set_option(option);
 
-            // Выполняем SSL рукопожатие (шифрование включено)
+            if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str()))
+                throw beast::system_error(beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()), "Failed to set SNI");
+
             ws.next_layer().handshake(ssl::stream_base::client);
 
-            // 5. Выполняем WebSocket рукопожатие (протокол обновлен)
-            std::string host_header = std::string(host) + ":" + std::to_string(ep.port());
+            std::string host_header = host + ":" + std::to_string(ep.port());
+
+            std::cout << "Connecting to: " << host << std::endl;
+            std::cout << "Target: " << target << std::endl;
+
             ws.handshake(host_header, target);
 
-            std::cout << "[Network] CONNECTED to Binance Futures: " << symbol << std::endl;
+            std::cout << ">>> CONNECTED. RAW DATA STREAM STARTED.\n" << std::endl;
 
-            // 6. Бесконечный цикл чтения данных
             beast::flat_buffer buffer;
             while (true) {
-                // Ждем и читаем сообщение
                 ws.read(buffer);
-
-                // Превращаем в строку
                 std::string msg = beast::buffers_to_string(buffer.data());
 
-                // Если кто-то подписался на сообщения - передаем ему
-                if (OnMessage) {
-                    OnMessage(msg);
-                }
+                if (OnMessage) OnMessage(msg);
 
-                // Очищаем буфер перед следующим сообщением
                 buffer.consume(buffer.size());
             }
         }
         catch (std::exception const& e) {
-            std::cerr << "[ERROR] Network error: " << e.what() << std::endl;
+            std::cerr << "Error: " << e.what() << std::endl;
         }
     }
 }

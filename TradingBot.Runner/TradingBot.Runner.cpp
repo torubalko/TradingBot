@@ -2,25 +2,23 @@
 #include <string>
 #include "BinanceConnection.h"
 
-// Убираем лишние инклуды парсера, так как нам нужен только сырой вывод
-
 int main() {
-    // Настраиваем консоль (русский язык + точка как разделитель для надежности)
-    setlocale(LC_ALL, "ru_RU.UTF-8");
-    setlocale(LC_NUMERIC, "C");
+    // Отключаем синхронизацию для скорости вывода в консоль
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+    setlocale(LC_ALL, "C");
 
-    std::cout << "=== РЕЖИМ СЫРОГО ПОТОКА (RAW STREAM) ===" << std::endl;
-    std::cout << "Подключение к Binance Futures..." << std::endl;
+    std::cout << "=== RAW DATA MONITOR ===" << std::endl;
 
     TradingBot::Core::Network::BinanceConnection client;
 
-    // В этот раз мы не парсим JSON, а просто выводим строку как есть
     client.OnMessage = [](const std::string& data) {
-        std::cout << "[MSG] " << data << std::endl;
+        // Просто выводим сырую строку JSON
+        std::cout << data << std::endl;
         };
 
-    // Запускаем подключение
-    client.Connect("btcusdt");
+    // false = Реальный Binance
+    client.Connect("btcusdt", false);
 
     return 0;
 }
