@@ -1,7 +1,8 @@
 #pragma once
 #include <string>
 #include <memory>
-#include <functional> // Grok просил добавить
+#include <vector>
+#include <functional>
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
@@ -25,8 +26,10 @@ namespace TradingBot::Core::Network {
         void Connect(const std::string& symbol, bool useTestnet = false);
         void Stop();
 
+        // НОВОЕ: Статический метод для получения списка монет (HTTP)
+        static std::vector<SymbolInfo> GetExchangeInfo(MarketMode mode);
+
     private:
-        // Теперь это приватный метод класса, а не "висячая" функция
         void DownloadSnapshot(const std::string& symbol, bool useTestnet);
 
     private:

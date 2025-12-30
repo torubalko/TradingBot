@@ -2,22 +2,28 @@
 #include <map>
 #include <mutex>
 #include <vector>
-#include <deque> // Для очереди сделок
+#include <deque>
 #include <algorithm>
 #include <cmath>
 #include "Types.h" 
 
 namespace TradingBot::Core {
 
+    // Делаем структуру публичной и видимой
     struct RenderSnapshot {
         std::vector<std::pair<double, double>> Bids;
         std::vector<std::pair<double, double>> Asks;
-        // НОВОЕ: Сделки для отрисовки
         std::vector<Trade> RecentTrades;
     };
 
     class SharedState {
     public:
+        // --- Рыночные данные ---
+        // НОВОЕ: Хранение списка монет и режима
+        MarketMode currentMode = MarketMode::FUTURES;
+        std::vector<SymbolInfo> availableSymbols;
+        SymbolInfo currentSymbol;
+
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
             const std::vector<OrderBookLevel>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -33,19 +39,17 @@ namespace TradingBot::Core {
             }
         }
 
-        // НОВОЕ: Добавляем сделку в историю
         void AddTrade(const Trade& trade) {
             std::lock_guard<std::mutex> lock(mutex_);
             trades_.push_back(trade);
-            // Храним только последние 100, чтобы не забивать память
             if (trades_.size() > 100) trades_.pop_front();
         }
 
-        // Ваш текущий метод с агрегацией (без изменений логики, только копирование сделок)
         RenderSnapshot GetSnapshotForRender(int depth, double priceStep) {
             std::lock_guard<std::mutex> lock(mutex_);
             RenderSnapshot snap;
 
+            // Агрегация стакана (логика без изменений)
             std::map<double, double> aggBids;
             std::map<double, double> aggAsks;
 
@@ -82,9 +86,7 @@ namespace TradingBot::Core {
                 snap.Bids.push_back({ price, vol });
             }
 
-            // НОВОЕ: Копируем сделки в снапшот
             snap.RecentTrades.assign(trades_.begin(), trades_.end());
-
             return snap;
         }
 
@@ -92,7 +94,6 @@ namespace TradingBot::Core {
         std::mutex mutex_;
         std::map<double, double> Bids;
         std::map<double, double> Asks;
-        // НОВОЕ: Буфер сделок
         std::deque<Trade> trades_;
     };
 }
