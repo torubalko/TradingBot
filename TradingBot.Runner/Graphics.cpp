@@ -187,6 +187,25 @@ void Graphics::DrawCirclePixels(float centerX, float centerY, float radius, floa
     D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radius, radius);
     d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
 }
+// ... (предыдущий код DrawCirclePixels) ...
+
+void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a) {
+    if (!isD2DDrawing) {
+        FlushBatch();
+        d2dRenderTarget->BeginDraw();
+        isD2DDrawing = true;
+    }
+
+    d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
+
+    // –исуем эллипс (овал)
+    D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radiusX, radiusY);
+    d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
+
+    // ќбводка (чуть темнее или €рче, дл€ красоты, как в Tiger)
+    d2dBrush->SetColor(D2D1::ColorF(r * 1.2f, g * 1.2f, b * 1.2f, a + 0.1f));
+    d2dRenderTarget->DrawEllipse(ellipse, d2dBrush.Get(), 1.0f);
+}
 
 void Graphics::EndFrame() {
     FlushBatch();

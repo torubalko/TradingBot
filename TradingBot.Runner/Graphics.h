@@ -25,16 +25,16 @@ public:
 
     void DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a);
 
-    // Стандартный текст (слева)
+    // Текст
     void DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a);
-
-    // НОВОЕ: Текст по центру (для пузырьков)
     void DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a);
-
-    // НОВОЕ: Измерение ширины текста (как в Tiger)
     float MeasureTextWidth(const std::wstring& text, float fontSize);
 
+    // Круг (для обычных сделок)
     void DrawCirclePixels(float centerX, float centerY, float radius, float r, float g, float b, float a);
+
+    // НОВОЕ: Овал (Эллипс) для растянутых сделок
+    void DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a);
 
     float GetHeight() const { return height_; }
     float GetWidth() const { return width_; }
@@ -61,8 +61,8 @@ private:
     ComPtr<ID2D1SolidColorBrush> d2dBrush;
 
     ComPtr<IDWriteFactory> writeFactory;
-    ComPtr<IDWriteTextFormat> textFormat;       // Обычный (Left)
-    ComPtr<IDWriteTextFormat> textFormatCenter; // НОВЫЙ (Center)
+    ComPtr<IDWriteTextFormat> textFormat;
+    ComPtr<IDWriteTextFormat> textFormatCenter;
 
     std::vector<Vertex> batchVertices;
     static const int MAX_VERTICES = 4096;
