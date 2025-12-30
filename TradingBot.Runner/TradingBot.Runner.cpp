@@ -22,17 +22,11 @@
 using namespace TradingBot::Core;
 using namespace TradingBot::Core::Network;
 
-// Глобальные переменные
 std::unique_ptr<Graphics> g_Graphics;
 std::shared_ptr<SharedState> g_SharedState;
 std::atomic<bool> g_Running(true);
 
-// --- УПРАВЛЕНИЕ СЖАТИЕМ ---
-// Базовый шаг цены (для BTC это 0.1)
-// В идеале его надо брать из InstrumentInfo, но пока зададим жестко для BTC
 const double BASE_TICK_SIZE = 0.1;
-
-// Текущий множитель сжатия (1, 2, 5, 10, 20, 50, 100...)
 int g_ScaleIndex = 0;
 std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 };
 
@@ -76,19 +70,15 @@ void NetworkThreadFunc() {
     }
 }
 
-// Обработчик сообщений (Здесь ловим колесико)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
     case WM_MOUSEWHEEL:
     {
-        // Получаем направление прокрутки
         short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
         if (zDelta > 0) {
-            // Крутим от себя -> Сжимаем стакан (увеличиваем индекс)
             if (g_ScaleIndex < g_Scales.size() - 1) g_ScaleIndex++;
         }
         else {
-            // Крутим к себе -> Разжимаем стакан
             if (g_ScaleIndex > 0) g_ScaleIndex--;
         }
     }
@@ -126,12 +116,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         else {
             g_Graphics->BeginFrame(0.12f, 0.12f, 0.14f);
 
-            // 1. Вычисляем текущий шаг цены
-            // Scale = 1 -> шаг 0.1
-            // Scale = 10 -> шаг 1.0 (агрегация x10)
             double currentStep = BASE_TICK_SIZE * g_Scales[g_ScaleIndex];
-
-            // 2. Получаем уже сжатые данные
             auto snap = g_SharedState->GetSnapshotForRender(60, currentStep);
 
             double maxVol = 1.0;
@@ -146,47 +131,89 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             float rowHeight = 22.0f;
             float gap = 2.0f;
 
-            // --- РИСУЕМ ЖЕЛТУЮ ЛИНИЮ СПРЕДА ---
+            // --- ЖЕЛТАЯ ЛИНИЯ ---
             g_Graphics->DrawRectPixels(0, centerY - 1.0f, screenWidth, 2.0f, 1.0f, 0.8f, 0.0f, 0.8f);
 
-            // --- 1. ASKS (ВВЕРХ) ---
+            // --- 1. ASKS ---
             float currentY = centerY - rowHeight - 2.0f;
             for (const auto& level : snap.Asks) {
                 if (currentY < -rowHeight) break;
-
                 float width = (float)((level.second / maxVol) * (screenWidth * 0.8f));
                 if (width > screenWidth - 20) width = screenWidth - 20;
-
                 g_Graphics->DrawRectPixels(0, currentY, width, rowHeight - 1.0f, 0.8f, 0.25f, 0.25f, 1.0f);
-
                 std::wstringstream ss;
                 ss << FormatPrice(level.first) << L"  " << (int)std::round(level.second);
-
                 g_Graphics->DrawTextPixels(ss.str(), 10.0f, currentY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-
                 currentY -= rowHeight;
             }
 
-            // --- 2. BIDS (ВНИЗ) ---
+            // --- 2. BIDS ---
             currentY = centerY + 2.0f;
             for (const auto& level : snap.Bids) {
                 if (currentY > screenHeight) break;
-
                 float width = (float)((level.second / maxVol) * (screenWidth * 0.8f));
                 if (width > screenWidth - 20) width = screenWidth - 20;
-
                 g_Graphics->DrawRectPixels(0, currentY, width, rowHeight - 1.0f, 0.25f, 0.8f, 0.25f, 1.0f);
-
                 std::wstringstream ss;
                 ss << FormatPrice(level.first) << L"  " << (int)std::round(level.second);
-
                 g_Graphics->DrawTextPixels(ss.str(), 10.0f, currentY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-
                 currentY += rowHeight;
             }
 
-            // Можно нарисовать текущее сжатие где-то в углу для отладки
-            // (опционально)
+            // --- 3. НОВОЕ: СДЕЛКИ КАК В TIGER TRADE ---
+            for (const auto& trade : snap.RecentTrades) {
+                float tradeY = -9999.0f;
+
+                // 3.1 Поиск Y
+                for (size_t i = 0; i < snap.Asks.size(); ++i) {
+                    double aggPrice = std::ceil(trade.price / currentStep - 0.000001) * currentStep;
+                    if (std::abs(snap.Asks[i].first - aggPrice) < 0.00001) {
+                        tradeY = (centerY - 2.0f) - (i * rowHeight) + (rowHeight / 2.0f);
+                        break;
+                    }
+                }
+                if (tradeY == -9999.0f) {
+                    for (size_t i = 0; i < snap.Bids.size(); ++i) {
+                        double aggPrice = std::floor(trade.price / currentStep + 0.000001) * currentStep;
+                        if (std::abs(snap.Bids[i].first - aggPrice) < 0.00001) {
+                            tradeY = (centerY + 2.0f) + (i * rowHeight) + (rowHeight / 2.0f);
+                            break;
+                        }
+                    }
+                }
+
+                if (tradeY > 0 && tradeY < screenHeight) {
+                    // 3.2 Формируем текст объема (как в Tiger)
+                    std::wstringstream tradeSS;
+                    tradeSS << (int)trade.quantity;
+                    std::wstring tradeText = tradeSS.str();
+
+                    // 3.3 Считаем радиус от размера текста (Секрет Tiger)
+                    // Радиус = половина ширины текста + небольшой отступ
+                    float textWidth = g_Graphics->MeasureTextWidth(tradeText, 11.0f);
+                    float radius = (textWidth / 2.0f) + 4.0f;
+
+                    // Минимальный размер, чтобы выглядело как круг
+                    if (radius < 10.0f) radius = 10.0f;
+                    // Максимум - не больше высоты строки
+                    if (radius > rowHeight / 1.8f) radius = rowHeight / 1.8f;
+
+                    // 3.4 Цвета из Tiger Trade (Полупрозрачные)
+                    float r, g, b, a = 0.5f; // Alpha ~127
+                    if (trade.isBuyerMaker) { // Продажа (Sell) - Красный
+                        r = 178.0f / 255.0f; g = 34.0f / 255.0f; b = 34.0f / 255.0f;
+                    }
+                    else { // Покупка (Buy) - Синий/Голубой
+                        r = 70.0f / 255.0f; g = 130.0f / 255.0f; b = 180.0f / 255.0f;
+                    }
+
+                    // 3.5 Рисуем
+                    float bubbleX = screenWidth - 50.0f;
+                    g_Graphics->DrawCirclePixels(bubbleX, tradeY, radius, r, g, b, a);
+                    // Белый текст внутри
+                    g_Graphics->DrawTextCentered(tradeText, bubbleX, tradeY, 11.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+                }
+            }
 
             g_Graphics->EndFrame();
         }

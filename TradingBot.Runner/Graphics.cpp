@@ -69,18 +69,15 @@ bool Graphics::Initialize(HWND hWnd) {
     d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
     d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
 
-    writeFactory->CreateTextFormat(
-        L"Segoe UI", NULL,
-        DWRITE_FONT_WEIGHT_SEMI_BOLD,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        12.0f,
-        L"en-us",
-        &textFormat
-    );
-    // Важно: Центрируем по вертикали
+    // Формат для стакана (Слева)
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 12.0f, L"en-us", &textFormat);
     textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+
+    // НОВОЕ: Формат для пузырьков (Центр)
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 11.0f, L"en-us", &textFormatCenter);
+    textFormatCenter->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    textFormatCenter->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
     D3D11_VIEWPORT vp = { 0, 0, width_, height_, 0.0f, 1.0f };
     context->RSSetViewports(1, &vp);
@@ -136,27 +133,15 @@ void Graphics::FlushBatch() {
     batchVertices.clear();
 }
 
-// === КОНВЕРТАЦИЯ ПИКСЕЛЕЙ В GPU КООРДИНАТЫ ===
-float Graphics::PixelToNdcX(float x) {
-    // 0 -> -1, Width -> 1
-    return (x / width_) * 2.0f - 1.0f;
-}
+float Graphics::PixelToNdcX(float x) { return (x / width_) * 2.0f - 1.0f; }
+float Graphics::PixelToNdcY(float y) { return 1.0f - (y / height_) * 2.0f; }
 
-float Graphics::PixelToNdcY(float y) {
-    // 0 -> 1, Height -> -1 (Y перевернут в DirectX)
-    return 1.0f - (y / height_) * 2.0f;
-}
-
-// === РИСОВАНИЕ ПРЯМОУГОЛЬНИКА ПО ПИКСЕЛЯМ ===
 void Graphics::DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a) {
     if (batchVertices.size() + 6 >= MAX_VERTICES) FlushBatch();
-
-    // Конвертируем границы из пикселей в -1..1
     float left = PixelToNdcX(x);
     float right = PixelToNdcX(x + w);
     float top = PixelToNdcY(y);
     float bottom = PixelToNdcY(y + h);
-
     batchVertices.push_back({ left,  bottom, 0, r,g,b,a });
     batchVertices.push_back({ left,  top,    0, r,g,b,a });
     batchVertices.push_back({ right, bottom, 0, r,g,b,a });
@@ -165,18 +150,42 @@ void Graphics::DrawRectPixels(float x, float y, float w, float h, float r, float
     batchVertices.push_back({ right, top,    0, r,g,b,a });
 }
 
-// === РИСОВАНИЕ ТЕКСТА ПО ПИКСЕЛЯМ ===
 void Graphics::DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a) {
     FlushBatch();
     if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
+    d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
+    D2D1_RECT_F layoutRect = D2D1::RectF(x, y - 2.0f, x + w, y + h - 2.0f);
+    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormat.Get(), layoutRect, d2dBrush.Get());
+}
 
+// === НОВОЕ: РИСОВАНИЕ ТЕКСТА ПО ЦЕНТРУ ===
+void Graphics::DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a) {
+    FlushBatch();
+    if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
 
-    // В Direct2D координаты пиксельные по умолчанию (0,0 - левый верх)
-    // Немного сдвигаем текст вверх (-1.0f), чтобы компенсировать отступы шрифта
-    D2D1_RECT_F layoutRect = D2D1::RectF(x, y - 2.0f, x + w, y + h - 2.0f);
+    // Рисуем прямоугольник вокруг центра, текст выровняется сам
+    float halfSize = 50.0f;
+    D2D1_RECT_F layoutRect = D2D1::RectF(centerX - halfSize, centerY - halfSize, centerX + halfSize, centerY + halfSize);
 
-    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormat.Get(), layoutRect, d2dBrush.Get());
+    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), layoutRect, d2dBrush.Get());
+}
+
+// === НОВОЕ: ИЗМЕРЕНИЕ ТЕКСТА ===
+float Graphics::MeasureTextWidth(const std::wstring& text, float fontSize) {
+    ComPtr<IDWriteTextLayout> layout;
+    writeFactory->CreateTextLayout(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), 1000.0f, 1000.0f, &layout);
+    DWRITE_TEXT_METRICS metrics;
+    layout->GetMetrics(&metrics);
+    return metrics.width;
+}
+
+void Graphics::DrawCirclePixels(float centerX, float centerY, float radius, float r, float g, float b, float a) {
+    FlushBatch();
+    if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
+    d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
+    D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radius, radius);
+    d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
 }
 
 void Graphics::EndFrame() {

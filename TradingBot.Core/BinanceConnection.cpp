@@ -1,10 +1,13 @@
 #include "BinanceConnection.h"
 #include "JsonParser.h"
-#include "Types.h"  // <--- ВАЖНО: Добавили это, чтобы видеть OrderBookUpdate
+#include "Types.h"
 #include <iostream>
 #include <algorithm> 
 #include <cctype>    
 #include <boost/beast/http.hpp>
+// Добавляем для ручного разбора JSON
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 namespace TradingBot::Core::Network {
 
@@ -46,7 +49,6 @@ namespace TradingBot::Core::Network {
             http::response<http::string_body> res;
             http::read(stream, buffer, res);
 
-            // JsonParser теперь должен возвращать Core::OrderBookSnapshot
             auto snap = Utils::JsonParser::ParseSnapshot(res.body());
 
             if (!snap.bids.empty()) {
@@ -71,7 +73,9 @@ namespace TradingBot::Core::Network {
 
         try {
             std::string host = useTestnet ? "stream.binancefuture.com" : "fstream.binance.com";
-            std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms";
+
+            // ИЗМЕНЕНИЕ: Комбинированный поток (стакан + сделки)
+            std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@trade";
 
             tcp::resolver resolver(ioc_);
             auto const results = resolver.resolve(host, "443");
@@ -89,14 +93,39 @@ namespace TradingBot::Core::Network {
             ws.handshake(host_header, target);
 
             beast::flat_buffer buffer;
+            namespace pt = boost::property_tree;
+
             while (running_) {
                 ws.read(buffer);
                 std::string msg = beast::buffers_to_string(buffer.data());
 
-                // Здесь возникала ошибка C2027, потому что компилятор не знал структуру update
-                // Теперь, благодаря #include "Types.h", он знает поля .bids и .asks
-                auto update = Utils::JsonParser::ParseDepthUpdate(msg);
-                state_->ApplyUpdate(update.bids, update.asks);
+                try {
+                    pt::ptree root;
+                    std::stringstream ss; ss << msg;
+                    pt::read_json(ss, root);
+
+                    if (root.count("stream")) {
+                        std::string streamName = root.get<std::string>("stream");
+
+                        // 1. ДАННЫЕ СТАКАНА
+                        if (streamName.find("@depth") != std::string::npos) {
+                            auto update = Utils::JsonParser::ParseDepthUpdate(msg);
+                            state_->ApplyUpdate(update.bids, update.asks);
+                        }
+                        // 2. ДАННЫЕ СДЕЛОК
+                        else if (streamName.find("@trade") != std::string::npos) {
+                            pt::ptree data = root.get_child("data");
+                            Trade trade;
+                            trade.price = std::stod(data.get<std::string>("p"));
+                            trade.quantity = std::stod(data.get<std::string>("q"));
+                            trade.isBuyerMaker = data.get<bool>("m"); // true = продажа
+                            trade.timestamp = data.get<long long>("T");
+
+                            state_->AddTrade(trade);
+                        }
+                    }
+                }
+                catch (...) {}
 
                 buffer.consume(buffer.size());
             }

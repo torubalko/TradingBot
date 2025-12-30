@@ -23,11 +23,19 @@ public:
     void BeginFrame(float r, float g, float b);
     void EndFrame();
 
-    // Новые методы для рисования в ПИКСЕЛЯХ
     void DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a);
+
+    // Стандартный текст (слева)
     void DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a);
 
-    // Получить высоту экрана в пикселях
+    // НОВОЕ: Текст по центру (для пузырьков)
+    void DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a);
+
+    // НОВОЕ: Измерение ширины текста (как в Tiger)
+    float MeasureTextWidth(const std::wstring& text, float fontSize);
+
+    void DrawCirclePixels(float centerX, float centerY, float radius, float r, float g, float b, float a);
+
     float GetHeight() const { return height_; }
     float GetWidth() const { return width_; }
 
@@ -35,7 +43,6 @@ private:
     void FlushBatch();
     void CreateShaders();
 
-    // Хелпер для перевода пикселей в координаты DirectX (-1..1)
     float PixelToNdcX(float x);
     float PixelToNdcY(float y);
 
@@ -52,14 +59,15 @@ private:
     ComPtr<ID2D1Factory> d2dFactory;
     ComPtr<ID2D1RenderTarget> d2dRenderTarget;
     ComPtr<ID2D1SolidColorBrush> d2dBrush;
+
     ComPtr<IDWriteFactory> writeFactory;
-    ComPtr<IDWriteTextFormat> textFormat;
+    ComPtr<IDWriteTextFormat> textFormat;       // Обычный (Left)
+    ComPtr<IDWriteTextFormat> textFormatCenter; // НОВЫЙ (Center)
 
     std::vector<Vertex> batchVertices;
     static const int MAX_VERTICES = 4096;
     bool isD2DDrawing = false;
 
-    // Размеры экрана
     float width_ = 0.0f;
     float height_ = 0.0f;
 };

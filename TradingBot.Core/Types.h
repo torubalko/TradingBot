@@ -18,11 +18,18 @@ namespace TradingBot::Core {
     };
 
     // Структура для Обновления (WebSocket)
-    // Именно на неё ругался компилятор (C2027), так как не видел её определения
     struct OrderBookUpdate {
         long long u; // Final update ID
         long long U; // First update ID
         std::vector<OrderBookLevel> bids;
         std::vector<OrderBookLevel> asks;
+    };
+
+    // --- НОВОЕ: Структура для сделки (Bubbles) ---
+    struct Trade {
+        double price;
+        double quantity;
+        bool isBuyerMaker;   // true = продажа (красный), false = покупка (зеленый)
+        long long timestamp; // Время сделки
     };
 }
