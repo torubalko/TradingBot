@@ -1,35 +1,49 @@
 #pragma once
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace TradingBot::Core {
 
-    // Базовая структура уровня цены
+    // Режим рынка
+    enum class MarketMode {
+        SPOT,
+        FUTURES
+    };
+
+    struct SymbolInfo {
+        std::string symbol;
+        double tickSize;
+        int pricePrecision;
+        double stepSize;
+        std::string quoteAsset;
+    };
+
+    struct Trade {
+        long id;
+        double price;
+        double quantity;
+        bool isBuyerMaker;
+        long long timestamp;
+    };
+
     struct OrderBookLevel {
         double price;
         double quantity;
     };
 
-    // Структура для Снапшота (REST)
-    struct OrderBookSnapshot {
+    // Полный снимок стакана (Snapshot)
+    struct OrderBook {
         long long lastUpdateId;
         std::vector<OrderBookLevel> bids;
         std::vector<OrderBookLevel> asks;
     };
 
-    // Структура для Обновления (WebSocket)
+    // Обновление стакана (Delta)
     struct OrderBookUpdate {
-        long long u; // Final update ID
         long long U; // First update ID
+        long long u; // Final update ID
+        long long pu; // Previous final update ID (важно для синхронизации)
         std::vector<OrderBookLevel> bids;
         std::vector<OrderBookLevel> asks;
-    };
-
-    // --- НОВОЕ: Структура для сделки (Bubbles) ---
-    struct Trade {
-        double price;
-        double quantity;
-        bool isBuyerMaker;   // true = продажа (красный), false = покупка (зеленый)
-        long long timestamp; // Время сделки
     };
 }

@@ -1,19 +1,11 @@
 #pragma once
 #include <string>
 #include <memory>
-#include <functional> // Grok просил добавить
-#include <boost/beast/core.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/websocket.hpp>
-#include <boost/asio/strand.hpp>
+#include <thread>
+#include <atomic>
+#include <vector>
 #include "SharedState.h"
-
-namespace beast = boost::beast;
-namespace http = beast::http;
-namespace websocket = beast::websocket;
-namespace net = boost::asio;
-namespace ssl = boost::asio::ssl;
-using tcp = boost::asio::ip::tcp;
+#include "Types.h"
 
 namespace TradingBot::Core::Network {
 
@@ -22,17 +14,22 @@ namespace TradingBot::Core::Network {
         BinanceConnection(std::shared_ptr<SharedState> state);
         ~BinanceConnection();
 
-        void Connect(const std::string& symbol, bool useTestnet = false);
-        void Stop();
+        // Добавлен параметр mode
+        void Connect(const std::string& symbol, MarketMode mode);
+        void Disconnect();
+
+        // Статический метод для получения списка монет (HTTP)
+        static std::vector<SymbolInfo> GetExchangeInfo(MarketMode mode);
 
     private:
-        // Теперь это приватный метод класса, а не "висячая" функция
-        void DownloadSnapshot(const std::string& symbol, bool useTestnet);
+        void WebSocketThread(const std::string& symbol, MarketMode mode);
+        void DownloadSnapshot(const std::string& symbol, MarketMode mode);
 
-    private:
+        // Вспомогательный метод для HTTP запросов
+        static std::string PerformHttpRequest(const std::string& host, const std::string& path);
+
         std::shared_ptr<SharedState> state_;
-        net::io_context ioc_;
-        ssl::context ctx_{ ssl::context::tlsv12_client };
-        bool running_ = true;
+        std::atomic<bool> running_;
+        std::thread wsThread_;
     };
 }
