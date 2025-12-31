@@ -1,4 +1,5 @@
 #pragma once
+
 #include <d3d11.h>
 #include <d2d1.h>
 #include <dwrite.h>
@@ -20,31 +21,34 @@ public:
     ~Graphics();
 
     bool Initialize(HWND hWnd);
+
     void BeginFrame(float r, float g, float b);
     void EndFrame();
 
-    void DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a);
+    void DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a = 1.0f);
 
-    // Текст
-    void DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a);
-    void DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a);
+    void DrawTextPixels(const std::wstring& text, float x, float y, float w, float h,
+        float fontSize, float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
+
+    void DrawTextCentered(const std::wstring& text, float centerX, float centerY,
+        float fontSize, float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
+
     float MeasureTextWidth(const std::wstring& text, float fontSize);
 
-    // Круг (для обычных сделок)
-    void DrawCirclePixels(float centerX, float centerY, float radius, float r, float g, float b, float a);
+    void DrawCirclePixels(float centerX, float centerY, float radius,
+        float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
 
-    // НОВОЕ: Овал (Эллипс) для растянутых сделок
-    void DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a);
+    void DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY,
+        float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
 
-    float GetHeight() const { return height_; }
     float GetWidth() const { return width_; }
+    float GetHeight() const { return height_; }
 
 private:
     void FlushBatch();
     void CreateShaders();
-
-    float PixelToNdcX(float x);
-    float PixelToNdcY(float y);
+    float PixelToNdcX(float x) const;
+    float PixelToNdcY(float y) const;
 
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
@@ -65,7 +69,8 @@ private:
     ComPtr<IDWriteTextFormat> textFormatCenter;
 
     std::vector<Vertex> batchVertices;
-    static const int MAX_VERTICES = 4096;
+    static constexpr int MAX_VERTICES = 4096;
+
     bool isD2DDrawing = false;
 
     float width_ = 0.0f;

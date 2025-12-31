@@ -1,47 +1,69 @@
 #include "BinanceConnection.h"
 #include "JsonParser.h"
-#include "Types.h"
 #include <iostream>
-#include <algorithm> 
-#include <cctype>    
+#include <boost/beast/core.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/websocket.hpp>
 #include <boost/beast/http.hpp>
-// Добавляем для ручного разбора JSON
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/stream.hpp>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+namespace beast = boost::beast;
+namespace http = beast::http;
+namespace websocket = beast::websocket;
+namespace net = boost::asio;
+namespace ssl = boost::asio::ssl;
+using tcp = net::ip::tcp;
 
 namespace TradingBot::Core::Network {
 
     BinanceConnection::BinanceConnection(std::shared_ptr<SharedState> state)
-        : state_(state) {
-        ctx_.set_verify_mode(boost::asio::ssl::verify_none);
+        : state_(state), running_(false) {
     }
 
     BinanceConnection::~BinanceConnection() {
-        Stop();
+        Disconnect();
     }
 
-    void BinanceConnection::Stop() {
+    void BinanceConnection::Disconnect() {
         running_ = false;
-        if (!ioc_.stopped()) ioc_.stop();
+        if (wsThread_.joinable()) wsThread_.join();
     }
 
-    void BinanceConnection::DownloadSnapshot(const std::string& symbol, bool useTestnet) {
+    void BinanceConnection::Connect(const std::string& symbol, MarketMode mode) {
+        Disconnect();
+        running_ = true;
+        // Запускаем поток для WebSocket
+        wsThread_ = std::thread(&BinanceConnection::WebSocketThread, this, symbol, mode);
+    }
+
+    // --- HTTP REQUEST HELPER (Synchronous) ---
+    std::string BinanceConnection::PerformHttpRequest(const std::string& host, const std::string& path) {
         try {
-            std::string host = useTestnet ? "testnet.binancefuture.com" : "fapi.binance.com";
-            std::string target = "/fapi/v1/depth?symbol=" + symbol + "&limit=1000";
+            net::io_context ioc;
+            ssl::context ctx(ssl::context::tlsv12_client);
+            ctx.set_verify_mode(ssl::verify_none); // Для простоты отключаем строгую проверку
 
-            tcp::resolver resolver(ioc_);
-            beast::ssl_stream<beast::tcp_stream> stream(ioc_, ctx_);
+            tcp::resolver resolver(ioc);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
 
-            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) return;
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) {
+                throw beast::system_error(
+                    beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()),
+                    "Failed to set SNI Hostname");
+            }
 
             auto const results = resolver.resolve(host, "443");
             beast::get_lowest_layer(stream).connect(results);
             stream.handshake(ssl::stream_base::client);
 
-            http::request<http::string_body> req{ http::verb::get, target, 11 };
+            http::request<http::string_body> req{ http::verb::get, path, 11 };
             req.set(http::field::host, host);
-            req.set(http::field::user_agent, "TigerBot/1.0");
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
             http::write(stream, req);
 
@@ -49,90 +71,116 @@ namespace TradingBot::Core::Network {
             http::response<http::string_body> res;
             http::read(stream, buffer, res);
 
-            auto snap = Utils::JsonParser::ParseSnapshot(res.body());
-
-            if (!snap.bids.empty()) {
-                state_->ApplyUpdate(snap.bids, snap.asks);
-            }
-
             beast::error_code ec;
-            stream.shutdown(ec);
+            stream.shutdown(ec); // Gracefully close
+
+            return res.body();
         }
-        catch (std::exception const& e) {
-            std::cerr << "[Snapshot Error] " << e.what() << std::endl;
+        catch (std::exception& e) {
+            std::cerr << "HTTP Error: " << e.what() << std::endl;
+            return "";
         }
     }
 
-    void BinanceConnection::Connect(const std::string& symbol, bool useTestnet) {
-        std::string upperSymbol = symbol;
-        std::string lowerSymbol = symbol;
-        std::transform(upperSymbol.begin(), upperSymbol.end(), upperSymbol.begin(), ::toupper);
-        std::transform(lowerSymbol.begin(), lowerSymbol.end(), lowerSymbol.begin(), ::tolower);
+    void BinanceConnection::DownloadSnapshot(const std::string& symbol, MarketMode mode) {
+        std::string host = (mode == MarketMode::FUTURES) ? "fapi.binance.com" : "api.binance.com";
+        std::string path = (mode == MarketMode::FUTURES) ? "/fapi/v1/depth" : "/api/v3/depth";
 
-        DownloadSnapshot(upperSymbol, useTestnet);
+        // Загружаем 1000 уровней для точности
+        path += "?symbol=" + symbol + "&limit=1000";
 
+        std::string json = PerformHttpRequest(host, path);
+        if (!json.empty()) {
+            // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ПАРСЕРА
+            auto snapshot = JsonParser::ParseSnapshot(json);
+
+            // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД STATE
+            state_->SetSnapshot(snapshot);
+            std::cout << "Snapshot loaded for " << symbol << std::endl;
+        }
+    }
+
+    std::vector<SymbolInfo> BinanceConnection::GetExchangeInfo(MarketMode mode) {
+        std::string host = (mode == MarketMode::FUTURES) ? "fapi.binance.com" : "api.binance.com";
+        std::string path = (mode == MarketMode::FUTURES) ? "/fapi/v1/exchangeInfo" : "/api/v3/exchangeInfo";
+
+        std::string json = PerformHttpRequest(host, path);
+        return JsonParser::ParseExchangeInfo(json);
+    }
+
+    void BinanceConnection::WebSocketThread(const std::string& symbol, MarketMode mode) {
+        // 1. Сначала качаем снимок (Snapshot)
+        DownloadSnapshot(symbol, mode);
+
+        // 2. Подключаемся к WebSocket
         try {
-            std::string host = useTestnet ? "stream.binancefuture.com" : "fstream.binance.com";
+            std::string host = (mode == MarketMode::FUTURES) ? "fstream.binance.com" : "stream.binance.com";
+            std::string port = "443";
 
-            // ИЗМЕНЕНИЕ: Комбинированный поток (стакан + сделки)
-            std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@trade";
+            // Приводим символ к нижнему регистру для стрима (btcusdt)
+            std::string lowerSymbol = symbol;
+            std::transform(lowerSymbol.begin(), lowerSymbol.end(), lowerSymbol.begin(), ::tolower);
 
-            tcp::resolver resolver(ioc_);
-            auto const results = resolver.resolve(host, "443");
+            // Подписываемся на diffDepth (быстрые обновления) и trade (сделки)
+            std::string path = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@aggTrade";
 
-            websocket::stream<beast::ssl_stream<tcp::socket>> ws(ioc_, ctx_);
-            auto ep = net::connect(get_lowest_layer(ws), results);
-            net::socket_base::receive_buffer_size option(8192 * 8);
-            get_lowest_layer(ws).set_option(option);
+            net::io_context ioc;
+            ssl::context ctx(ssl::context::tlsv12_client);
+            ctx.set_verify_mode(ssl::verify_none);
 
-            if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str()))
-                throw std::runtime_error("SNI Error");
+            tcp::resolver resolver(ioc);
+            websocket::stream<beast::ssl_stream<tcp::socket>> ws(ioc, ctx);
 
+            if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) {
+                throw beast::system_error(beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()));
+            }
+
+            auto const results = resolver.resolve(host, port);
+            net::connect(beast::get_lowest_layer(ws), results);
             ws.next_layer().handshake(ssl::stream_base::client);
-            std::string host_header = host + ":" + std::to_string(ep.port());
-            ws.handshake(host_header, target);
+
+            // Handshake с путем
+            ws.handshake(host, path);
 
             beast::flat_buffer buffer;
-            namespace pt = boost::property_tree;
-
             while (running_) {
                 ws.read(buffer);
                 std::string msg = beast::buffers_to_string(buffer.data());
+                buffer.consume(buffer.size()); // Очистка буфера
 
-                try {
-                    pt::ptree root;
-                    std::stringstream ss; ss << msg;
-                    pt::read_json(ss, root);
-
-                    if (root.count("stream")) {
-                        std::string streamName = root.get<std::string>("stream");
-
-                        // 1. ДАННЫЕ СТАКАНА
-                        if (streamName.find("@depth") != std::string::npos) {
-                            auto update = Utils::JsonParser::ParseDepthUpdate(msg);
-                            state_->ApplyUpdate(update.bids, update.asks);
-                        }
-                        // 2. ДАННЫЕ СДЕЛОК
-                        else if (streamName.find("@trade") != std::string::npos) {
-                            pt::ptree data = root.get_child("data");
-                            Trade trade;
-                            trade.price = std::stod(data.get<std::string>("p"));
-                            trade.quantity = std::stod(data.get<std::string>("q"));
-                            trade.isBuyerMaker = data.get<bool>("m"); // true = продажа
-                            trade.timestamp = data.get<long long>("T");
-
-                            state_->AddTrade(trade);
-                        }
-                    }
+                // Определяем тип сообщения (простая проверка строки)
+                if (msg.find("depthUpdate") != std::string::npos) {
+                    // ЭТО И БЫЛО МЕСТО ОШИБКИ C2660
+                    // Теперь мы получаем структуру Update и передаем её целиком
+                    auto update = JsonParser::ParseDepthUpdate(msg);
+                    state_->ApplyUpdate(update);
                 }
-                catch (...) {}
+                else if (msg.find("aggTrade") != std::string::npos) {
+                    // Парсинг сделок можно добавить в JsonParser, 
+                    // но для краткости пока оставим или добавим по необходимости.
+                    // Для примера - простейший ручной парсинг или игнор, 
+                    // если в Parser нет метода ParseTrade.
+                    // Если нужно добавить пузыри - нужно реализовать ParseTrade.
 
-                buffer.consume(buffer.size());
+                    // Пример быстрого парсинга сделки "на лету" (лучше вынести в Parser):
+                    try {
+                        auto j = nlohmann::json::parse(msg);
+                        auto data = j.contains("data") ? j["data"] : j;
+                        Trade t;
+                        t.id = data["a"];
+                        t.price = std::stod(data["p"].get<std::string>());
+                        t.quantity = std::stod(data["q"].get<std::string>());
+                        t.isBuyerMaker = data["m"];
+                        t.timestamp = data["T"];
+                        state_->AddTrade(t);
+                    }
+                    catch (...) {}
+                }
             }
+            ws.close(websocket::close_code::normal);
         }
-        catch (std::exception const& e) {
-            std::cerr << "[WS Error] " << e.what() << std::endl;
-            throw;
+        catch (std::exception& e) {
+            std::cerr << "WebSocket Error: " << e.what() << std::endl;
         }
     }
 }

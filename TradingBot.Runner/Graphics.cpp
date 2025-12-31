@@ -29,7 +29,7 @@ Graphics::Graphics() {
     batchVertices.reserve(MAX_VERTICES);
 }
 
-Graphics::~Graphics() {}
+Graphics::~Graphics() = default;
 
 bool Graphics::Initialize(HWND hWnd) {
     RECT rc;
@@ -69,12 +69,10 @@ bool Graphics::Initialize(HWND hWnd) {
     d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
     d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
 
-    // Формат для стакана (Слева)
     writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 12.0f, L"en-us", &textFormat);
     textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
 
-    // НОВОЕ: Формат для пузырьков (Центр)
     writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 11.0f, L"en-us", &textFormatCenter);
     textFormatCenter->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     textFormatCenter->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
@@ -95,8 +93,10 @@ bool Graphics::Initialize(HWND hWnd) {
 }
 
 void Graphics::CreateShaders() {
-    ComPtr<ID3DBlob> vsBlob, psBlob;
-    D3DCompile(VS_SRC, strlen(VS_SRC), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &vsBlob, NULL);
+    ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
+
+    HRESULT hr = D3DCompile(VS_SRC, strlen(VS_SRC), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
+    if (FAILED(hr) && errorBlob) { /* можно логировать errorBlob */ }
     device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &vertexShader);
 
     D3D11_INPUT_ELEMENT_DESC ied[] = {
@@ -105,7 +105,8 @@ void Graphics::CreateShaders() {
     };
     device->CreateInputLayout(ied, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &inputLayout);
 
-    D3DCompile(PS_SRC, strlen(PS_SRC), NULL, NULL, NULL, "main", "ps_5_0", 0, 0, &psBlob, NULL);
+    hr = D3DCompile(PS_SRC, strlen(PS_SRC), NULL, NULL, NULL, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
+    if (FAILED(hr) && errorBlob) { /* можно логировать */ }
     device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &pixelShader);
 }
 
@@ -133,21 +134,25 @@ void Graphics::FlushBatch() {
     batchVertices.clear();
 }
 
-float Graphics::PixelToNdcX(float x) { return (x / width_) * 2.0f - 1.0f; }
-float Graphics::PixelToNdcY(float y) { return 1.0f - (y / height_) * 2.0f; }
+float Graphics::PixelToNdcX(float x) const { return (x / width_) * 2.0f - 1.0f; }
+float Graphics::PixelToNdcY(float y) const { return 1.0f - (y / height_) * 2.0f; }
 
 void Graphics::DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a) {
     if (batchVertices.size() + 6 >= MAX_VERTICES) FlushBatch();
+
     float left = PixelToNdcX(x);
     float right = PixelToNdcX(x + w);
     float top = PixelToNdcY(y);
     float bottom = PixelToNdcY(y + h);
-    batchVertices.push_back({ left,  bottom, 0, r,g,b,a });
-    batchVertices.push_back({ left,  top,    0, r,g,b,a });
-    batchVertices.push_back({ right, bottom, 0, r,g,b,a });
-    batchVertices.push_back({ right, bottom, 0, r,g,b,a });
-    batchVertices.push_back({ left,  top,    0, r,g,b,a });
-    batchVertices.push_back({ right, top,    0, r,g,b,a });
+
+    // Правильный порядок вершин (два треугольника)
+    batchVertices.push_back({ left,   top,    0, r, g, b, a });
+    batchVertices.push_back({ left,   bottom, 0, r, g, b, a });
+    batchVertices.push_back({ right,  bottom, 0, r, g, b, a });
+
+    batchVertices.push_back({ right,  bottom, 0, r, g, b, a });
+    batchVertices.push_back({ right,  top,    0, r, g, b, a });
+    batchVertices.push_back({ left,   top,    0, r, g, b, a });
 }
 
 void Graphics::DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a) {
@@ -158,23 +163,22 @@ void Graphics::DrawTextPixels(const std::wstring& text, float x, float y, float 
     d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormat.Get(), layoutRect, d2dBrush.Get());
 }
 
-// === НОВОЕ: РИСОВАНИЕ ТЕКСТА ПО ЦЕНТРУ ===
 void Graphics::DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a) {
     FlushBatch();
     if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
 
-    // Рисуем прямоугольник вокруг центра, текст выровняется сам
-    float halfSize = 50.0f;
-    D2D1_RECT_F layoutRect = D2D1::RectF(centerX - halfSize, centerY - halfSize, centerX + halfSize, centerY + halfSize);
+    float width = MeasureTextWidth(text, fontSize);
+    float height = fontSize + 4.0f; // приблизительно
 
+    D2D1_RECT_F layoutRect = D2D1::RectF(centerX - width / 2, centerY - height / 2,
+        centerX + width / 2, centerY + height / 2);
     d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), layoutRect, d2dBrush.Get());
 }
 
-// === НОВОЕ: ИЗМЕРЕНИЕ ТЕКСТА ===
 float Graphics::MeasureTextWidth(const std::wstring& text, float fontSize) {
     ComPtr<IDWriteTextLayout> layout;
-    writeFactory->CreateTextLayout(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), 1000.0f, 1000.0f, &layout);
+    writeFactory->CreateTextLayout(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), 10000.0f, 10000.0f, &layout);
     DWRITE_TEXT_METRICS metrics;
     layout->GetMetrics(&metrics);
     return metrics.width;
@@ -187,7 +191,6 @@ void Graphics::DrawCirclePixels(float centerX, float centerY, float radius, floa
     D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radius, radius);
     d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
 }
-// ... (предыдущий код DrawCirclePixels) ...
 
 void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a) {
     if (!isD2DDrawing) {
@@ -195,14 +198,10 @@ void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, fl
         d2dRenderTarget->BeginDraw();
         isD2DDrawing = true;
     }
-
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
-
-    // Рисуем эллипс (овал)
     D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radiusX, radiusY);
     d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
 
-    // Обводка (чуть темнее или ярче, для красоты, как в Tiger)
     d2dBrush->SetColor(D2D1::ColorF(r * 1.2f, g * 1.2f, b * 1.2f, a + 0.1f));
     d2dRenderTarget->DrawEllipse(ellipse, d2dBrush.Get(), 1.0f);
 }
