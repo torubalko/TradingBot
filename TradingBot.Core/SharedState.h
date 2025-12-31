@@ -2,22 +2,37 @@
 #include <map>
 #include <mutex>
 #include <vector>
-#include <deque> // Для очереди сделок
+#include <deque>
 #include <algorithm>
 #include <cmath>
-#include "Types.h" 
+
+// Подключаем наши определения
+#include "Types.h"
+#include "MarketDetails.h" // Здесь лежит struct TradingPair и struct MarketCache
+#include "OrderBook.h"     // Здесь лежит struct Trade и OrderBookLevel
 
 namespace TradingBot::Core {
 
     struct RenderSnapshot {
         std::vector<std::pair<double, double>> Bids;
         std::vector<std::pair<double, double>> Asks;
-        // НОВОЕ: Сделки для отрисовки
+        // Сделки для отрисовки
         std::vector<Trade> RecentTrades;
     };
 
     class SharedState {
     public:
+        // --- НОВЫЕ ДАННЫЕ (Список монет) ---
+        // Используем структуру MarketCache (она определена в MarketDetails.h)
+        // В ней лежат списки spotPairs и futuresPairs, а также флаг isLoaded
+        MarketCache marketData;
+
+        // Мьютекс для защиты доступа к данным
+        std::mutex instrumentsMutex;
+
+    public:
+        // --- СТАРЫЕ ДАННЫЕ (Логика стакана) ---
+
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
             const std::vector<OrderBookLevel>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -33,7 +48,7 @@ namespace TradingBot::Core {
             }
         }
 
-        // НОВОЕ: Добавляем сделку в историю
+        // Добавляем сделку в историю
         void AddTrade(const Trade& trade) {
             std::lock_guard<std::mutex> lock(mutex_);
             trades_.push_back(trade);
@@ -41,7 +56,7 @@ namespace TradingBot::Core {
             if (trades_.size() > 100) trades_.pop_front();
         }
 
-        // Ваш текущий метод с агрегацией (без изменений логики, только копирование сделок)
+        // Метод с агрегацией для рендера
         RenderSnapshot GetSnapshotForRender(int depth, double priceStep) {
             std::lock_guard<std::mutex> lock(mutex_);
             RenderSnapshot snap;
@@ -82,17 +97,16 @@ namespace TradingBot::Core {
                 snap.Bids.push_back({ price, vol });
             }
 
-            // НОВОЕ: Копируем сделки в снапшот
+            // Копируем сделки в снапшот
             snap.RecentTrades.assign(trades_.begin(), trades_.end());
 
             return snap;
         }
 
     private:
-        std::mutex mutex_;
+        std::mutex mutex_; // Мьютекс для стакана
         std::map<double, double> Bids;
         std::map<double, double> Asks;
-        // НОВОЕ: Буфер сделок
         std::deque<Trade> trades_;
     };
 }

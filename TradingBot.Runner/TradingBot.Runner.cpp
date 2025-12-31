@@ -21,6 +21,7 @@
 #include "Graphics.h"
 #include "../TradingBot.Core/SharedState.h"
 #include "../TradingBot.Core/BinanceConnection.h"
+#include "../TradingBot.Core/RestClient.h" // <--- НОВОЕ: Клиент для загрузки данных
 
 using namespace TradingBot::Core;
 using namespace TradingBot::Core::Network;
@@ -97,11 +98,36 @@ std::wstring FormatPercent(double pct) {
     return ss.str();
 }
 
+// --- СЕТЕВОЙ ПОТОК (ОБНОВЛЕННЫЙ) ---
 void NetworkThreadFunc() {
+    // 1. Сначала загружаем справочники (Список монет, TickSize)
+    try {
+        OutputDebugStringA("[TigerBot] Starting REST Client...\n");
+        RestClient restClient;
+        // Загружаем данные прямо в SharedState
+        restClient.LoadExchangeInfo(g_SharedState->marketData);
+
+        if (g_SharedState->marketData.isLoaded) {
+            OutputDebugStringA("[TigerBot] Market Data Loaded Successfully!\n");
+        }
+        else {
+            OutputDebugStringA("[TigerBot] Warning: Market Data is empty.\n");
+        }
+    }
+    catch (const std::exception& e) {
+        OutputDebugStringA("[TigerBot] REST Error: ");
+        OutputDebugStringA(e.what());
+        OutputDebugStringA("\n");
+    }
+
+    // 2. Затем запускаем бесконечный цикл WebSocket
     while (g_Running) {
         try {
+            // В будущем здесь будем брать пару из UI, пока хардкод
+            std::string currentPair = "BTCUSDT";
+
             auto connection = std::make_shared<BinanceConnection>(g_SharedState);
-            connection->Connect("BTCUSDT", false);
+            connection->Connect(currentPair, false); // false = Futures (пока заглушка, можно менять)
         }
         catch (const std::exception& e) {
             OutputDebugStringA(e.what());
@@ -212,8 +238,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"TigerBotZone", NULL };
     RegisterClassEx(&wc);
 
-    // --- ИЗМЕНЕНИЕ ВЫСОТЫ ---
-    // Ширина 1200, Высота 1200 (было 800)
+    // Размер окна: 1200x1200
     HWND hWnd = CreateWindow(L"TigerBotZone", L"TigerBot HFT", WS_OVERLAPPEDWINDOW, 100, 100, 1200, 1200, NULL, NULL, wc.hInstance, NULL);
 
     g_Graphics = std::make_unique<Graphics>();
@@ -231,13 +256,23 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         else {
             g_Graphics->BeginFrame(0.12f, 0.12f, 0.14f);
 
-            double currentStep = BASE_TICK_SIZE * g_Scales[g_ScaleIndex];
-            auto snap = g_SharedState->GetSnapshotForRender(60, currentStep);
-
-            float screenHeight = g_Graphics->GetHeight();
+            // --- ПАРАМЕТРЫ LAYOUT ---
             float screenWidth = g_Graphics->GetWidth();
-            float centerY = screenHeight / 2.0f;
+            float screenHeight = g_Graphics->GetHeight();
+            float headerHeight = 50.0f; // Высота шапки меню
+
+            // Рабочая область графика (все, что ниже шапки)
+            float chartAreaY = headerHeight;
+            float chartAreaHeight = screenHeight - headerHeight;
+
+            // Центр графика смещаем вниз, чтобы он был по центру рабочей области
+            float centerY = chartAreaY + (chartAreaHeight / 2.0f);
+
             float rowHeight = 22.0f;
+
+            // --- ЛОГИКА СТАКАНА ---
+            double currentStep = BASE_TICK_SIZE * g_Scales[g_ScaleIndex];
+            auto snap = g_SharedState->GetSnapshotForRender(80, currentStep); // depth увеличил до 80
 
             UpdateBubbles(snap.RecentTrades, currentStep);
 
@@ -265,9 +300,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             for (auto& p : snap.Asks) if (p.second > maxVol) maxVol = p.second;
             if (maxVol < 100) maxVol = 100;
 
+            // Линия спреда (Центр)
             g_Graphics->DrawRectPixels(0, centerY - 1.0f, screenWidth, 2.0f, 1.0f, 0.8f, 0.0f, 0.8f);
 
-            // ОТРИСОВКА
+            // ОТРИСОВКА СТАКАНА
             if (g_SmoothCenterPrice > 0) {
                 // ASKS
                 for (const auto& level : snap.Asks) {
@@ -275,7 +311,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     double rows = diff / currentStep;
                     float rectY = centerY - (float)(rows * rowHeight) - (rowHeight / 2.0f);
 
-                    if (rectY < -rowHeight || rectY > screenHeight) continue;
+                    // Оптимизация: не рисуем, если ушло за пределы экрана
+                    if (rectY < -headerHeight || rectY > screenHeight) continue;
 
                     float width = (float)((level.second / maxVol) * 280.0f);
                     g_Graphics->DrawRectPixels(0, rectY, width, rowHeight - 1.0f, 0.8f, 0.25f, 0.25f, 1.0f);
@@ -293,7 +330,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     double rows = diff / currentStep;
                     float rectY = centerY - (float)(rows * rowHeight) - (rowHeight / 2.0f);
 
-                    if (rectY < -rowHeight || rectY > screenHeight) continue;
+                    if (rectY < -headerHeight || rectY > screenHeight) continue;
 
                     float width = (float)((level.second / maxVol) * 280.0f);
                     g_Graphics->DrawRectPixels(0, rectY, width, rowHeight - 1.0f, 0.25f, 0.8f, 0.25f, 1.0f);
@@ -306,6 +343,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                 }
             }
 
+            // ПУЗЫРИ
             for (const auto& b : g_ActiveBubbles) {
                 float bubbleY = -9999.0f;
                 if (g_SmoothCenterPrice > 0) {
@@ -314,7 +352,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     bubbleY = (centerY)-(float)(rows * rowHeight);
                 }
 
-                if (bubbleY > -200 && bubbleY < screenHeight + 200 && b.xPosition < screenWidth + 100) {
+                if (bubbleY > headerHeight - 20 && bubbleY < screenHeight + 200 && b.xPosition < screenWidth + 100) {
                     float r = b.isBuyerMaker ? COL_SELL_R : COL_BUY_R;
                     float g = b.isBuyerMaker ? COL_SELL_G : COL_BUY_G;
                     float bl = b.isBuyerMaker ? COL_SELL_B : COL_BUY_B;
@@ -324,7 +362,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     float heightPx = (float)((spread / currentStep) * rowHeight);
                     if (heightPx < rowHeight) heightPx = rowHeight;
 
-                    // Минус 1.0f для микро-зазора
                     float radiusY = (heightPx / 2.0f) + radiusX - 1.0f;
 
                     g_Graphics->DrawEllipsePixels(b.xPosition, bubbleY, radiusX, radiusY, r, g, bl, 0.4f);
@@ -332,16 +369,16 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                 }
             }
 
+            // ПРАВАЯ ШКАЛА (%)
             if (g_SmoothCenterPrice > 0) {
-                // ПРАВАЯ ШКАЛА (%)
                 float rightScaleX = screenWidth - 60.0f;
-                g_Graphics->DrawRectPixels(rightScaleX, 0, 1.0f, screenHeight, 0.5f, 0.5f, 0.5f, 1.0f);
+                g_Graphics->DrawRectPixels(rightScaleX, headerHeight, 1.0f, screenHeight - headerHeight, 0.5f, 0.5f, 0.5f, 1.0f);
                 int rowsStep = 5;
 
                 // Вверх
                 for (int i = 0; ; i += rowsStep) {
                     float y = centerY - (i * rowHeight);
-                    if (y < 0) break;
+                    if (y < headerHeight) break; // Не рисуем поверх шапки
                     double pct = (i * currentStep / g_SmoothCenterPrice) * 100.0;
                     g_Graphics->DrawRectPixels(rightScaleX, y, 5.0f, 1.0f, 0.7f, 0.7f, 0.7f, 1.0f);
                     if (i > 0) g_Graphics->DrawTextPixels(FormatPercent(pct), rightScaleX + 8.0f, y - 6.0f, 50.0f, 12.0f, 10.0f, 0.8f, 0.8f, 0.8f, 1.0f);
@@ -354,13 +391,33 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     g_Graphics->DrawRectPixels(rightScaleX, y, 5.0f, 1.0f, 0.7f, 0.7f, 0.7f, 1.0f);
                     g_Graphics->DrawTextPixels(FormatPercent(pct), rightScaleX + 8.0f, y - 6.0f, 50.0f, 12.0f, 10.0f, 0.8f, 0.8f, 0.8f, 1.0f);
                 }
-
-                // ИНДИКАТОР МАСШТАБА
-                float scaleIndX = screenWidth - 160.0f;
-                std::wstringstream ssScale;
-                ssScale << L"Scale: x" << g_Scales[g_ScaleIndex];
-                g_Graphics->DrawTextPixels(ssScale.str(), scaleIndX, 10.0f, 100.0f, 20.0f, 16.0f, 1.0f, 1.0f, 1.0f, 1.0f);
             }
+
+            // --- ВЕРХНЕЕ МЕНЮ (HEADER) ---
+            // Рисуем в самом конце, чтобы перекрыть все, что могло заехать наверх
+
+            // 1. Фон шапки
+            g_Graphics->DrawRectPixels(0, 0, screenWidth, headerHeight, 0.1f, 0.1f, 0.12f, 1.0f);
+            // 2. Разделительная линия
+            g_Graphics->DrawRectPixels(0, headerHeight - 1.0f, screenWidth, 1.0f, 0.3f, 0.3f, 0.3f, 1.0f);
+
+            // 3. Кнопки SPOT / FUTURES
+            g_Graphics->DrawTextPixels(L"SPOT", 20, 15, 50, 20, 14, 0.6f, 0.6f, 0.6f, 1.0f); // Неактивный серый
+            g_Graphics->DrawTextPixels(L"FUTURES", 80, 15, 80, 20, 14, 1.0f, 0.8f, 0.2f, 1.0f); // Активный желтый
+
+            // 4. Кнопка выбора пары (Dropdown)
+            float dropX = 200.0f;
+            float dropY = 10.0f;
+            float dropW = 150.0f;
+            float dropH = 30.0f;
+
+            g_Graphics->DrawRectPixels(dropX, dropY, dropW, dropH, 0.2f, 0.2f, 0.25f, 1.0f); // Фон кнопки
+            g_Graphics->DrawTextPixels(L"BTCUSDT", dropX + 10.0f, dropY + 5.0f, 100.0f, 20.0f, 14, 1.0f, 1.0f, 1.0f, 1.0f);
+
+            // ИНДИКАТОР МАСШТАБА (Переместили в шапку справа)
+            std::wstringstream ssScale;
+            ssScale << L"Scale: x" << g_Scales[g_ScaleIndex];
+            g_Graphics->DrawTextPixels(ssScale.str(), screenWidth - 120.0f, 15.0f, 100.0f, 20.0f, 14, 0.7f, 0.7f, 0.7f, 1.0f);
 
             g_Graphics->EndFrame();
         }

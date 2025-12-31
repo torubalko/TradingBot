@@ -22,6 +22,7 @@
     <ClCompile Include="BinanceConnection.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="JsonParser.cpp" />
+    <ClCompile Include="RestClient.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -31,7 +32,9 @@
     <ClInclude Include="Environment.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
+    <ClInclude Include="MarketDetails.h" />
     <ClInclude Include="OrderBook.h" />
+    <ClInclude Include="RestClient.h" />
     <ClInclude Include="SharedState.h" />
     <ClInclude Include="Types.h" />
   </ItemGroup>
