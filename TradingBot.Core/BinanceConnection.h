@@ -1,35 +1,34 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <functional>
 #include <thread>
 #include <atomic>
-#include <vector>
+#include <boost/beast/core.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/asio/strand.hpp>
 #include "SharedState.h"
-#include "Types.h"
-
+namespace beast = boost::beast;
+namespace http = beast::http;
+namespace websocket = beast::websocket;
+namespace net = boost::asio;
+namespace ssl = boost::asio::ssl;
+using tcp = boost::asio::ip::tcp;
 namespace TradingBot::Core::Network {
-
     class BinanceConnection {
     public:
+        static std::vector<SymbolInfo> GetExchangeInfo(MarketMode mode);
         BinanceConnection(std::shared_ptr<SharedState> state);
         ~BinanceConnection();
-
-        // Добавлен параметр mode
         void Connect(const std::string& symbol, MarketMode mode);
         void Disconnect();
-
-        // Статический метод для получения списка монет (HTTP)
-        static std::vector<SymbolInfo> GetExchangeInfo(MarketMode mode);
-
     private:
-        void WebSocketThread(const std::string& symbol, MarketMode mode);
         void DownloadSnapshot(const std::string& symbol, MarketMode mode);
-
-        // Вспомогательный метод для HTTP запросов
-        static std::string PerformHttpRequest(const std::string& host, const std::string& path);
-
+        void WebSocketThread(const std::string& symbol, MarketMode mode);
+        std::string PerformHttpRequest(const std::string& host, const std::string& path);
         std::shared_ptr<SharedState> state_;
-        std::atomic<bool> running_;
         std::thread wsThread_;
+        std::atomic<bool> running_{ false };
     };
 }

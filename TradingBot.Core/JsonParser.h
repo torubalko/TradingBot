@@ -1,18 +1,14 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "Types.h" 
-
+#include "Types.h"
+#include "OrderBook.h"
 namespace TradingBot::Core {
-
     class JsonParser {
     public:
-        // Возвращает полный снимок
-        static OrderBook ParseSnapshot(const std::string& json);
-
-        // Возвращает структуру обновления (дельта)
-        static OrderBookUpdate ParseDepthUpdate(const std::string& json);
-
+        static Models::OrderBookSnapshot ParseSnapshot(const std::string& json);
+        static Models::OrderBookUpdate ParseDepthUpdate(const std::string& json);
+        static Trade ParseAggTrade(const std::string& json);
         static std::vector<SymbolInfo> ParseExchangeInfo(const std::string& json);
     };
 }
