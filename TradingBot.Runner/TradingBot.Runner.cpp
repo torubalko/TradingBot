@@ -1,265 +1,210 @@
-﻿#include "Graphics.h"
-#include <d3dcompiler.h>
+﻿#include <atomic>
+#include <thread>
+#include <memory>
 #include <string>
 #include <vector>
+#include <list>
+#include <algorithm>
+#include <iomanip>
 #include <sstream>
-
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-#pragma comment(lib, "d2d1.lib")
-#pragma comment(lib, "dwrite.lib")
-
-// Простой шейдер: передает позицию и цвет
-const char* VS_SRC = R"(
-struct VS_IN { float3 pos : POSITION; float4 col : COLOR; };
-struct PS_IN { float4 pos : SV_POSITION; float4 col : COLOR; };
-PS_IN main(VS_IN input) {
-    PS_IN output;
-    output.pos = float4(input.pos, 1.0f);
-    output.col = input.col;
-    return output;
+#include <cmath>
+#include <deque>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include "Graphics.h"
+#include "Types.h"
+#include "SharedState.h"
+#include "BinanceConnection.h"
+using namespace TradingBot::Core;
+using namespace TradingBot::Core::Network;
+std::unique_ptr<Graphics> g_Graphics;
+std::shared_ptr<SharedState> g_SharedState;
+std::atomic<bool> g_Running(true);
+std::string g_TargetSymbol = "BTCUSDT";
+std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
+int g_ScaleIndex = 0;
+double g_SmoothCenterPrice = 0.0;
+bool g_IsFirstFrame = true;
+struct VisualBubble {
+    double priceCenter;
+    double priceMin, priceMax;
+    double volumeQuote;
+    float currentRadiusX, targetRadiusX, velocityRadius;
+    float xPosition;
+    bool isBuyerMaker;
+};
+std::list<VisualBubble> g_ActiveBubbles;
+long long g_LastProcessedTradeTime = 0;
+std::wstring FormatPrice(double price, int precision) {
+    std::wstringstream ss;
+    ss << std::fixed << std::setprecision(precision) << price;
+    return ss.str();
 }
-)";
-
-const char* PS_SRC = R"(
-struct PS_IN { float4 pos : SV_POSITION; float4 col : COLOR; };
-float4 main(PS_IN input) : SV_Target {
-    return input.col;
+std::wstring FormatQuoteVolume(double vol) {
+    std::wstringstream ss;
+    ss << std::fixed;
+    if (vol >= 1000000.0) ss << std::setprecision(1) << (vol / 1000000.0) << L"M";
+    else if (vol >= 1000.0) ss << std::setprecision(0) << (vol / 1000.0) << L"k";
+    else ss << std::setprecision(0) << vol;
+    return ss.str();
 }
-)";
-
-Graphics::Graphics() {
-    batchVertices.reserve(MAX_VERTICES);
-}
-
-Graphics::~Graphics() {}
-
-bool Graphics::Initialize(HWND hWnd) {
-    RECT rc;
-    GetClientRect(hWnd, &rc);
-    width_ = (float)(rc.right - rc.left);
-    height_ = (float)(rc.bottom - rc.top);
-
-    DXGI_SWAP_CHAIN_DESC scd = {};
-    scd.BufferCount = 1;
-    scd.BufferDesc.Width = (UINT)width_;
-    scd.BufferDesc.Height = (UINT)height_;
-    scd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    scd.OutputWindow = hWnd;
-    scd.SampleDesc.Count = 1;
-    scd.Windowed = TRUE;
-    scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#ifdef _DEBUG
-    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-    HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, NULL, 0, D3D11_SDK_VERSION, &scd, &swapChain, &device, NULL, &context);
-    if (FAILED(hr)) return false;
-
-    ComPtr<ID3D11Texture2D> backBuffer;
-    swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
-    device->CreateRenderTargetView(backBuffer.Get(), NULL, &target);
-
-    // D2D Init
-    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2dFactory.GetAddressOf());
-    DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)writeFactory.GetAddressOf());
-
-    ComPtr<IDXGISurface> dxgiBackBuffer;
-    swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
-
-    D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
-        D2D1_RENDER_TARGET_TYPE_DEFAULT,
-        D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED)
-    );
-    d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
-    d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
-
-    // Шрифты
-    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 12.0f, L"en-us", &textFormat);
-    textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER); // Вертикально по центру
-    textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);        // Горизонтально слева
-
-    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 11.0f, L"en-us", &textFormatCenter);
-    textFormatCenter->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER); // Вертикально по центру
-    textFormatCenter->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);           // Горизонтально по центру
-
-    // Viewport
-    D3D11_VIEWPORT vp = { 0, 0, width_, height_, 0.0f, 1.0f };
-    context->RSSetViewports(1, &vp);
-
-    CreateShaders();
-
-    // Vertex Buffer
-    D3D11_BUFFER_DESC bd = {};
-    bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(Vertex) * MAX_VERTICES;
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    device->CreateBuffer(&bd, NULL, &vertexBuffer);
-
-    // Blend State (для прозрачности)
-    D3D11_BLEND_DESC blendDesc = {};
-    blendDesc.RenderTarget[0].BlendEnable = TRUE;
-    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
-    ComPtr<ID3D11BlendState> blendState;
-    device->CreateBlendState(&blendDesc, &blendState);
-    context->OMSetBlendState(blendState.Get(), NULL, 0xFFFFFFFF);
-
-    return true;
-}
-
-void Graphics::CreateShaders() {
-    ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
-
-    // Компиляция VS
-    HRESULT hr = D3DCompile(VS_SRC, strlen(VS_SRC), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
-    if (FAILED(hr) && errorBlob) {
-        OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-        return;
+void NetworkThreadFunc() {
+    auto symbols = BinanceConnection::GetExchangeInfo(g_SharedState->currentMode);
+    if (!symbols.empty()) {
+        g_SharedState->availableSymbols = symbols;
+        for (const auto& s : symbols) {
+            if (s.symbol == g_TargetSymbol) {
+                g_SharedState->currentSymbol = s;
+                break;
+            }
+        }
     }
-    device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &vertexShader);
-
-    // Input Layout
-    D3D11_INPUT_ELEMENT_DESC ied[] = {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-    device->CreateInputLayout(ied, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &inputLayout);
-
-    // Компиляция PS
-    hr = D3DCompile(PS_SRC, strlen(PS_SRC), NULL, NULL, NULL, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
-    if (FAILED(hr) && errorBlob) {
-        OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-        return;
+    while (g_Running) {
+        try {
+            auto connection = std::make_shared<BinanceConnection>(g_SharedState);
+            connection->Connect(g_TargetSymbol, g_SharedState->currentMode);
+        }
+        catch (...) {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
     }
-    device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &pixelShader);
 }
-
-void Graphics::BeginFrame(float r, float g, float b) {
-    if (isD2DDrawing) { d2dRenderTarget->EndDraw(); isD2DDrawing = false; }
-
-    float color[] = { r, g, b, 1.0f };
-    context->ClearRenderTargetView(target.Get(), color);
-    context->OMSetRenderTargets(1, target.GetAddressOf(), NULL);
-
-    context->VSSetShader(vertexShader.Get(), 0, 0);
-    context->PSSetShader(pixelShader.Get(), 0, 0);
-    context->IASetInputLayout(inputLayout.Get());
-
-    batchVertices.clear();
-}
-
-void Graphics::FlushBatch() {
-    if (batchVertices.empty()) return;
-
-    D3D11_MAPPED_SUBRESOURCE ms;
-    context->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
-    memcpy(ms.pData, batchVertices.data(), sizeof(Vertex) * batchVertices.size());
-    context->Unmap(vertexBuffer.Get(), 0);
-
-    UINT stride = sizeof(Vertex), offset = 0;
-    context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    context->Draw((UINT)batchVertices.size(), 0);
-    batchVertices.clear();
-}
-
-float Graphics::PixelToNdcX(float x) { return (x / width_) * 2.0f - 1.0f; }
-float Graphics::PixelToNdcY(float y) { return 1.0f - (y / height_) * 2.0f; }
-
-void Graphics::DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a) {
-    if (batchVertices.size() + 6 >= MAX_VERTICES) FlushBatch();
-
-    float left = PixelToNdcX(x);
-    float right = PixelToNdcX(x + w);
-    float top = PixelToNdcY(y);
-    float bottom = PixelToNdcY(y + h);
-
-    // Исправленный порядок (Clockwise для обоих треугольников)
-    // Треугольник 1
-    batchVertices.push_back({ left,  bottom, 0, r,g,b,a }); // LB
-    batchVertices.push_back({ left,  top,    0, r,g,b,a }); // LT
-    batchVertices.push_back({ right, top,    0, r,g,b,a }); // RT
-
-    // Треугольник 2
-    batchVertices.push_back({ left,  bottom, 0, r,g,b,a }); // LB
-    batchVertices.push_back({ right, top,    0, r,g,b,a }); // RT
-    batchVertices.push_back({ right, bottom, 0, r,g,b,a }); // RB
-}
-
-void Graphics::DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a) {
-    FlushBatch(); // Сначала рисуем геометрию DX11
-    if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
-
-    d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
-
-    // Используем переданный rect
-    D2D1_RECT_F layoutRect = D2D1::RectF(x, y, x + w, y + h);
-
-    // Устанавливаем размер шрифта (не идеально, т.к. формат глобальный, но для примера сойдет)
-    // В идеале CreateTextLayout используется для смены размера
-    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormat.Get(), layoutRect, d2dBrush.Get());
-}
-
-void Graphics::DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a) {
-    FlushBatch();
-    if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
-
-    d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
-
-    // Создаем "безопасный" широкий rect. Выравнивание сделает сам DWrite.
-    float safeWidth = 1000.0f;
-    float safeHeight = 100.0f;
-    D2D1_RECT_F layoutRect = D2D1::RectF(
-        centerX - safeWidth / 2.0f,
-        centerY - safeHeight / 2.0f,
-        centerX + safeWidth / 2.0f,
-        centerY + safeHeight / 2.0f
-    );
-
-    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), layoutRect, d2dBrush.Get());
-}
-
-float Graphics::MeasureTextWidth(const std::wstring& text, float fontSize) {
-    ComPtr<IDWriteTextLayout> layout;
-    writeFactory->CreateTextLayout(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), 5000.0f, 5000.0f, &layout);
-    if (!layout) return 0.0f;
-
-    DWRITE_TEXT_METRICS metrics;
-    layout->GetMetrics(&metrics);
-    return metrics.width;
-}
-
-void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a) {
-    FlushBatch(); // Обязательно сбрасываем геометрию
-    if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
-
-    d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
-
-    D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radiusX, radiusY);
-    d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
-
-    // Обводка
-    d2dBrush->SetColor(D2D1::ColorF(r * 1.2f, g * 1.2f, b * 1.2f, a + 0.2f));
-    d2dRenderTarget->DrawEllipse(ellipse, d2dBrush.Get(), 1.0f);
-}
-
-void Graphics::EndFrame() {
-    FlushBatch(); // Рисуем остатки треугольников
-    if (isD2DDrawing) {
-        d2dRenderTarget->EndDraw();
-        isD2DDrawing = false;
+void UpdateBubbles(const std::vector<Trade>& newTrades, double currentStep) {
+    const float START_X = 310.0f;
+    const float moveSpeed = 0.2f;
+    auto it = g_ActiveBubbles.begin();
+    while (it != g_ActiveBubbles.end()) {
+        float displacement = it->targetRadiusX - it->currentRadiusX;
+        it->currentRadiusX += displacement * 0.1f;
+        it->xPosition += moveSpeed;
+        if (it->xPosition > 3000.0f) it = g_ActiveBubbles.erase(it);
+        else ++it;
     }
-    swapChain->Present(1, 0); // VSync ON
+    for (const auto& trade : newTrades) {
+        if (trade.timestamp <= g_LastProcessedTradeTime) continue;
+        g_LastProcessedTradeTime = trade.timestamp;
+        double snappedPrice = std::round(trade.price / currentStep) * currentStep;
+        double val = trade.price * trade.quantity;
+        bool merged = false;
+        for (auto& b : g_ActiveBubbles) {
+            if (b.isBuyerMaker == trade.isBuyerMaker && std::abs(b.xPosition - START_X) < 5.0f && std::abs(b.priceCenter - snappedPrice) < (currentStep * 50.0)) {
+                b.volumeQuote += val;
+                if (snappedPrice < b.priceMin) b.priceMin = snappedPrice;
+                if (snappedPrice > b.priceMax) b.priceMax = snappedPrice;
+                b.priceCenter = (b.priceMin + b.priceMax) / 2.0;
+                float r = std::sqrt((float)b.volumeQuote) * 0.5f;
+                b.targetRadiusX = std::clamp(r, 5.0f, 15.0f);
+                merged = true;
+                break;
+            }
+        }
+        if (!merged) {
+            VisualBubble vb;
+            vb.priceCenter = snappedPrice;
+            vb.priceMin = vb.priceMax = snappedPrice;
+            vb.volumeQuote = val;
+            vb.isBuyerMaker = trade.isBuyerMaker;
+            vb.xPosition = START_X;
+            vb.currentRadiusX = 2.0f;
+            float r = std::sqrt((float)val) * 0.5f;
+            vb.targetRadiusX = std::clamp(r, 5.0f, 15.0f);
+            vb.velocityRadius = 0;
+            g_ActiveBubbles.push_back(vb);
+        }
+    }
+    if (g_ActiveBubbles.size() > 500) g_ActiveBubbles.pop_front();
+}
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+    case WM_MOUSEWHEEL: {
+        short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (zDelta > 0 && g_ScaleIndex < g_Scales.size() - 1) g_ScaleIndex++;
+        else if (g_ScaleIndex > 0) g_ScaleIndex--;
+    } return 0;
+    case WM_DESTROY:
+        g_Running = false;
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hWnd, message, wParam, lParam);
+}
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    g_SharedState = std::make_shared<SharedState>();
+    std::thread networkThread(NetworkThreadFunc);
+    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"TigerBot", NULL };
+    RegisterClassEx(&wc);
+    HWND hWnd = CreateWindow(L"TigerBot", L"TigerBot C++", WS_OVERLAPPEDWINDOW, 50, 50, 1200, 1000, NULL, NULL, wc.hInstance, NULL);
+    g_Graphics = std::make_unique<Graphics>();
+    if (!g_Graphics->Initialize(hWnd)) return 1;
+    ShowWindow(hWnd, nCmdShow);
+    MSG msg = { 0 };
+    while (msg.message != WM_QUIT) {
+        if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        else {
+            g_Graphics->BeginFrame(0.12f, 0.12f, 0.14f);
+            double tickSize = g_SharedState->currentSymbol.tickSize;
+            if (tickSize == 0) tickSize = 0.1;
+            double currentStep = tickSize * g_Scales[g_ScaleIndex];
+            auto snap = g_SharedState->GetSnapshotForRender(60, currentStep);
+            float screenH = g_Graphics->GetHeight();
+            float screenW = g_Graphics->GetWidth();
+            float centerY = screenH / 2.0f;
+            float rowH = 22.0f;
+            UpdateBubbles(snap.RecentTrades, currentStep);
+            double targetP = 0;
+            if (!snap.Asks.empty() && !snap.Bids.empty()) targetP = (snap.Asks[0].first + snap.Bids[0].first) / 2.0;
+            if (targetP > 0) {
+                if (g_IsFirstFrame) { g_SmoothCenterPrice = targetP; g_IsFirstFrame = false; }
+                else g_SmoothCenterPrice += (targetP - g_SmoothCenterPrice) * 0.1f;
+            }
+            if (g_SmoothCenterPrice > 0) {
+                double maxVol = 1.0;
+                for (const auto& lvl : snap.Asks) maxVol = std::max(maxVol, lvl.second);
+                for (const auto& lvl : snap.Bids) maxVol = std::max(maxVol, lvl.second);
+                if (maxVol <= 1.0) maxVol = 1000.0;
+                for (const auto& lvl : snap.Asks) {
+                    float y = centerY - (float)((lvl.first - g_SmoothCenterPrice) / currentStep * rowH) - rowH / 2;
+                    if (y < 0 || y > screenH) continue;
+                    float w = (float)(lvl.second / maxVol * 300.0);
+                    g_Graphics->DrawRectPixels(0, y, w, rowH - 1, 0.8f, 0.2f, 0.2f, 1.0f);
+                    std::wstringstream ss;
+                    ss << FormatPrice(lvl.first, snap.CurrentSymbolInfo.pricePrecision);
+                    g_Graphics->DrawTextPixels(ss.str(), 10, y, 200, rowH, 12, 1, 1, 1, 1);
+                }
+                for (const auto& lvl : snap.Bids) {
+                    float y = centerY - (float)((lvl.first - g_SmoothCenterPrice) / currentStep * rowH) - rowH / 2;
+                    if (y < 0 || y > screenH) continue;
+                    float w = (float)(lvl.second / maxVol * 300.0);
+                    g_Graphics->DrawRectPixels(0, y, w, rowH - 1, 0.2f, 0.8f, 0.2f, 1.0f);
+                    std::wstringstream ss;
+                    ss << FormatPrice(lvl.first, snap.CurrentSymbolInfo.pricePrecision);
+                    g_Graphics->DrawTextPixels(ss.str(), 10, y, 200, rowH, 12, 1, 1, 1, 1);
+                }
+            }
+            for (auto& b : g_ActiveBubbles) {
+                if (g_SmoothCenterPrice == 0) continue;
+                float y = centerY - (float)((b.priceCenter - g_SmoothCenterPrice) / currentStep * rowH);
+                float radiusY = ((b.priceMax - b.priceMin) / currentStep * rowH / 2.0f);
+                if (radiusY < b.currentRadiusX) radiusY = b.currentRadiusX; // мин размер
+                if (b.isBuyerMaker) // Sell
+                    g_Graphics->DrawEllipsePixels(b.xPosition, y, b.currentRadiusX, radiusY, 1.0f, 0.3f, 0.3f, 0.5f);
+                else // Buy
+                    g_Graphics->DrawEllipsePixels(b.xPosition, y, b.currentRadiusX, radiusY, 0.3f, 0.6f, 1.0f, 0.5f);
+            }
+            g_Graphics->DrawRectPixels(0, 0, screenW, 40, 0.2f, 0.2f, 0.2f, 1.0f);
+            std::wstringstream title;
+            title << L"TigerBot | " << std::wstring(g_TargetSymbol.begin(), g_TargetSymbol.end()) << L" | Scale: x" << g_Scales[g_ScaleIndex];
+            g_Graphics->DrawTextPixels(title.str(), 10, 5, 500, 30, 16, 1, 1, 1, 1);
+            g_Graphics->EndFrame();
+        }
+    }
+    if (networkThread.joinable()) {
+        g_Running = false;
+        networkThread.join();
+    }
+    return 0;
 }
