@@ -6,32 +6,31 @@
 #include <algorithm>
 #include <cmath>
 
-// Подключаем наши определения
 #include "Types.h"
-#include "MarketDetails.h" // Здесь лежит struct TradingPair и struct MarketCache
-#include "OrderBook.h"     // Здесь лежит struct Trade и OrderBookLevel
+#include "MarketDetails.h" 
+#include "OrderBook.h"     
 
 namespace TradingBot::Core {
 
     struct RenderSnapshot {
         std::vector<std::pair<double, double>> Bids;
         std::vector<std::pair<double, double>> Asks;
-        // Сделки для отрисовки
         std::vector<Trade> RecentTrades;
     };
 
     class SharedState {
     public:
-        // --- НОВЫЕ ДАННЫЕ (Список монет) ---
-        // Используем структуру MarketCache (она определена в MarketDetails.h)
-        // В ней лежат списки spotPairs и futuresPairs, а также флаг isLoaded
         MarketCache marketData;
-
-        // Мьютекс для защиты доступа к данным
         std::mutex instrumentsMutex;
 
     public:
-        // --- СТАРЫЕ ДАННЫЕ (Логика стакана) ---
+        // <--- ГЛАВНОЕ ИСПРАВЛЕНИЕ: Полная очистка памяти --->
+        void Clear() {
+            std::lock_guard<std::mutex> lock(mutex_);
+            Bids.clear();
+            Asks.clear();
+            trades_.clear();
+        }
 
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
             const std::vector<OrderBookLevel>& asks) {
@@ -48,22 +47,24 @@ namespace TradingBot::Core {
             }
         }
 
-        // Добавляем сделку в историю
         void AddTrade(const Trade& trade) {
             std::lock_guard<std::mutex> lock(mutex_);
             trades_.push_back(trade);
-            // Храним только последние 100, чтобы не забивать память
-            if (trades_.size() > 100) trades_.pop_front();
+            if (trades_.size() > 1000) trades_.pop_front(); // Храним больше истории
         }
 
-        // Метод с агрегацией для рендера
         RenderSnapshot GetSnapshotForRender(int depth, double priceStep) {
             std::lock_guard<std::mutex> lock(mutex_);
             RenderSnapshot snap;
 
+            // Если стакан пуст или шаг цены некорректен - выход
+            if (Asks.empty() && Bids.empty()) return snap;
+            if (priceStep <= 0.00000001) return snap;
+
             std::map<double, double> aggBids;
             std::map<double, double> aggAsks;
 
+            // Агрегация данных под текущий масштаб
             for (auto const& [price, qty] : Asks) {
                 double key = std::ceil(price / priceStep - 0.000001) * priceStep;
                 if (key == -0.0) key = 0.0;
@@ -76,9 +77,13 @@ namespace TradingBot::Core {
 
             double bestAsk = Asks.empty() ? 0 : Asks.begin()->first;
             double bestBid = Bids.empty() ? 0 : Bids.rbegin()->first;
+
+            if (bestAsk <= 0 || bestBid <= 0) return snap;
+
             double gridAsk = std::ceil(bestAsk / priceStep - 0.000001) * priceStep;
             double gridBid = std::floor(bestBid / priceStep + 0.000001) * priceStep;
 
+            // Защита от перекрытия спреда
             if (gridAsk <= gridBid) gridAsk = gridBid + priceStep;
 
             for (int i = 0; i < depth; i++) {
@@ -97,14 +102,12 @@ namespace TradingBot::Core {
                 snap.Bids.push_back({ price, vol });
             }
 
-            // Копируем сделки в снапшот
             snap.RecentTrades.assign(trades_.begin(), trades_.end());
-
             return snap;
         }
 
     private:
-        std::mutex mutex_; // Мьютекс для стакана
+        std::mutex mutex_;
         std::map<double, double> Bids;
         std::map<double, double> Asks;
         std::deque<Trade> trades_;

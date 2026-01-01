@@ -2,28 +2,50 @@
 #include <iostream>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <nlohmann/json.hpp> // Убедись, что библиотека подключена
+#include <nlohmann/json.hpp>
+#include <wincrypt.h>
+#pragma comment(lib, "crypt32.lib") 
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <string>
+#include <cmath>
 
 using json = nlohmann::json;
 
 RestClient::RestClient() {
-    // Загружаем корневые сертификаты для SSL (как в браузере)
-    ctx_.set_default_verify_paths();
     ctx_.set_verify_mode(ssl::verify_peer);
+    LoadRootCertificates();
 }
 
 RestClient::~RestClient() {
-    // Деструктор (здесь будет очистка ресурсов)
+}
+
+void RestClient::LoadRootCertificates() {
+    HCERTSTORE hStore = CertOpenSystemStore(0, L"ROOT");
+    if (!hStore) return;
+
+    X509_STORE* store = SSL_CTX_get_cert_store(ctx_.native_handle());
+    PCCERT_CONTEXT pContext = NULL;
+
+    while ((pContext = CertEnumCertificatesInStore(hStore, pContext))) {
+        const unsigned char* p = pContext->pbCertEncoded;
+        X509* x509 = d2i_X509(NULL, &p, pContext->cbCertEncoded);
+        if (x509) {
+            X509_STORE_add_cert(store, x509);
+            X509_free(x509);
+        }
+    }
+    CertCloseStore(hStore, 0);
 }
 
 void RestClient::LoadExchangeInfo(MarketCache& cache) {
-    // 1. Загружаем SPOT
+    // Spot
     std::string spotJson = HttpsGet("api.binance.com", "/api/v3/exchangeInfo");
     if (!spotJson.empty()) {
         cache.spotPairs = ParseExchangeInfo(spotJson, MarketType::Spot);
     }
 
-    // 2. Загружаем FUTURES
+    // Futures
     std::string futJson = HttpsGet("fapi.binance.com", "/fapi/v1/exchangeInfo");
     if (!futJson.empty()) {
         cache.futuresPairs = ParseExchangeInfo(futJson, MarketType::Futures);
@@ -31,8 +53,9 @@ void RestClient::LoadExchangeInfo(MarketCache& cache) {
 
     if (!cache.spotPairs.empty() || !cache.futuresPairs.empty()) {
         cache.isLoaded = true;
-        std::cout << "[TigerBot] Loaded " << cache.spotPairs.size() << " Spot pairs, "
-            << cache.futuresPairs.size() << " Futures pairs." << std::endl;
+        char msg[128];
+        sprintf_s(msg, "[TigerBot] REST Loaded: %zu Spot, %zu Futures.\n", cache.spotPairs.size(), cache.futuresPairs.size());
+        OutputDebugStringA(msg);
     }
 }
 
@@ -42,11 +65,7 @@ std::string RestClient::HttpsGet(const std::string& host, const std::string& tar
         tcp::resolver resolver(ioc);
         beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx_);
 
-        // SNI (Server Name Indication) обязателен для Binance API
-        if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) {
-            throw beast::system_error(
-                beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()));
-        }
+        if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) return "";
 
         auto const results = resolver.resolve(host, "443");
         beast::get_lowest_layer(stream).connect(results);
@@ -63,21 +82,15 @@ std::string RestClient::HttpsGet(const std::string& host, const std::string& tar
 
         beast::error_code ec;
         stream.shutdown(ec);
-
         return res.body();
     }
-    catch (std::exception const& e) {
-        std::cerr << "Network Error (" << host << "): " << e.what() << std::endl;
-        return "";
-    }
+    catch (...) { return ""; }
 }
 
 std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonResponse, MarketType type) {
     std::vector<TradingPair> pairs;
     try {
         auto j = json::parse(jsonResponse);
-
-        // В Tiger Trade фильтруют пары, которые не торгуются
         for (const auto& item : j["symbols"]) {
             if (item["status"] != "TRADING") continue;
 
@@ -87,14 +100,36 @@ std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonRe
             p.quoteAsset = item["quoteAsset"].get<std::string>();
             p.type = type;
             p.isTrading = true;
-            p.pricePrecision = item["baseAssetPrecision"].get<int>();
 
-            // ВАЖНО: Парсинг фильтров. Без этого сетка цены будет кривой.
+            p.tickSize = 0.0;
+            p.stepSize = 0.0;
+            p.minQty = 0.0;
+            p.pricePrecision = 2; // Дефолт, если не сможем посчитать
+
             for (const auto& filter : item["filters"]) {
                 std::string fType = filter["filterType"];
-
                 if (fType == "PRICE_FILTER") {
-                    p.tickSize = std::stod(filter["tickSize"].get<std::string>());
+                    std::string tickStr = filter["tickSize"].get<std::string>();
+                    p.tickSize = std::stod(tickStr);
+
+                    // <--- РАСЧЕТ ТОЧНОСТИ ИЗ TICK SIZE (Убираем лишние нули) --->
+                    // Пример: "0.001000" -> убираем нули -> "0.001" -> 3 знака
+                    size_t decimalPos = tickStr.find('.');
+                    if (decimalPos != std::string::npos) {
+                        // Удаляем хвостовые нули
+                        tickStr.erase(tickStr.find_last_not_of('0') + 1, std::string::npos);
+                        // Если точка осталась последней (1.), убираем и её
+                        if (tickStr.back() == '.') tickStr.pop_back();
+
+                        // Пересчитываем позицию точки
+                        decimalPos = tickStr.find('.');
+                        if (decimalPos != std::string::npos) {
+                            p.pricePrecision = (int)(tickStr.length() - decimalPos - 1);
+                        }
+                        else {
+                            p.pricePrecision = 0; // Целое число
+                        }
+                    }
                 }
                 else if (fType == "LOT_SIZE") {
                     p.stepSize = std::stod(filter["stepSize"].get<std::string>());
@@ -104,8 +139,6 @@ std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonRe
             pairs.push_back(p);
         }
     }
-    catch (const std::exception& e) {
-        std::cerr << "Parsing Error: " << e.what() << std::endl;
-    }
+    catch (...) {}
     return pairs;
 }

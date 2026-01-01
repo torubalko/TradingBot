@@ -21,18 +21,17 @@ public:
     RestClient();
     ~RestClient();
 
-    // Метод, имитирующий логику инициализации Tiger Trade
-    // Загружает данные с биржи (блокирующий или асинхронный вызов)
+    // Загрузка данных
     void LoadExchangeInfo(MarketCache& cache);
 
 private:
-    // Низкоуровневый HTTPS запрос через Boost
+    // HTTP запрос
     std::string HttpsGet(const std::string& host, const std::string& target);
 
-    // Парсинг JSON ответа (выделен в отдельный метод для чистоты)
+    // Парсинг
     std::vector<TradingPair> ParseExchangeInfo(const std::string& jsonResponse, MarketType type);
 
-    // <--- НОВОЕ: Метод для загрузки системных сертификатов Windows
+    // <--- ВАЖНОЕ: Метод для интеграции с Windows SSL
     void LoadRootCertificates();
 
     net::io_context ioc_;
