@@ -32,6 +32,9 @@ private:
     // Парсинг JSON ответа (выделен в отдельный метод для чистоты)
     std::vector<TradingPair> ParseExchangeInfo(const std::string& jsonResponse, MarketType type);
 
+    // <--- НОВОЕ: Метод для загрузки системных сертификатов Windows
+    void LoadRootCertificates();
+
     net::io_context ioc_;
     ssl::context ctx_{ ssl::context::tlsv12_client };
 };

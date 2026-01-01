@@ -26,6 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="x64\Debug\TradingBot.Core.lib.recipe" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BinanceConnection.h" />
@@ -37,6 +38,17 @@
     <ClInclude Include="RestClient.h" />
     <ClInclude Include="SharedState.h" />
     <ClInclude Include="Types.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="x64\Debug\BinanceConnection.obj" />
+    <Object Include="x64\Debug\Environment.obj" />
+    <Object Include="x64\Debug\JsonParser.obj" />
+    <Object Include="x64\Debug\RestClient.obj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="x64\Debug\TradingBot.Core.Build.CppClean.log" />
+    <Text Include="x64\Debug\TradingBot.Core.log" />
+    <Text Include="x64\Debug\TradingBot.Core.vcxproj.FileListAbsolute.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
