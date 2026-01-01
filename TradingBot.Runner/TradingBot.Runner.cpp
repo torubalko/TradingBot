@@ -26,6 +26,7 @@
 #include "../TradingBot.Core/SharedState.h"
 #include "../TradingBot.Core/BinanceConnection.h"
 #include "../TradingBot.Core/RestClient.h"
+#include "../TradingBot.Core/Logging.h"
 
 using namespace TradingBot::Core;
 using namespace TradingBot::Core::Network;
@@ -58,6 +59,9 @@ std::mutex g_ConnectionMutex;
 std::atomic<bool> g_ConnectionDirty(true);
 std::shared_ptr<BinanceConnection> g_CurrentConnection = nullptr;
 
+// Connect() blocks on ws.read(), so we run it in a dedicated thread.
+std::thread g_ConnectionThread;
+
 std::mutex g_StatusMutex;
 std::string g_NetworkStatus = "Initializing...";
 bool g_HasNetworkError = false;
@@ -72,9 +76,30 @@ struct VisualBubble {
     float currentRadiusX; float targetRadiusX; float velocityRadius;
     float xPosition;
     bool isBuyerMaker;
+
+    // no per-bubble stepping; belt uses global stepping
+    float stepAccumulator = 0.0f;
 };
 std::list<VisualBubble> g_ActiveBubbles;
 long long g_LastProcessedTradeTime = 0;
+
+// Bubble movement tuning
+// Tiger-like belt: discrete global steps (left-to-right), paused when no trades
+static constexpr float BUBBLE_STEP_PIXELS = 9.0f;      // pixels per step
+static constexpr float BUBBLE_STEP_INTERVAL = 0.10f;   // seconds per step
+static constexpr float BUBBLE_IDLE_TIMEOUT = 0.40f;    // seconds after last trade to freeze belt
+
+// Global accumulator to move all bubbles in sync
+static float g_BubbleMoveAccum = 0.0f;
+static float g_TimeSinceLastTrade = 999.0f;
+
+// Spacing: overlap (no gaps). Bigger = tighter.
+static constexpr float BUBBLE_OVERLAP_PIXELS = 10.0f;
+
+static float EstimateBubbleRadiusFromQuote(double quoteVol) {
+    float raw = std::sqrt((float)quoteVol) * 0.7f;
+    return std::clamp(raw, 10.0f, 22.0f);
+}
 
 // --- ФУНКЦИИ ---
 
@@ -90,6 +115,9 @@ std::string GetNetworkStatus() {
 }
 
 void UpdateSymbolInfo(const std::string& symbol, bool isSpot) {
+    TradingBot::Core::Logging::Info(
+        "UI",
+        std::string("UpdateSymbolInfo symbol=") + symbol + (isSpot ? " mode=SPOT" : " mode=FUTURES"));
     std::lock_guard<std::mutex> lock(g_SharedState->instrumentsMutex);
     const auto& list = isSpot ? g_SharedState->marketData.spotPairs : g_SharedState->marketData.futuresPairs;
 
@@ -106,6 +134,10 @@ void UpdateSymbolInfo(const std::string& symbol, bool isSpot) {
             return;
         }
     }
+    
+    TradingBot::Core::Logging::Warn(
+        "UI",
+        std::string("UpdateSymbolInfo: symbol not found in ") + (isSpot ? "spotPairs" : "futuresPairs") + " -> " + symbol);
 }
 
 std::vector<TradingPair> GetFilteredPairs() {
@@ -188,7 +220,18 @@ void NetworkThreadFunc() {
             // 1. Отключаем старое
             {
                 std::lock_guard<std::mutex> lock(g_ConnectionMutex);
+                if (g_CurrentConnection) {
+                    TradingBot::Core::Logging::Info(
+                        "Runner",
+                        std::string("Stopping previous connection before switching to ") + g_CurrentSymbol +
+                        (g_IsSpotMode ? " (SPOT)" : " (FUTURES)"));
+                    g_CurrentConnection->Stop();
+                }
                 g_CurrentConnection = nullptr;
+            }
+            
+            if (g_ConnectionThread.joinable()) {
+                g_ConnectionThread.join();
             }
 
             // 2. ОЧИЩАЕМ ДАННЫЕ (Устраняет баг с "хвостами" от BTC)
@@ -202,7 +245,16 @@ void NetworkThreadFunc() {
                     std::lock_guard<std::mutex> lock(g_ConnectionMutex);
                     g_CurrentConnection = conn;
                 }
-                conn->Connect(g_CurrentSymbol, g_IsSpotMode);
+                // BinanceConnection::Connect(..., isSpot)
+                auto symbol = g_CurrentSymbol;
+                auto isSpot = g_IsSpotMode;
+                g_ConnectionThread = std::thread([conn, symbol, isSpot]() {
+                    try {
+                        conn->Connect(symbol, isSpot);
+                    }
+                    catch (...) {
+                    }
+                });
             }
             catch (...) { std::this_thread::sleep_for(std::chrono::seconds(1)); }
         }
@@ -210,49 +262,127 @@ void NetworkThreadFunc() {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
+
+    // shutdown
+    {
+        std::lock_guard<std::mutex> lock(g_ConnectionMutex);
+        if (g_CurrentConnection)
+            g_CurrentConnection->Stop();
+    }
+    if (g_ConnectionThread.joinable())
+        g_ConnectionThread.join();
 }
 
 void UpdateBubbles(const std::vector<Trade>& newTrades, double currentStep) {
-    const float tension = 0.4f; const float dampening = 0.75f; const float moveSpeed = 0.2f;
+    const float tension = 0.4f; const float dampening = 0.75f;
+
+    static auto lastTick = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    float dt = std::chrono::duration<float>(now - lastTick).count();
+    lastTick = now;
+    if (dt < 0.0f) dt = 0.0f;
+    if (dt > 0.25f) dt = 0.25f; // clamp after stalls
+
+    bool hasNewTrade = false;
+    for (const auto& t : newTrades) {
+        if (t.timestamp > g_LastProcessedTradeTime) { hasNewTrade = true; break; }
+    }
+
+    if (hasNewTrade) g_TimeSinceLastTrade = 0.0f;
+    else g_TimeSinceLastTrade += dt;
+
+    bool beltActive = (g_TimeSinceLastTrade <= BUBBLE_IDLE_TIMEOUT);
+
+    int steps = 0;
+    if (beltActive) {
+        g_BubbleMoveAccum += dt;
+        if (g_BubbleMoveAccum >= BUBBLE_STEP_INTERVAL) {
+            steps = (int)std::floor(g_BubbleMoveAccum / BUBBLE_STEP_INTERVAL);
+            g_BubbleMoveAccum -= steps * BUBBLE_STEP_INTERVAL;
+        }
+    }
+
+    // 1) Update existing bubbles
     auto it = g_ActiveBubbles.begin();
     while (it != g_ActiveBubbles.end()) {
         float displacement = it->targetRadiusX - it->currentRadiusX;
-        it->velocityRadius += displacement * tension; it->velocityRadius *= dampening;
-        it->currentRadiusX += it->velocityRadius; it->xPosition += moveSpeed;
-        if (it->xPosition > 3000.0f) it = g_ActiveBubbles.erase(it); else ++it;
+        it->velocityRadius += displacement * tension;
+        it->velocityRadius *= dampening;
+        it->currentRadiusX += it->velocityRadius;
+
+        if (steps > 0) it->xPosition += BUBBLE_STEP_PIXELS * steps;
+
+        if (it->xPosition > 3000.0f) it = g_ActiveBubbles.erase(it);
+        else ++it;
     }
+
+    // 2) Append new bubbles (ALWAYS spawn at START_X_POS)
     for (const auto& trade : newTrades) {
         if (trade.timestamp <= g_LastProcessedTradeTime) continue;
         g_LastProcessedTradeTime = trade.timestamp;
 
-        // Округляем цену сделки до тика
         double snappedPrice = std::round(trade.price / currentStep) * currentStep;
         double tradeValueQuote = trade.price * trade.quantity;
 
         bool merged = false;
-        for (auto& b : g_ActiveBubbles) {
+
+        // Merge only into the newest bubble at the spawn location (front)
+        if (!g_ActiveBubbles.empty()) {
+            auto& b = g_ActiveBubbles.front();
             double priceDiff = std::abs(b.priceCenter - snappedPrice);
-            // Мержим, если цена рядом, направление то же, и пузырь еще в начале экрана
-            if (b.isBuyerMaker == trade.isBuyerMaker && (b.xPosition - START_X_POS) < 3.0f && priceDiff < (currentStep * 50.0)) {
+            if (b.isBuyerMaker == trade.isBuyerMaker && std::abs(b.xPosition - START_X_POS) < 3.0f && priceDiff < (currentStep * 50.0)) {
                 b.volumeQuote += tradeValueQuote;
-                if (snappedPrice < b.priceMin) b.priceMin = snappedPrice;
-                if (snappedPrice > b.priceMax) b.priceMax = snappedPrice;
-                b.priceCenter = (b.priceMin + b.priceMax) / 2.0;
-                float rawRadius = std::sqrt((float)b.volumeQuote) * 0.5f;
-                b.targetRadiusX = std::clamp(rawRadius, 6.0f, 13.0f);
-                b.velocityRadius += 5.0f; merged = true; break;
+                b.priceCenter = snappedPrice;
+                b.priceMin = snappedPrice;
+                b.priceMax = snappedPrice;
+                b.targetRadiusX = EstimateBubbleRadiusFromQuote(b.volumeQuote);
+                b.velocityRadius += 5.0f;
+                merged = true;
             }
         }
+
         if (!merged) {
-            VisualBubble vb; vb.priceCenter = snappedPrice; vb.priceMin = snappedPrice; vb.priceMax = snappedPrice;
-            vb.volumeQuote = tradeValueQuote; vb.isBuyerMaker = trade.isBuyerMaker;
-            vb.xPosition = START_X_POS; vb.currentRadiusX = 1.0f;
-            float tR = std::sqrt((float)tradeValueQuote) * 0.5f;
-            vb.targetRadiusX = std::clamp(tR, 6.0f, 13.0f); vb.velocityRadius = 10.0f;
-            g_ActiveBubbles.push_back(vb);
+            VisualBubble vb;
+            vb.priceCenter = snappedPrice;
+            vb.priceMin = snappedPrice;
+            vb.priceMax = snappedPrice;
+            vb.volumeQuote = tradeValueQuote;
+            vb.isBuyerMaker = trade.isBuyerMaker;
+            vb.xPosition = START_X_POS;
+            vb.currentRadiusX = 1.0f;
+            vb.targetRadiusX = EstimateBubbleRadiusFromQuote(tradeValueQuote);
+            vb.velocityRadius = 10.0f;
+            vb.stepAccumulator = 0.0f;
+            // Newest at spawn edge
+            g_ActiveBubbles.push_front(vb);
         }
     }
-    if (g_ActiveBubbles.size() > 500) g_ActiveBubbles.pop_front();
+
+    // 3) Enforce belt packing AFTER adding new bubbles
+    {
+        float prevX = START_X_POS;
+        float prevR = 0.0f;
+        bool first = true;
+        // Front is spawn (newest). Ensure older go to the right.
+        for (auto& b : g_ActiveBubbles) {
+            float r = std::max(1.0f, b.currentRadiusX);
+            if (first) {
+                b.xPosition = START_X_POS;
+                prevX = b.xPosition;
+                prevR = r;
+                first = false;
+                continue;
+            }
+
+            float minX = prevX + (prevR + r) - BUBBLE_OVERLAP_PIXELS;
+            if (b.xPosition < minX) b.xPosition = minX;
+            prevX = b.xPosition;
+            prevR = r;
+        }
+    }
+
+    // keep max size by removing oldest (at back)
+    if (g_ActiveBubbles.size() > 500) g_ActiveBubbles.pop_back();
 }
 
 // --- UI ---
@@ -283,8 +413,10 @@ void HandleDropdownClick(int x, int y) {
     int index = (int)(relY / itemH);
     if (index >= 0 && index < filtered.size()) {
         std::string newSymbol = filtered[index].symbol;
+        TradingBot::Core::Logging::Info("UI", std::string("Dropdown click -> ") + newSymbol);
         if (newSymbol != g_CurrentSymbol) {
             g_CurrentSymbol = newSymbol;
+            TradingBot::Core::Logging::Info("UI", std::string("CurrentSymbol set -> ") + g_CurrentSymbol);
             UpdateSymbolInfo(g_CurrentSymbol, g_IsSpotMode);
             g_ConnectionDirty = true;
         }
@@ -323,6 +455,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 }
 
 int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
+    TradingBot::Core::Logging::Logger::Init();
     g_SharedState = std::make_shared<SharedState>();
     std::thread networkThread(NetworkThreadFunc);
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"TigerBotZone", NULL };
@@ -340,7 +473,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             float screenW = g_Graphics->GetWidth(); float screenH = g_Graphics->GetHeight(); float headerH = 50.0f;
             float centerY = headerH + (screenH - headerH) / 2.0f; float rowHeight = 22.0f;
             double currentStep = g_CurrentTickSize * g_Scales[g_ScaleIndex];
-
+            
             auto snap = g_SharedState->GetSnapshotForRender(80, currentStep);
             UpdateBubbles(snap.RecentTrades, currentStep);
 
@@ -375,13 +508,15 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                 for (const auto& l : snap.Bids) DrawLevel(l, false);
             }
 
+            // In the rendering loop, remove stretched ellipse drawing; keep circle only.
             for (const auto& b : g_ActiveBubbles) {
                 if (g_SmoothCenterPrice > 0) {
                     float y = centerY - (float)((b.priceCenter - g_SmoothCenterPrice) / currentStep * rowHeight);
                     if (y > headerH - 20 && y < screenH + 100) {
-                        float r = b.isBuyerMaker ? COL_SELL_R : COL_BUY_R; float g = b.isBuyerMaker ? COL_SELL_G : COL_BUY_G; float bl = b.isBuyerMaker ? COL_SELL_B : COL_BUY_B;
-                        float h = std::max(rowHeight, (float)((b.priceMax - b.priceMin) / currentStep * rowHeight));
-                        g_Graphics->DrawEllipsePixels(b.xPosition, y, b.currentRadiusX, (h / 2.0f) + b.currentRadiusX - 1.0f, r, g, bl, 0.4f);
+                        float r = b.isBuyerMaker ? COL_SELL_R : COL_BUY_R;
+                        float g = b.isBuyerMaker ? COL_SELL_G : COL_BUY_G;
+                        float bl = b.isBuyerMaker ? COL_SELL_B : COL_BUY_B;
+                        g_Graphics->DrawEllipsePixels(b.xPosition, y, b.currentRadiusX, b.currentRadiusX, r, g, bl, 0.4f);
                         g_Graphics->DrawTextCentered(FormatQuoteVolume(b.volumeQuote), b.xPosition, y, 11.0f, 1.0f, 1.0f, 1.0f, 1.0f);
                     }
                 }

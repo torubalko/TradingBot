@@ -1,6 +1,7 @@
 #include "BinanceConnection.h"
 #include "JsonParser.h"
 #include "Types.h"
+#include "Logging.h"
 #include <iostream>
 #include <algorithm> 
 #include <cctype>    
@@ -56,10 +57,15 @@ namespace TradingBot::Core::Network {
         if (!ioc_.stopped()) ioc_.stop();
     }
 
-    void BinanceConnection::DownloadSnapshot(const std::string& symbol, bool useTestnet) {
+    void BinanceConnection::DownloadSnapshot(const std::string& symbol, bool isSpot) {
         try {
-            std::string host = useTestnet ? "testnet.binancefuture.com" : "fapi.binance.com";
-            std::string target = "/fapi/v1/depth?symbol=" + symbol + "&limit=1000";
+            // Spot / Futures use different hosts and paths
+            std::string host = isSpot ? "api.binance.com" : "fapi.binance.com";
+            std::string target = isSpot
+                ? ("/api/v3/depth?symbol=" + symbol + "&limit=1000")
+                : ("/fapi/v1/depth?symbol=" + symbol + "&limit=1000");
+
+            TradingBot::Core::Logging::Info("Snapshot", std::string("GET https://") + host + target);
 
             tcp::resolver resolver(ioc_);
             beast::ssl_stream<beast::tcp_stream> stream(ioc_, ctx_);
@@ -86,6 +92,17 @@ namespace TradingBot::Core::Network {
                 state_->ApplyUpdate(snap.bids, snap.asks);
             }
 
+            if(!snap.asks.empty() && !snap.bids.empty())
+            {
+                TradingBot::Core::Logging::Info(
+                    "Snapshot",
+                    "symbol=" + symbol +
+                    " bestBid=" + std::to_string(snap.bids.front().price) +
+                    " bestAsk=" + std::to_string(snap.asks.front().price) +
+                    " bids=" + std::to_string(snap.bids.size()) +
+                    " asks=" + std::to_string(snap.asks.size()));
+            }
+
             beast::error_code ec;
             stream.shutdown(ec);
         }
@@ -94,19 +111,26 @@ namespace TradingBot::Core::Network {
         }
     }
 
-    void BinanceConnection::Connect(const std::string& symbol, bool useTestnet) {
+    void BinanceConnection::Connect(const std::string& symbol, bool isSpot) {
         std::string upperSymbol = symbol;
         std::string lowerSymbol = symbol;
         std::transform(upperSymbol.begin(), upperSymbol.end(), upperSymbol.begin(), ::toupper);
         std::transform(lowerSymbol.begin(), lowerSymbol.end(), lowerSymbol.begin(), ::tolower);
 
-        DownloadSnapshot(upperSymbol, useTestnet);
+        TradingBot::Core::Logging::Info(
+            "WS",
+            std::string("Connect symbol=") + upperSymbol + (isSpot ? " mode=SPOT" : " mode=FUTURES"));
+
+        DownloadSnapshot(upperSymbol, isSpot);
 
         try {
-            std::string host = useTestnet ? "stream.binancefuture.com" : "fstream.binance.com";
+            // Spot and Futures have different websocket endpoints
+            std::string host = isSpot ? "stream.binance.com" : "fstream.binance.com";
 
-            // ���������: ��������������� ����� (������ + ������)
+            // Futures supports @depth@100ms, spot uses @depth@100ms too (Binance supports it for spot as well)
             std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@trade";
+
+            TradingBot::Core::Logging::Info("WS", std::string("wss://") + host + target);
 
             tcp::resolver resolver(ioc_);
             auto const results = resolver.resolve(host, "443");

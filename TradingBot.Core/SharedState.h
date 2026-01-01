@@ -61,18 +61,26 @@ namespace TradingBot::Core {
             if (Asks.empty() && Bids.empty()) return snap;
             if (priceStep <= 0.00000001) return snap;
 
-            std::map<double, double> aggBids;
-            std::map<double, double> aggAsks;
+            // Устойчивое «привязывание к сетке»: работаем через целочисленные бакеты,
+            // чтобы избежать дрейфа double при маленьком tickSize.
+            auto bucketFloor = [priceStep](double price) -> long long {
+                return static_cast<long long>(std::floor(price / priceStep + 1e-9));
+            };
+            auto bucketCeil = [priceStep](double price) -> long long {
+                return static_cast<long long>(std::ceil(price / priceStep - 1e-9));
+            };
+            auto bucketToPrice = [priceStep](long long bucket) -> double {
+                return static_cast<double>(bucket) * priceStep;
+            };
 
-            // Агрегация данных под текущий масштаб
+            std::map<long long, double> aggBids;
+            std::map<long long, double> aggAsks;
+
             for (auto const& [price, qty] : Asks) {
-                double key = std::ceil(price / priceStep - 0.000001) * priceStep;
-                if (key == -0.0) key = 0.0;
-                aggAsks[key] += qty;
+                aggAsks[bucketCeil(price)] += qty;
             }
             for (auto const& [price, qty] : Bids) {
-                double key = std::floor(price / priceStep + 0.000001) * priceStep;
-                aggBids[key] += qty;
+                aggBids[bucketFloor(price)] += qty;
             }
 
             double bestAsk = Asks.empty() ? 0 : Asks.begin()->first;
@@ -80,25 +88,28 @@ namespace TradingBot::Core {
 
             if (bestAsk <= 0 || bestBid <= 0) return snap;
 
-            double gridAsk = std::ceil(bestAsk / priceStep - 0.000001) * priceStep;
-            double gridBid = std::floor(bestBid / priceStep + 0.000001) * priceStep;
+            long long gridAskBucket = bucketCeil(bestAsk);
+            long long gridBidBucket = bucketFloor(bestBid);
 
-            // Защита от перекрытия спреда
-            if (gridAsk <= gridBid) gridAsk = gridBid + priceStep;
+            // «Разрыв» между сеточными bestBid/bestAsk должен быть минимум 1 шаг
+            if (gridAskBucket <= gridBidBucket)
+                gridAskBucket = gridBidBucket + 1;
 
             for (int i = 0; i < depth; i++) {
-                double price = gridAsk + (i * priceStep);
-                double vol = 0;
-                auto it = aggAsks.lower_bound(price - 0.00001);
-                if (it != aggAsks.end() && std::abs(it->first - price) < 0.00001) vol = it->second;
+                long long bucket = gridAskBucket + i;
+                double price = bucketToPrice(bucket);
+                double vol = 0.0;
+                auto it = aggAsks.find(bucket);
+                if (it != aggAsks.end()) vol = it->second;
                 snap.Asks.push_back({ price, vol });
             }
 
             for (int i = 0; i < depth; i++) {
-                double price = gridBid - (i * priceStep);
-                double vol = 0;
-                auto it = aggBids.lower_bound(price - 0.00001);
-                if (it != aggBids.end() && std::abs(it->first - price) < 0.00001) vol = it->second;
+                long long bucket = gridBidBucket - i;
+                double price = bucketToPrice(bucket);
+                double vol = 0.0;
+                auto it = aggBids.find(bucket);
+                if (it != aggBids.end()) vol = it->second;
                 snap.Bids.push_back({ price, vol });
             }
 

@@ -22,12 +22,12 @@ namespace TradingBot::Core::Network {
         BinanceConnection(std::shared_ptr<SharedState> state);
         ~BinanceConnection();
 
-        void Connect(const std::string& symbol, bool useTestnet = false);
+        void Connect(const std::string& symbol, bool isSpot = false);
         void Stop();
 
     private:
         // ������ ��� ��������� ����� ������, � �� "�������" �������
-        void DownloadSnapshot(const std::string& symbol, bool useTestnet);
+        void DownloadSnapshot(const std::string& symbol, bool isSpot);
         
         // �������� ��������� ������������ ��� SSL
         void LoadRootCertificates();
