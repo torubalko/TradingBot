@@ -84,7 +84,14 @@ std::string RestClient::HttpsGet(const std::string& host, const std::string& tar
         stream.shutdown(ec);
         return res.body();
     }
-    catch (...) { return ""; }
+    catch (const std::exception& e) {
+        std::cerr << "[RestClient] HTTPS GET failed: " << e.what() << std::endl;
+        return "";
+    }
+    catch (...) {
+        std::cerr << "[RestClient] HTTPS GET failed with unknown error" << std::endl;
+        return "";
+    }
 }
 
 std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonResponse, MarketType type) {
@@ -104,7 +111,7 @@ std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonRe
             p.tickSize = 0.0;
             p.stepSize = 0.0;
             p.minQty = 0.0;
-            p.pricePrecision = 2; // Дефолт, если не сможем посчитать
+            p.pricePrecision = 2; // пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
             for (const auto& filter : item["filters"]) {
                 std::string fType = filter["filterType"];
@@ -112,22 +119,22 @@ std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonRe
                     std::string tickStr = filter["tickSize"].get<std::string>();
                     p.tickSize = std::stod(tickStr);
 
-                    // <--- РАСЧЕТ ТОЧНОСТИ ИЗ TICK SIZE (Убираем лишние нули) --->
-                    // Пример: "0.001000" -> убираем нули -> "0.001" -> 3 знака
+                    // <--- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ TICK SIZE (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ) --->
+                    // пїЅпїЅпїЅпїЅпїЅпїЅ: "0.001000" -> пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ -> "0.001" -> 3 пїЅпїЅпїЅпїЅпїЅ
                     size_t decimalPos = tickStr.find('.');
                     if (decimalPos != std::string::npos) {
-                        // Удаляем хвостовые нули
+                        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
                         tickStr.erase(tickStr.find_last_not_of('0') + 1, std::string::npos);
-                        // Если точка осталась последней (1.), убираем и её
+                        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (1.), пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅ
                         if (tickStr.back() == '.') tickStr.pop_back();
 
-                        // Пересчитываем позицию точки
+                        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
                         decimalPos = tickStr.find('.');
                         if (decimalPos != std::string::npos) {
                             p.pricePrecision = (int)(tickStr.length() - decimalPos - 1);
                         }
                         else {
-                            p.pricePrecision = 0; // Целое число
+                            p.pricePrecision = 0; // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
                         }
                     }
                 }
@@ -139,6 +146,11 @@ std::vector<TradingPair> RestClient::ParseExchangeInfo(const std::string& jsonRe
             pairs.push_back(p);
         }
     }
-    catch (...) {}
+    catch (const std::exception& e) {
+        std::cerr << "[RestClient] Failed to parse ExchangeInfo: " << e.what() << std::endl;
+    }
+    catch (...) {
+        std::cerr << "[RestClient] Failed to parse ExchangeInfo with unknown error" << std::endl;
+    }
     return pairs;
 }

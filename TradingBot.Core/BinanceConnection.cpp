@@ -5,19 +5,50 @@
 #include <algorithm> 
 #include <cctype>    
 #include <boost/beast/http.hpp>
-// Добавляем для ручного разбора JSON
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ JSON
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+// пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+#include <wincrypt.h>
+#pragma comment(lib, "crypt32.lib")
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
 namespace TradingBot::Core::Network {
 
     BinanceConnection::BinanceConnection(std::shared_ptr<SharedState> state)
         : state_(state) {
-        ctx_.set_verify_mode(boost::asio::ssl::verify_none);
+        ctx_.set_verify_mode(ssl::verify_peer);
+        LoadRootCertificates();
     }
 
     BinanceConnection::~BinanceConnection() {
         Stop();
+    }
+
+    void BinanceConnection::LoadRootCertificates() {
+        HCERTSTORE hStore = CertOpenSystemStore(0, L"ROOT");
+        if (!hStore) {
+            std::cerr << "[BinanceConnection] Failed to open certificate store" << std::endl;
+            return;
+        }
+
+        X509_STORE* store = SSL_CTX_get_cert_store(ctx_.native_handle());
+        PCCERT_CONTEXT pContext = NULL;
+
+        int certCount = 0;
+        while ((pContext = CertEnumCertificatesInStore(hStore, pContext))) {
+            const unsigned char* p = pContext->pbCertEncoded;
+            X509* x509 = d2i_X509(NULL, &p, pContext->cbCertEncoded);
+            if (x509) {
+                X509_STORE_add_cert(store, x509);
+                X509_free(x509);
+                certCount++;
+            }
+        }
+        CertCloseStore(hStore, 0);
+        
+        std::cout << "[BinanceConnection] Loaded " << certCount << " root certificates" << std::endl;
     }
 
     void BinanceConnection::Stop() {
@@ -74,7 +105,7 @@ namespace TradingBot::Core::Network {
         try {
             std::string host = useTestnet ? "stream.binancefuture.com" : "fstream.binance.com";
 
-            // ИЗМЕНЕНИЕ: Комбинированный поток (стакан + сделки)
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅ)
             std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@trade";
 
             tcp::resolver resolver(ioc_);
@@ -107,25 +138,30 @@ namespace TradingBot::Core::Network {
                     if (root.count("stream")) {
                         std::string streamName = root.get<std::string>("stream");
 
-                        // 1. ДАННЫЕ СТАКАНА
+                        // 1. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                         if (streamName.find("@depth") != std::string::npos) {
                             auto update = Utils::JsonParser::ParseDepthUpdate(msg);
                             state_->ApplyUpdate(update.bids, update.asks);
                         }
-                        // 2. ДАННЫЕ СДЕЛОК
+                        // 2. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                         else if (streamName.find("@trade") != std::string::npos) {
                             pt::ptree data = root.get_child("data");
                             Trade trade;
                             trade.price = std::stod(data.get<std::string>("p"));
                             trade.quantity = std::stod(data.get<std::string>("q"));
-                            trade.isBuyerMaker = data.get<bool>("m"); // true = продажа
+                            trade.isBuyerMaker = data.get<bool>("m"); // true = пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                             trade.timestamp = data.get<long long>("T");
 
                             state_->AddTrade(trade);
                         }
                     }
                 }
-                catch (...) {}
+                catch (const std::exception& e) {
+                    std::cerr << "[BinanceConnection] Failed to parse message: " << e.what() << std::endl;
+                }
+                catch (...) {
+                    std::cerr << "[BinanceConnection] Unknown error parsing message" << std::endl;
+                }
 
                 buffer.consume(buffer.size());
             }
