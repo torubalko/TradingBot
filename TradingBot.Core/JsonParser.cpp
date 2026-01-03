@@ -2,101 +2,138 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <string_view>
 #include <charconv>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
 namespace TradingBot::Core::Utils {
 
+    namespace {
+        inline void skipSpaces(std::string_view s, size_t& i) {
+            while (i < s.size() && (unsigned char)s[i] <= ' ') ++i;
+        }
+
+        inline bool parseInt64(std::string_view s, size_t& i, long long& out) {
+            skipSpaces(s, i);
+            const char* begin = s.data() + i;
+            const char* end = s.data() + s.size();
+            auto res = std::from_chars(begin, end, out);
+            if (res.ec != std::errc()) return false;
+            i = (size_t)(res.ptr - s.data());
+            return true;
+        }
+
+        inline bool parseQuotedDouble(std::string_view s, size_t& i, double& out) {
+            skipSpaces(s, i);
+            if (i < s.size() && s[i] == '"') ++i;
+            const char* begin = s.data() + i;
+            const char* end = s.data() + s.size();
+            auto res = std::from_chars(begin, end, out, std::chars_format::general);
+            if (res.ec != std::errc()) return false;
+            i = (size_t)(res.ptr - s.data());
+            if (i < s.size() && s[i] == '"') ++i;
+            return true;
+        }
+
+        inline bool findKey(std::string_view s, std::string_view key, size_t& pos) {
+            pos = s.find(key, pos);
+            return pos != std::string_view::npos;
+        }
+
+        inline bool findColonAfterKey(std::string_view s, size_t& pos) {
+            // pos at beginning of key
+            pos = s.find(':', pos);
+            if (pos == std::string_view::npos) return false;
+            ++pos;
+            return true;
+        }
+
+        inline long long findIntField(std::string_view s, std::string_view quotedKey) {
+            size_t pos = 0;
+            if (!findKey(s, quotedKey, pos)) return 0;
+            if (!findColonAfterKey(s, pos)) return 0;
+            long long v = 0;
+            if (!parseInt64(s, pos, v)) return 0;
+            return v;
+        }
+
+        inline void parseLevels(std::string_view s, std::string_view quotedKey, std::vector<OrderBookLevel>& levels) {
+            size_t pos = 0;
+            if (!findKey(s, quotedKey, pos)) return;
+            if (!findColonAfterKey(s, pos)) return;
+            skipSpaces(s, pos);
+            if (pos >= s.size() || s[pos] != '[') return;
+            ++pos; // after '['
+
+            // Each entry: ["price","qty"]
+            while (pos < s.size()) {
+                skipSpaces(s, pos);
+                if (pos >= s.size()) break;
+                if (s[pos] == ']') { ++pos; break; }
+                if (s[pos] == ',') { ++pos; continue; }
+                if (s[pos] != '[') { ++pos; continue; }
+                ++pos; // after '['
+
+                double price = 0.0;
+                double qty = 0.0;
+
+                if (!parseQuotedDouble(s, pos, price)) {
+                    // skip to end of this element
+                    pos = s.find(']', pos);
+                    if (pos == std::string_view::npos) return;
+                    ++pos;
+                    continue;
+                }
+
+                // skip comma
+                while (pos < s.size() && s[pos] != ',') {
+                    if (s[pos] == ']') break;
+                    ++pos;
+                }
+                if (pos < s.size() && s[pos] == ',') ++pos;
+
+                if (!parseQuotedDouble(s, pos, qty)) {
+                    pos = s.find(']', pos);
+                    if (pos == std::string_view::npos) return;
+                    ++pos;
+                    continue;
+                }
+
+                // skip to end of inner array
+                pos = s.find(']', pos);
+                if (pos == std::string_view::npos) return;
+                ++pos;
+
+                levels.push_back({ price, qty });
+            }
+        }
+    }
+
     OrderBookUpdate JsonParser::ParseDepthUpdate(const std::string& json) {
-        OrderBookUpdate update;
+        OrderBookUpdate update{};
         update.u = 0;
         update.U = 0;
+        update.pu = 0;
+        update.E = 0;
 
         try {
-            // Robust field finder: looks for "key" then : then value
-            auto findField = [&](const std::string& key) -> long long {
-                std::string keyPattern = "\"" + key + "\"";
-                size_t keyPos = json.find(keyPattern);
-                if (keyPos == std::string::npos) return 0;
-                
-                size_t pos = keyPos + keyPattern.length();
-                
-                // Skip spaces and find colon
-                while (pos < json.length() && isspace(json[pos])) pos++;
-                if (pos >= json.length() || json[pos] != ':') return 0;
-                pos++; // skip colon
+            std::string_view s{ json };
 
-                // Skip spaces
-                while (pos < json.length() && isspace(json[pos])) pos++;
-                
-                size_t end = pos;
-                while (end < json.length() && isdigit(json[end])) end++;
-                
-                if (end > pos) {
-                    try {
-                        return std::stoll(json.substr(pos, end - pos));
-                    } catch(...) { return 0; }
-                }
-                return 0;
-            };
-
-            update.U = findField("U");
-            update.u = findField("u");
-            update.pu = findField("pu"); // Parse previous update ID
-            update.E = findField("E"); // Parse Event Time
+            update.U = findIntField(s, "\"U\"");
+            update.u = findIntField(s, "\"u\"");
+            update.pu = findIntField(s, "\"pu\"");
+            update.E = findIntField(s, "\"E\"");
 
             if (update.U == 0 || update.u == 0) return update;
 
-            // 2. Parse bids and asks
-            auto parseLevels = [&](const std::string& key, std::vector<OrderBookLevel>& levels) {
-                std::string keyPattern = "\"" + key + "\"";
-                size_t keyPos = json.find(keyPattern);
-                if (keyPos == std::string::npos) return;
-                
-                size_t pos = keyPos + keyPattern.length();
-                while (pos < json.length() && isspace(json[pos])) pos++;
-                if (pos >= json.length() || json[pos] != ':') return;
-                pos++;
-                while (pos < json.length() && isspace(json[pos])) pos++;
-                if (pos >= json.length() || json[pos] != '[') return;
-                pos++; // Skip '['
+            update.bids.clear();
+            update.asks.clear();
+            update.bids.reserve(128);
+            update.asks.reserve(128);
 
-                while (pos < json.length()) {
-                    while (pos < json.length() && (isspace(json[pos]) || json[pos] == ',')) pos++;
-                    if (pos >= json.length() || json[pos] != '[') break;
-                    pos++; // Skip '['
-
-                    // Price
-                    while (pos < json.length() && (isspace(json[pos]) || json[pos] == '"')) pos++;
-                    size_t pStart = pos;
-                    while (pos < json.length() && json[pos] != '"') pos++;
-                    std::string sPrice = json.substr(pStart, pos - pStart);
-                    pos++; // Skip '"'
-
-                    // Comma
-                    while (pos < json.length() && (isspace(json[pos]) || json[pos] == ',')) pos++;
-
-                    // Qty
-                    while (pos < json.length() && (isspace(json[pos]) || json[pos] == '"')) pos++;
-                    size_t qStart = pos;
-                    while (pos < json.length() && json[pos] != '"') pos++;
-                    std::string sQty = json.substr(qStart, pos - qStart);
-                    pos++; // Skip '"'
-
-                    while (pos < json.length() && json[pos] != ']') pos++;
-                    pos++; // Skip ']'
-
-                    try {
-                        double p = std::stod(sPrice);
-                        double q = std::stod(sQty);
-                        levels.push_back({ p, q });
-                    } catch(...) {}
-                }
-            };
-
-            parseLevels("b", update.bids);
-            parseLevels("a", update.asks);
+            parseLevels(s, "\"b\"", update.bids);
+            parseLevels(s, "\"a\"", update.asks);
         }
         catch (...) {
         }
@@ -116,7 +153,8 @@ namespace TradingBot::Core::Utils {
                         double qty = std::stod(it->second.data());
                         levels.push_back({ price, qty });
                     }
-                } catch(...) {}
+                }
+                catch (...) {}
             }
         }
         return levels;

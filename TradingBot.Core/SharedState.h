@@ -19,7 +19,7 @@ namespace TradingBot::Core {
     };
 
     struct MetricsSnapshot {
-        long long lastLatencyMs;
+        long long latencyMs;
         long long stalenessMs;
     };
 
@@ -29,24 +29,39 @@ namespace TradingBot::Core {
         std::mutex instrumentsMutex;
 
     public:
-        void SetLatency(long long latencyMs) {
+        void SetLatencySample(long long latencyMs) {
             lastLatencyMs_.store(latencyMs, std::memory_order_relaxed);
+            long long prev = latencyAvgMs_.load(std::memory_order_relaxed);
+            long long smoothed = (prev == 0) ? latencyMs : prev + ((latencyMs - prev) / 4); // alpha=0.25
+            latencyAvgMs_.store(smoothed, std::memory_order_relaxed);
         }
 
-        void SetAppliedTimestamp(long long appliedMs) {
-            lastAppliedMs_.store(appliedMs, std::memory_order_relaxed);
+        void SetAppliedNow() {
+            auto nowSys = std::chrono::system_clock::now();
+            auto nowSteady = std::chrono::steady_clock::now();
+            long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(nowSys.time_since_epoch()).count();
+            long long nowNsSteady = std::chrono::duration_cast<std::chrono::nanoseconds>(nowSteady.time_since_epoch()).count();
+            lastAppliedMs_.store(nowMs, std::memory_order_relaxed);
+            lastAppliedSteadyNs_.store(nowNsSteady, std::memory_order_relaxed);
         }
 
         MetricsSnapshot GetMetrics() {
             MetricsSnapshot m{};
-            m.lastLatencyMs = lastLatencyMs_.load(std::memory_order_relaxed);
-            long long applied = lastAppliedMs_.load(std::memory_order_relaxed);
-            if (applied > 0) {
-                long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count();
-                m.stalenessMs = nowMs - applied;
-            } else {
-                m.stalenessMs = 0;
+            long long latAvg = latencyAvgMs_.load(std::memory_order_relaxed);
+            m.latencyMs = (latAvg > 0) ? latAvg : lastLatencyMs_.load(std::memory_order_relaxed);
+
+            long long appliedNs = lastAppliedSteadyNs_.load(std::memory_order_relaxed);
+            if (appliedNs > 0) {
+                long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+                long long rawMs = (nowNs - appliedNs) / 1'000'000;
+                long long prev = stalenessAvgMs_.load(std::memory_order_relaxed);
+                long long smoothed = (prev == 0) ? rawMs : prev + ((rawMs - prev) / 4); // alpha=0.25
+                stalenessAvgMs_.store(smoothed, std::memory_order_relaxed);
+                m.stalenessMs = smoothed;
+            }
+            else {
+                m.stalenessMs = stalenessAvgMs_.load(std::memory_order_relaxed);
             }
             return m;
         }
@@ -57,74 +72,43 @@ namespace TradingBot::Core {
             double epsilon = 0.0000001;
 
             for (const auto& level : bids) {
-                if (level.quantity < epsilon) Bids.erase(level.price);
-                else Bids[level.price] = level.quantity;
+                if (level.quantity < epsilon) Bids_.erase(level.price);
+                else Bids_[level.price] = level.quantity;
             }
             for (const auto& level : asks) {
-                if (level.quantity < epsilon) Asks.erase(level.price);
-                else Asks[level.price] = level.quantity;
+                if (level.quantity < epsilon) Asks_.erase(level.price);
+                else Asks_[level.price] = level.quantity;
             }
         }
 
-        RenderSnapshot GetSnapshotForRender(int depth, double priceStep) {
+        void CopyOrderBook(std::map<double, double>& bids, std::map<double, double>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
-            RenderSnapshot snap;
+            bids = Bids_;
+            asks = Asks_;
+        }
 
-            if (Asks.empty() || Bids.empty()) return snap;
+        void PublishRenderSnapshot(RenderSnapshot snap) {
+            int next = 1 - publishedIndex_.load(std::memory_order_relaxed);
+            published_[next] = std::move(snap);
+            publishedIndex_.store(next, std::memory_order_release);
+        }
 
-            double bestAsk = Asks.begin()->first;
-            double bestBid = Bids.rbegin()->first;
-
-            double mid = (bestAsk + bestBid) / 2.0;
-            double center = std::floor(mid / priceStep + 0.0000001) * priceStep;
-
-            double maxPrice = center + depth * priceStep;
-            double minPrice = center - depth * priceStep;
-
-            std::map<double, double> aggBids;
-            std::map<double, double> aggAsks;
-
-            // Aggregate Asks within visible range using fixed bins (ceil)
-            for (auto it = Asks.lower_bound(minPrice); it != Asks.end(); ++it) {
-                if (it->first > maxPrice) break;
-                double key = std::ceil(it->first / priceStep - 0.000001) * priceStep;
-                if (key == -0.0) key = 0.0;
-                aggAsks[key] += it->second;
-            }
-
-            // Aggregate Bids within visible range using fixed bins (floor)
-            for (auto it = Bids.lower_bound(minPrice); it != Bids.end() && it->first <= maxPrice; ++it) {
-                double key = std::floor(it->first / priceStep + 0.000001) * priceStep;
-                aggBids[key] += it->second;
-            }
-
-            double gridBid = center;
-            double gridAsk = center + priceStep;
-
-            for (int i = 0; i < depth; i++) {
-                double price = gridAsk + (i * priceStep);
-                double vol = 0;
-                auto itLb = aggAsks.lower_bound(price - 0.00001);
-                if (itLb != aggAsks.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
-                snap.Asks.push_back({ price, vol });
-            }
-
-            for (int i = 0; i < depth; i++) {
-                double price = gridBid - (i * priceStep);
-                double vol = 0;
-                auto itLb = aggBids.lower_bound(price - 0.00001);
-                if (itLb != aggBids.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
-                snap.Bids.push_back({ price, vol });
-            }
-
-            return snap;
+        RenderSnapshot GetSnapshotForRender(int /*depth*/, double /*priceStep*/) {
+            int idx = publishedIndex_.load(std::memory_order_acquire);
+            return published_[idx];
         }
 
     private:
         std::mutex mutex_;
-        std::map<double, double> Bids;
-        std::map<double, double> Asks;
+        std::map<double, double> Bids_;
+        std::map<double, double> Asks_;
         std::atomic<long long> lastLatencyMs_{ 0 };
+        std::atomic<long long> latencyAvgMs_{ 0 };
         std::atomic<long long> lastAppliedMs_{ 0 };
+        std::atomic<long long> lastAppliedSteadyNs_{ 0 };
+        std::atomic<long long> stalenessAvgMs_{ 0 };
+
+        RenderSnapshot published_[2];
+        std::atomic<int> publishedIndex_{ 0 };
     };
 }

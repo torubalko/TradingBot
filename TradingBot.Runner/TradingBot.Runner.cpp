@@ -10,6 +10,7 @@
 #include <cmath>
 #include <deque>
 #include <cstdlib> 
+#include <map>
 #include <boost/beast/core.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
@@ -38,6 +39,88 @@ const float START_X_POS = 310.0f;
 
 double g_SmoothCenterPrice = 0.0;
 bool g_IsFirstFrame = true;
+
+static RenderSnapshot BuildRenderSnapshotFromBook(const std::map<double, double>& bids,
+    const std::map<double, double>& asks,
+    int depth,
+    double priceStep) {
+    RenderSnapshot snap;
+    if (asks.empty() || bids.empty() || depth <= 0 || priceStep <= 0) return snap;
+
+    double bestAsk = asks.begin()->first;
+    double bestBid = bids.rbegin()->first;
+
+    double mid = (bestAsk + bestBid) / 2.0;
+    double center = std::floor(mid / priceStep + 0.0000001) * priceStep;
+
+    double maxPrice = center + depth * priceStep;
+    double minPrice = center - depth * priceStep;
+
+    std::map<double, double> aggBids;
+    std::map<double, double> aggAsks;
+
+    for (auto it = asks.lower_bound(minPrice); it != asks.end(); ++it) {
+        if (it->first > maxPrice) break;
+        double key = std::ceil(it->first / priceStep - 0.000001) * priceStep;
+        if (key == -0.0) key = 0.0;
+        aggAsks[key] += it->second;
+    }
+
+    for (auto it = bids.lower_bound(minPrice); it != bids.end() && it->first <= maxPrice; ++it) {
+        double key = std::floor(it->first / priceStep + 0.000001) * priceStep;
+        aggBids[key] += it->second;
+    }
+
+    double gridBid = center;
+    double gridAsk = center + priceStep;
+
+    snap.Asks.reserve(depth);
+    snap.Bids.reserve(depth);
+
+    for (int i = 0; i < depth; i++) {
+        double price = gridAsk + (i * priceStep);
+        double vol = 0;
+        auto itLb = aggAsks.lower_bound(price - 0.00001);
+        if (itLb != aggAsks.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
+        snap.Asks.push_back({ price, vol });
+    }
+
+    for (int i = 0; i < depth; i++) {
+        double price = gridBid - (i * priceStep);
+        double vol = 0;
+        auto itLb = aggBids.lower_bound(price - 0.00001);
+        if (itLb != aggBids.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
+        snap.Bids.push_back({ price, vol });
+    }
+
+    return snap;
+}
+
+void SnapshotPublisherThreadFunc() {
+    // Publish snapshots at fixed interval. UI reads already aggregated snapshot.
+    constexpr int depth = 80;
+    constexpr int publishMs = 50;
+
+    while (g_Running) {
+        try {
+            int scaleIndex = g_ScaleIndex;
+            if (scaleIndex < 0) scaleIndex = 0;
+            if ((size_t)scaleIndex >= g_Scales.size()) scaleIndex = (int)g_Scales.size() - 1;
+            double priceStep = BASE_TICK_SIZE * g_Scales[scaleIndex];
+
+            std::map<double, double> bids;
+            std::map<double, double> asks;
+            g_SharedState->CopyOrderBook(bids, asks);
+
+            RenderSnapshot snap = BuildRenderSnapshotFromBook(bids, asks, depth, priceStep);
+            g_SharedState->PublishRenderSnapshot(std::move(snap));
+        }
+        catch (...) {
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(publishMs));
+    }
+}
 
 std::wstring FormatPrice(double price) {
     std::wstringstream ss;
@@ -97,7 +180,7 @@ void NetworkThreadFunc() {
         try {
             std::string currentPair = "BTCUSDT";
             auto connection = std::make_shared<BinanceConnection>(g_SharedState);
-            connection->Connect(currentPair, false);
+            connection->Connect(currentPair, false); // false = Futures (пока заглушка, можно менять)
         }
         catch (const std::exception& e) {
             OutputDebugStringA(e.what());
@@ -130,6 +213,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
     g_SharedState = std::make_shared<SharedState>();
     std::thread networkThread(NetworkThreadFunc);
+    std::thread publisherThread(SnapshotPublisherThreadFunc);
 
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"TigerBotZone", NULL };
     RegisterClassEx(&wc);
@@ -258,9 +342,33 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             ssScale << L"Scale: x" << g_Scales[g_ScaleIndex];
             g_Graphics->DrawTextPixels(ssScale.str(), screenWidth - 120.0f, 15.0f, 100.0f, 20.0f, 14, 0.7f, 0.7f, 0.7f, 1.0f);
 
+            // Metrics (latency / staleness) with throttling ~100ms
+            static std::wstring cachedLatency = L"-- мс.↓";
+            static std::wstring cachedStale = L"-- мс.↑";
+            static auto lastMetricsDraw = std::chrono::steady_clock::now();
+            auto nowMetrics = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(nowMetrics - lastMetricsDraw).count() >= 100) {
+                MetricsSnapshot metrics = g_SharedState->GetMetrics();
+                std::wstringstream ssLatency;
+                ssLatency << metrics.latencyMs << L" мс.↓";
+                std::wstringstream ssStale;
+                ssStale << metrics.stalenessMs << L" мс.↑";
+                cachedLatency = ssLatency.str();
+                cachedStale = ssStale.str();
+                lastMetricsDraw = nowMetrics;
+            }
+            float metricsX = screenWidth - 180.0f;
+            float metricsY = 12.0f;
+            g_Graphics->DrawTextPixels(cachedLatency, metricsX, metricsY + 18.0f, 120.0f, 18.0f, 14.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+            g_Graphics->DrawTextPixels(cachedStale, metricsX, metricsY, 120.0f, 18.0f, 14.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+
             g_Graphics->EndFrame();
         }
     }
+
+    g_Running = false;
+    if (publisherThread.joinable()) publisherThread.join();
+    if (networkThread.joinable()) networkThread.join();
 
     std::exit(0);
     return (int)msg.wParam;
