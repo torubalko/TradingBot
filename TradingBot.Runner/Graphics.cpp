@@ -38,7 +38,7 @@ bool Graphics::Initialize(HWND hWnd) {
     height_ = (float)(rc.bottom - rc.top);
 
     DXGI_SWAP_CHAIN_DESC scd = {};
-    scd.BufferCount = 1;
+    scd.BufferCount = 2;
     scd.BufferDesc.Width = (UINT)width_;
     scd.BufferDesc.Height = (UINT)height_;
     scd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -51,6 +51,12 @@ bool Graphics::Initialize(HWND hWnd) {
     UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, NULL, 0, D3D11_SDK_VERSION, &scd, &swapChain, &device, NULL, &context);
     if (FAILED(hr)) return false;
+
+    // low-latency hint
+    ComPtr<IDXGIDevice1> dxgiDevice;
+    if (SUCCEEDED(device.As(&dxgiDevice))) {
+        dxgiDevice->SetMaximumFrameLatency(1);
+    }
 
     ComPtr<ID3D11Texture2D> backBuffer;
     swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
@@ -69,12 +75,10 @@ bool Graphics::Initialize(HWND hWnd) {
     d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
     d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
 
-    // Формат для стакана (Слева)
     writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 12.0f, L"en-us", &textFormat);
     textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
 
-    // НОВОЕ: Формат для пузырьков (Центр)
     writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 11.0f, L"en-us", &textFormatCenter);
     textFormatCenter->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     textFormatCenter->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
@@ -94,6 +98,31 @@ bool Graphics::Initialize(HWND hWnd) {
     return true;
 }
 
+ComPtr<IDWriteTextLayout> Graphics::GetOrCreateLayout(const std::wstring& text, float w, float h, bool centered) {
+    TextLayoutKey key{ text, w, h, centered };
+    auto it = layoutCache_.find(key);
+    if (it != layoutCache_.end()) {
+        it->second.lastUsedFrame = frameCounter_;
+        return it->second.layout;
+    }
+
+    ComPtr<IDWriteTextLayout> layout;
+    IDWriteTextFormat* fmt = centered ? textFormatCenter.Get() : textFormat.Get();
+    writeFactory->CreateTextLayout(text.c_str(), (UINT32)text.size(), fmt, w, h, &layout);
+
+    layoutCache_.emplace(std::move(key), CachedLayout{ layout, frameCounter_ });
+    return layout;
+}
+
+void Graphics::GarbageCollectLayouts() {
+    // simple LRU: keep layouts used in last N frames
+    constexpr uint64_t keepFrames = 300; // ~5s at 60fps
+    for (auto it = layoutCache_.begin(); it != layoutCache_.end(); ) {
+        if (frameCounter_ > it->second.lastUsedFrame + keepFrames) it = layoutCache_.erase(it);
+        else ++it;
+    }
+}
+
 void Graphics::CreateShaders() {
     ComPtr<ID3DBlob> vsBlob, psBlob;
     D3DCompile(VS_SRC, strlen(VS_SRC), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &vsBlob, NULL);
@@ -110,6 +139,9 @@ void Graphics::CreateShaders() {
 }
 
 void Graphics::BeginFrame(float r, float g, float b) {
+    ++frameCounter_;
+    GarbageCollectLayouts();
+
     if (isD2DDrawing) { d2dRenderTarget->EndDraw(); isD2DDrawing = false; }
     float color[] = { r, g, b, 1.0f };
     context->ClearRenderTargetView(target.Get(), color);
@@ -151,31 +183,37 @@ void Graphics::DrawRectPixels(float x, float y, float w, float h, float r, float
 }
 
 void Graphics::DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a) {
+    (void)fontSize;
     FlushBatch();
     if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
+
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
     D2D1_RECT_F layoutRect = D2D1::RectF(x, y - 2.0f, x + w, y + h - 2.0f);
-    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormat.Get(), layoutRect, d2dBrush.Get());
+
+    auto layout = GetOrCreateLayout(text, w, h, false);
+    d2dRenderTarget->DrawTextLayout(D2D1::Point2F(layoutRect.left, layoutRect.top), layout.Get(), d2dBrush.Get());
 }
 
-// === НОВОЕ: РИСОВАНИЕ ТЕКСТА ПО ЦЕНТРУ ===
 void Graphics::DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a) {
+    (void)fontSize;
     FlushBatch();
     if (!isD2DDrawing) { d2dRenderTarget->BeginDraw(); isD2DDrawing = true; }
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
 
-    // Рисуем прямоугольник вокруг центра, текст выровняется сам
     float halfSize = 50.0f;
-    D2D1_RECT_F layoutRect = D2D1::RectF(centerX - halfSize, centerY - halfSize, centerX + halfSize, centerY + halfSize);
+    float w = halfSize * 2.0f;
+    float h = halfSize * 2.0f;
+    float x = centerX - halfSize;
+    float y = centerY - halfSize;
 
-    d2dRenderTarget->DrawTextW(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), layoutRect, d2dBrush.Get());
+    auto layout = GetOrCreateLayout(text, w, h, true);
+    d2dRenderTarget->DrawTextLayout(D2D1::Point2F(x, y), layout.Get(), d2dBrush.Get());
 }
 
-// === НОВОЕ: ИЗМЕРЕНИЕ ТЕКСТА ===
 float Graphics::MeasureTextWidth(const std::wstring& text, float fontSize) {
-    ComPtr<IDWriteTextLayout> layout;
-    writeFactory->CreateTextLayout(text.c_str(), (UINT32)text.length(), textFormatCenter.Get(), 1000.0f, 1000.0f, &layout);
-    DWRITE_TEXT_METRICS metrics;
+    (void)fontSize;
+    auto layout = GetOrCreateLayout(text, 1000.0f, 1000.0f, true);
+    DWRITE_TEXT_METRICS metrics{};
     layout->GetMetrics(&metrics);
     return metrics.width;
 }
@@ -187,7 +225,6 @@ void Graphics::DrawCirclePixels(float centerX, float centerY, float radius, floa
     D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radius, radius);
     d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
 }
-// ... (предыдущий код DrawCirclePixels) ...
 
 void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a) {
     if (!isD2DDrawing) {
@@ -198,11 +235,9 @@ void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, fl
 
     d2dBrush->SetColor(D2D1::ColorF(r, g, b, a));
 
-    // Рисуем эллипс (овал)
     D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(centerX, centerY), radiusX, radiusY);
     d2dRenderTarget->FillEllipse(ellipse, d2dBrush.Get());
 
-    // Обводка (чуть темнее или ярче, для красоты, как в Tiger)
     d2dBrush->SetColor(D2D1::ColorF(r * 1.2f, g * 1.2f, b * 1.2f, a + 0.1f));
     d2dRenderTarget->DrawEllipse(ellipse, d2dBrush.Get(), 1.0f);
 }
@@ -210,7 +245,7 @@ void Graphics::DrawEllipsePixels(float centerX, float centerY, float radiusX, fl
 void Graphics::EndFrame() {
     FlushBatch();
     if (isD2DDrawing) { d2dRenderTarget->EndDraw(); isD2DDrawing = false; }
-    swapChain->Present(1, 0);
+    swapChain->Present(0, 0);
 }
 
 void Graphics::Resize(HWND hWnd) {
@@ -227,7 +262,6 @@ void Graphics::Resize(HWND hWnd) {
 
     if (isD2DDrawing) { d2dRenderTarget->EndDraw(); isD2DDrawing = false; }
 
-    // Release old targets
     target.Reset();
     d2dRenderTarget.Reset();
     d2dBrush.Reset();
@@ -250,6 +284,8 @@ void Graphics::Resize(HWND hWnd) {
 
     d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
     d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
+
+    layoutCache_.clear();
 
     D3D11_VIEWPORT vp = { 0, 0, width_, height_, 0.0f, 1.0f };
     context->RSSetViewports(1, &vp);

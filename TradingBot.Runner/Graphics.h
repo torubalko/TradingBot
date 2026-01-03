@@ -6,6 +6,7 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 using Microsoft::WRL::ComPtr;
 
@@ -26,15 +27,11 @@ public:
 
     void DrawRectPixels(float x, float y, float w, float h, float r, float g, float b, float a);
 
-    // Текст
     void DrawTextPixels(const std::wstring& text, float x, float y, float w, float h, float fontSize, float r, float g, float b, float a);
     void DrawTextCentered(const std::wstring& text, float centerX, float centerY, float fontSize, float r, float g, float b, float a);
     float MeasureTextWidth(const std::wstring& text, float fontSize);
 
-    // Круг (для обычных сделок)
     void DrawCirclePixels(float centerX, float centerY, float radius, float r, float g, float b, float a);
-
-    // НОВОЕ: Овал (Эллипс) для растянутых сделок
     void DrawEllipsePixels(float centerX, float centerY, float radiusX, float radiusY, float r, float g, float b, float a);
 
     float GetHeight() const { return height_; }
@@ -46,6 +43,36 @@ private:
 
     float PixelToNdcX(float x);
     float PixelToNdcY(float y);
+
+    struct TextLayoutKey {
+        std::wstring text;
+        float width = 0;
+        float height = 0;
+        bool centered = false;
+
+        bool operator==(const TextLayoutKey& o) const {
+            return width == o.width && height == o.height && centered == o.centered && text == o.text;
+        }
+    };
+
+    struct TextLayoutKeyHash {
+        size_t operator()(const TextLayoutKey& k) const noexcept {
+            size_t h = std::hash<std::wstring>{}(k.text);
+            auto mix = [&](size_t v) { h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2); };
+            mix(std::hash<float>{}(k.width));
+            mix(std::hash<float>{}(k.height));
+            mix(std::hash<bool>{}(k.centered));
+            return h;
+        }
+    };
+
+    struct CachedLayout {
+        ComPtr<IDWriteTextLayout> layout;
+        uint64_t lastUsedFrame = 0;
+    };
+
+    ComPtr<IDWriteTextLayout> GetOrCreateLayout(const std::wstring& text, float w, float h, bool centered);
+    void GarbageCollectLayouts();
 
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
@@ -68,6 +95,10 @@ private:
     std::vector<Vertex> batchVertices;
     static const int MAX_VERTICES = 4096;
     bool isD2DDrawing = false;
+
+    // text cache
+    std::unordered_map<TextLayoutKey, CachedLayout, TextLayoutKeyHash> layoutCache_;
+    uint64_t frameCounter_ = 0;
 
     float width_ = 0.0f;
     float height_ = 0.0f;
