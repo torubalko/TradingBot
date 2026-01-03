@@ -2,37 +2,26 @@
 #include <map>
 #include <mutex>
 #include <vector>
-#include <deque>
 #include <algorithm>
 #include <cmath>
 
-// Подключаем наши определения
 #include "Types.h"
-#include "MarketDetails.h" // Здесь лежит struct TradingPair и struct MarketCache
-#include "OrderBook.h"     // Здесь лежит struct Trade и OrderBookLevel
+#include "MarketDetails.h"
+#include "OrderBook.h"
 
 namespace TradingBot::Core {
 
     struct RenderSnapshot {
         std::vector<std::pair<double, double>> Bids;
         std::vector<std::pair<double, double>> Asks;
-        // Сделки для отрисовки
-        std::vector<Trade> RecentTrades;
     };
 
     class SharedState {
     public:
-        // --- НОВЫЕ ДАННЫЕ (Список монет) ---
-        // Используем структуру MarketCache (она определена в MarketDetails.h)
-        // В ней лежат списки spotPairs и futuresPairs, а также флаг isLoaded
         MarketCache marketData;
-
-        // Мьютекс для защиты доступа к данным
         std::mutex instrumentsMutex;
 
     public:
-        // --- СТАРЫЕ ДАННЫЕ (Логика стакана) ---
-
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
             const std::vector<OrderBookLevel>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -48,34 +37,41 @@ namespace TradingBot::Core {
             }
         }
 
-        // Добавляем сделку в историю
-        void AddTrade(const Trade& trade) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            trades_.push_back(trade);
-            // Храним только последние 100, чтобы не забивать память
-            if (trades_.size() > 100) trades_.pop_front();
-        }
-
-        // Метод с агрегацией для рендера
         RenderSnapshot GetSnapshotForRender(int depth, double priceStep) {
             std::lock_guard<std::mutex> lock(mutex_);
             RenderSnapshot snap;
 
+            if (Asks.empty() || Bids.empty()) return snap;
+
+            double bestAsk = Asks.begin()->first;
+            double bestBid = Bids.rbegin()->first;
+
+            // Calculate visible range with safety margin
+            double range = depth * priceStep * 1.5;
+            double maxAsk = bestAsk + range;
+            double minBid = bestBid - range;
+
             std::map<double, double> aggBids;
             std::map<double, double> aggAsks;
 
-            for (auto const& [price, qty] : Asks) {
-                double key = std::ceil(price / priceStep - 0.000001) * priceStep;
+            // Aggregate Asks (only visible range)
+            for (auto it = Asks.begin(); it != Asks.end(); ++it) {
+                if (it->first > maxAsk) break;
+
+                double key = std::ceil(it->first / priceStep - 0.000001) * priceStep;
                 if (key == -0.0) key = 0.0;
-                aggAsks[key] += qty;
-            }
-            for (auto const& [price, qty] : Bids) {
-                double key = std::floor(price / priceStep + 0.000001) * priceStep;
-                aggBids[key] += qty;
+                aggAsks[key] += it->second;
             }
 
-            double bestAsk = Asks.empty() ? 0 : Asks.begin()->first;
-            double bestBid = Bids.empty() ? 0 : Bids.rbegin()->first;
+            // Aggregate Bids (only visible range)
+            // Iterate backwards from highest price
+            for (auto it = Bids.rbegin(); it != Bids.rend(); ++it) {
+                if (it->first < minBid) break;
+
+                double key = std::floor(it->first / priceStep + 0.000001) * priceStep;
+                aggBids[key] += it->second;
+            }
+
             double gridAsk = std::ceil(bestAsk / priceStep - 0.000001) * priceStep;
             double gridBid = std::floor(bestBid / priceStep + 0.000001) * priceStep;
 
@@ -84,29 +80,31 @@ namespace TradingBot::Core {
             for (int i = 0; i < depth; i++) {
                 double price = gridAsk + (i * priceStep);
                 double vol = 0;
-                auto it = aggAsks.lower_bound(price - 0.00001);
-                if (it != aggAsks.end() && std::abs(it->first - price) < 0.00001) vol = it->second;
+                auto it = aggAsks.find(price);
+                // Use find with tolerance or just direct lookup since we constructed keys exactly
+                // But floating point keys in map are tricky.
+                // Let's use lower_bound with epsilon as before for safety
+                auto itLb = aggAsks.lower_bound(price - 0.00001);
+                if (itLb != aggAsks.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
+
                 snap.Asks.push_back({ price, vol });
             }
 
             for (int i = 0; i < depth; i++) {
                 double price = gridBid - (i * priceStep);
                 double vol = 0;
-                auto it = aggBids.lower_bound(price - 0.00001);
-                if (it != aggBids.end() && std::abs(it->first - price) < 0.00001) vol = it->second;
+                auto itLb = aggBids.lower_bound(price - 0.00001);
+                if (itLb != aggBids.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
+
                 snap.Bids.push_back({ price, vol });
             }
-
-            // Копируем сделки в снапшот
-            snap.RecentTrades.assign(trades_.begin(), trades_.end());
 
             return snap;
         }
 
     private:
-        std::mutex mutex_; // Мьютекс для стакана
+        std::mutex mutex_;
         std::map<double, double> Bids;
         std::map<double, double> Asks;
-        std::deque<Trade> trades_;
     };
 }

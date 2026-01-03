@@ -20,6 +20,7 @@ public:
     ~Graphics();
 
     bool Initialize(HWND hWnd);
+    void Resize(HWND hWnd);
     void BeginFrame(float r, float g, float b);
     void EndFrame();
 

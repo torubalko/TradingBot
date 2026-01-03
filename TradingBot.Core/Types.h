@@ -21,6 +21,8 @@ namespace TradingBot::Core {
     struct OrderBookUpdate {
         long long u; // Final update ID
         long long U; // First update ID
+        long long pu; // Previous final update ID (Binance futures depth)
+        long long E; // Event time
         std::vector<OrderBookLevel> bids;
         std::vector<OrderBookLevel> asks;
     };

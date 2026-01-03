@@ -212,3 +212,45 @@ void Graphics::EndFrame() {
     if (isD2DDrawing) { d2dRenderTarget->EndDraw(); isD2DDrawing = false; }
     swapChain->Present(1, 0);
 }
+
+void Graphics::Resize(HWND hWnd) {
+    if (!swapChain || !device || !context) return;
+
+    RECT rc;
+    GetClientRect(hWnd, &rc);
+    float newWidth = (float)(rc.right - rc.left);
+    float newHeight = (float)(rc.bottom - rc.top);
+    if (newWidth <= 0 || newHeight <= 0) return;
+
+    width_ = newWidth;
+    height_ = newHeight;
+
+    if (isD2DDrawing) { d2dRenderTarget->EndDraw(); isD2DDrawing = false; }
+
+    // Release old targets
+    target.Reset();
+    d2dRenderTarget.Reset();
+    d2dBrush.Reset();
+
+    context->OMSetRenderTargets(0, nullptr, nullptr);
+
+    swapChain->ResizeBuffers(0, (UINT)width_, (UINT)height_, DXGI_FORMAT_UNKNOWN, 0);
+
+    ComPtr<ID3D11Texture2D> backBuffer;
+    swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
+    device->CreateRenderTargetView(backBuffer.Get(), NULL, &target);
+
+    ComPtr<IDXGISurface> dxgiBackBuffer;
+    swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+
+    D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_DEFAULT,
+        D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED)
+    );
+
+    d2dFactory->CreateDxgiSurfaceRenderTarget(dxgiBackBuffer.Get(), &props, &d2dRenderTarget);
+    d2dRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &d2dBrush);
+
+    D3D11_VIEWPORT vp = { 0, 0, width_, height_, 0.0f, 1.0f };
+    context->RSSetViewports(1, &vp);
+}
