@@ -4,6 +4,8 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <atomic>
+#include <chrono>
 
 #include "Types.h"
 #include "MarketDetails.h"
@@ -16,12 +18,39 @@ namespace TradingBot::Core {
         std::vector<std::pair<double, double>> Asks;
     };
 
+    struct MetricsSnapshot {
+        long long lastLatencyMs;
+        long long stalenessMs;
+    };
+
     class SharedState {
     public:
         MarketCache marketData;
         std::mutex instrumentsMutex;
 
     public:
+        void SetLatency(long long latencyMs) {
+            lastLatencyMs_.store(latencyMs, std::memory_order_relaxed);
+        }
+
+        void SetAppliedTimestamp(long long appliedMs) {
+            lastAppliedMs_.store(appliedMs, std::memory_order_relaxed);
+        }
+
+        MetricsSnapshot GetMetrics() {
+            MetricsSnapshot m{};
+            m.lastLatencyMs = lastLatencyMs_.load(std::memory_order_relaxed);
+            long long applied = lastAppliedMs_.load(std::memory_order_relaxed);
+            if (applied > 0) {
+                long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+                m.stalenessMs = nowMs - applied;
+            } else {
+                m.stalenessMs = 0;
+            }
+            return m;
+        }
+
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
             const std::vector<OrderBookLevel>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -46,47 +75,37 @@ namespace TradingBot::Core {
             double bestAsk = Asks.begin()->first;
             double bestBid = Bids.rbegin()->first;
 
-            // Calculate visible range with safety margin
-            double range = depth * priceStep * 1.5;
-            double maxAsk = bestAsk + range;
-            double minBid = bestBid - range;
+            double mid = (bestAsk + bestBid) / 2.0;
+            double center = std::floor(mid / priceStep + 0.0000001) * priceStep;
+
+            double maxPrice = center + depth * priceStep;
+            double minPrice = center - depth * priceStep;
 
             std::map<double, double> aggBids;
             std::map<double, double> aggAsks;
 
-            // Aggregate Asks (only visible range)
-            for (auto it = Asks.begin(); it != Asks.end(); ++it) {
-                if (it->first > maxAsk) break;
-
+            // Aggregate Asks within visible range using fixed bins (ceil)
+            for (auto it = Asks.lower_bound(minPrice); it != Asks.end(); ++it) {
+                if (it->first > maxPrice) break;
                 double key = std::ceil(it->first / priceStep - 0.000001) * priceStep;
                 if (key == -0.0) key = 0.0;
                 aggAsks[key] += it->second;
             }
 
-            // Aggregate Bids (only visible range)
-            // Iterate backwards from highest price
-            for (auto it = Bids.rbegin(); it != Bids.rend(); ++it) {
-                if (it->first < minBid) break;
-
+            // Aggregate Bids within visible range using fixed bins (floor)
+            for (auto it = Bids.lower_bound(minPrice); it != Bids.end() && it->first <= maxPrice; ++it) {
                 double key = std::floor(it->first / priceStep + 0.000001) * priceStep;
                 aggBids[key] += it->second;
             }
 
-            double gridAsk = std::ceil(bestAsk / priceStep - 0.000001) * priceStep;
-            double gridBid = std::floor(bestBid / priceStep + 0.000001) * priceStep;
-
-            if (gridAsk <= gridBid) gridAsk = gridBid + priceStep;
+            double gridBid = center;
+            double gridAsk = center + priceStep;
 
             for (int i = 0; i < depth; i++) {
                 double price = gridAsk + (i * priceStep);
                 double vol = 0;
-                auto it = aggAsks.find(price);
-                // Use find with tolerance or just direct lookup since we constructed keys exactly
-                // But floating point keys in map are tricky.
-                // Let's use lower_bound with epsilon as before for safety
                 auto itLb = aggAsks.lower_bound(price - 0.00001);
                 if (itLb != aggAsks.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
-
                 snap.Asks.push_back({ price, vol });
             }
 
@@ -95,7 +114,6 @@ namespace TradingBot::Core {
                 double vol = 0;
                 auto itLb = aggBids.lower_bound(price - 0.00001);
                 if (itLb != aggBids.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
-
                 snap.Bids.push_back({ price, vol });
             }
 
@@ -106,5 +124,7 @@ namespace TradingBot::Core {
         std::mutex mutex_;
         std::map<double, double> Bids;
         std::map<double, double> Asks;
+        std::atomic<long long> lastLatencyMs_{ 0 };
+        std::atomic<long long> lastAppliedMs_{ 0 };
     };
 }
