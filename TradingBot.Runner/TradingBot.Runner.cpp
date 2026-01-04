@@ -21,7 +21,7 @@
 
 #include "Graphics.h"
 #include "../TradingBot.Core/SharedState.h"
-#include "../TradingBot.Core/BinanceConnection.h"
+#include "../TradingBot.Core/BinanceConnector.h"
 #include "../TradingBot.Core/RestClient.h"
 
 using namespace TradingBot::Core;
@@ -56,19 +56,31 @@ static RenderSnapshot BuildRenderSnapshotFromBook(const std::map<double, double>
     double maxPrice = center + depth * priceStep;
     double minPrice = center - depth * priceStep;
 
-    std::map<double, double> aggBids;
-    std::map<double, double> aggAsks;
+    std::map<double, double> aggBidsQty;
+    std::map<double, double> aggAsksQty;
+    std::map<double, double> aggBidsQuote;
+    std::map<double, double> aggAsksQuote;
 
+    // Aggregate Asks into bins (qty and quote)
     for (auto it = asks.lower_bound(minPrice); it != asks.end(); ++it) {
         if (it->first > maxPrice) break;
-        double key = std::ceil(it->first / priceStep - 0.000001) * priceStep;
+        double p = it->first;
+        double q = it->second;
+        double key = std::ceil(p / priceStep - 0.000001) * priceStep;
         if (key == -0.0) key = 0.0;
-        aggAsks[key] += it->second;
+        aggAsksQty[key] += q;
+        aggAsksQuote[key] += p * q;
     }
 
-    for (auto it = bids.lower_bound(minPrice); it != bids.end() && it->first <= maxPrice; ++it) {
-        double key = std::floor(it->first / priceStep + 0.000001) * priceStep;
-        aggBids[key] += it->second;
+    // Aggregate Bids into bins (qty and quote)
+    auto itBid = bids.lower_bound(minPrice);
+    auto itBidEnd = bids.upper_bound(maxPrice + 1e-12);
+    for (; itBid != itBidEnd; ++itBid) {
+        double p = itBid->first;
+        double q = itBid->second;
+        double key = std::floor(p / priceStep + 0.000001) * priceStep;
+        aggBidsQty[key] += q;
+        aggBidsQuote[key] += p * q;
     }
 
     double gridBid = center;
@@ -76,21 +88,35 @@ static RenderSnapshot BuildRenderSnapshotFromBook(const std::map<double, double>
 
     snap.Asks.reserve(depth);
     snap.Bids.reserve(depth);
+    snap.AsksQuote.reserve(depth);
+    snap.BidsQuote.reserve(depth);
 
     for (int i = 0; i < depth; i++) {
         double price = gridAsk + (i * priceStep);
-        double vol = 0;
-        auto itLb = aggAsks.lower_bound(price - 0.00001);
-        if (itLb != aggAsks.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
-        snap.Asks.push_back({ price, vol });
+        double qty = 0;
+        double quote = 0;
+
+        auto itQty = aggAsksQty.lower_bound(price - 0.00001);
+        if (itQty != aggAsksQty.end() && std::abs(itQty->first - price) < 0.00001) qty = itQty->second;
+        auto itQ = aggAsksQuote.lower_bound(price - 0.00001);
+        if (itQ != aggAsksQuote.end() && std::abs(itQ->first - price) < 0.00001) quote = itQ->second;
+
+        snap.Asks.push_back({ price, qty });
+        snap.AsksQuote.push_back({ price, quote });
     }
 
     for (int i = 0; i < depth; i++) {
         double price = gridBid - (i * priceStep);
-        double vol = 0;
-        auto itLb = aggBids.lower_bound(price - 0.00001);
-        if (itLb != aggBids.end() && std::abs(itLb->first - price) < 0.00001) vol = itLb->second;
-        snap.Bids.push_back({ price, vol });
+        double qty = 0;
+        double quote = 0;
+
+        auto itQty = aggBidsQty.lower_bound(price - 0.00001);
+        if (itQty != aggBidsQty.end() && std::abs(itQty->first - price) < 0.00001) qty = itQty->second;
+        auto itQ = aggBidsQuote.lower_bound(price - 0.00001);
+        if (itQ != aggBidsQuote.end() && std::abs(itQ->first - price) < 0.00001) quote = itQ->second;
+
+        snap.Bids.push_back({ price, qty });
+        snap.BidsQuote.push_back({ price, quote });
     }
 
     return snap;
@@ -108,9 +134,9 @@ void SnapshotPublisherThreadFunc() {
             if ((size_t)scaleIndex >= g_Scales.size()) scaleIndex = (int)g_Scales.size() - 1;
             double priceStep = BASE_TICK_SIZE * g_Scales[scaleIndex];
 
-            std::map<double, double> bids;
-            std::map<double, double> asks;
-            g_SharedState->CopyOrderBook(bids, asks);
+            const auto& orderBook = g_SharedState->GetOrderBookDirect();
+            const auto& bids = orderBook.GetBids(); // std::vector<PriceLevel>&
+            const auto& asks = orderBook.GetAsks();
 
             RenderSnapshot snap = BuildRenderSnapshotFromBook(bids, asks, depth, priceStep);
             g_SharedState->PublishRenderSnapshot(std::move(snap));
@@ -179,8 +205,20 @@ void NetworkThreadFunc() {
     while (g_Running) {
         try {
             std::string currentPair = "BTCUSDT";
-            auto connection = std::make_shared<BinanceConnection>(g_SharedState);
-            connection->Connect(currentPair, false); // false = Futures (пока заглушка, можно менять)
+            
+            // ═══════════════════════════════════════════════════════════
+            // ИЗМЕНЕНИЕ: Используем новый BinanceConnector
+            // ═══════════════════════════════════════════════════════════
+            auto connector = std::make_shared<BinanceConnector>(g_SharedState);
+            connector->Start(currentPair); // Автоматически подключает Spot + Futures
+
+            // Держим соединение активным
+            while (g_Running) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+
+            connector->Stop();
+            
         }
         catch (const std::exception& e) {
             OutputDebugStringA(e.what());
@@ -273,7 +311,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             g_Graphics->DrawRectPixels(0, centerY - 1.0f, screenWidth, 2.0f, 1.0f, 0.8f, 0.0f, 0.8f);
 
             if (g_SmoothCenterPrice > 0) {
-                for (const auto& level : snap.Asks) {
+                for (size_t idx = 0; idx < snap.Asks.size() && idx < snap.AsksQuote.size(); ++idx) {
+                    const auto& level = snap.Asks[idx];
+                    const auto& levelQ = snap.AsksQuote[idx];
+
                     double diff = level.first - g_SmoothCenterPrice;
                     double rows = diff / currentStep;
                     float rectY = centerY - (float)(rows * rowHeight) - (rowHeight / 2.0f);
@@ -282,13 +323,17 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     float width = (float)((level.second / maxVol) * 280.0f);
                     g_Graphics->DrawRectPixels(0, rectY, width, rowHeight - 1.0f, 0.8f, 0.25f, 0.25f, 1.0f);
 
-                    double quoteVol = level.first * level.second;
+                    // Display quote volume (USDT) aggregated correctly inside the bin
+                    double quoteVol = levelQ.second;
                     std::wstringstream ss;
                     ss << FormatPrice(level.first) << L"  " << FormatQuoteVolume(quoteVol);
                     g_Graphics->DrawTextPixels(ss.str(), 10.0f, rectY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
                 }
 
-                for (const auto& level : snap.Bids) {
+                for (size_t idx = 0; idx < snap.Bids.size() && idx < snap.BidsQuote.size(); ++idx) {
+                    const auto& level = snap.Bids[idx];
+                    const auto& levelQ = snap.BidsQuote[idx];
+
                     double diff = level.first - g_SmoothCenterPrice;
                     double rows = diff / currentStep;
                     float rectY = centerY - (float)(rows * rowHeight) - (rowHeight / 2.0f);
@@ -297,7 +342,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                     float width = (float)((level.second / maxVol) * 280.0f);
                     g_Graphics->DrawRectPixels(0, rectY, width, rowHeight - 1.0f, 0.25f, 0.8f, 0.25f, 1.0f);
 
-                    double quoteVol = level.first * level.second;
+                    // Display quote volume (USDT) aggregated correctly inside the bin
+                    double quoteVol = levelQ.second;
                     std::wstringstream ss;
                     ss << FormatPrice(level.first) << L"  " << FormatQuoteVolume(quoteVol);
                     g_Graphics->DrawTextPixels(ss.str(), 10.0f, rectY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BinanceConnection.cpp" />
+    <ClCompile Include="BinanceConnector.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="JsonParser.cpp" />
     <ClCompile Include="Logger.cpp" />
@@ -30,6 +31,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BinanceConnection.h" />
+    <ClInclude Include="BinanceConnector.h" />
+    <ClInclude Include="Diagnostics.h" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
