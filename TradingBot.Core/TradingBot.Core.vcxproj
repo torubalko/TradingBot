@@ -22,6 +22,7 @@
     <ClCompile Include="BinanceConnection.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="JsonParser.cpp" />
+    <ClCompile Include="simdjson.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -34,6 +35,7 @@
     <ClInclude Include="OrderBook.h" />
     <ClInclude Include="SharedState.h" />
     <ClInclude Include="Types.h" />
+    <ClInclude Include="simdjson.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
