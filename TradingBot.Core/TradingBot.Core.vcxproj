@@ -34,6 +34,14 @@
     <ClInclude Include="OrderBook.h" />
     <ClInclude Include="SharedState.h" />
     <ClInclude Include="Types.h" />
+    <ClInclude Include="OrderBook\LocalOrderBook.h" />
+    <ClInclude Include="Strategy\DensityDetector.h" />
+    <ClInclude Include="Strategy\TakerFlowAnalyzer.h" />
+    <ClInclude Include="Memory\ObjectPool.h" />
+    <ClInclude Include="LockFree\SPSCQueue.h" />
+    <ClInclude Include="Parsing\FastParser.h" />
+    <ClInclude Include="Network\DataFeedManager.h" />
+    <ClInclude Include="Network\WebSocketSession.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
