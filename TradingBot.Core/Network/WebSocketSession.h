@@ -21,8 +21,8 @@ namespace TradingBot::Core::Network {
 
     class WebSocketSession {
     public:
-        WebSocketSession()
-            : running_(false) {}
+        WebSocketSession(int reconnectDelaySeconds = 5)
+            : running_(false), reconnectDelaySeconds_(reconnectDelaySeconds) {}
 
         ~WebSocketSession() {
             Disconnect();
@@ -113,8 +113,8 @@ namespace TradingBot::Core::Network {
                     }
 
                     if (running_) {
-                        // Reconnect after delay
-                        std::this_thread::sleep_for(std::chrono::seconds(5));
+                        // Reconnect after configurable delay
+                        std::this_thread::sleep_for(std::chrono::seconds(reconnectDelaySeconds_));
                     }
                 }
             }
@@ -126,5 +126,6 @@ namespace TradingBot::Core::Network {
         ErrorCallback onError_;
         std::atomic<bool> running_;
         std::thread thread_;
+        int reconnectDelaySeconds_;
     };
 }

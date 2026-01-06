@@ -35,9 +35,28 @@ namespace TradingBot::Core::Strategy {
 
         FlowMetrics CalculateFlow() const {
             std::lock_guard<std::mutex> lock(mutex_);
-            
+            return CalculateFlowInternal(timeWindowMs_);
+        }
+
+        FlowMetrics CalculateFlowCustomWindow(long long customWindowMs) const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return CalculateFlowInternal(customWindowMs);
+        }
+
+        void SetTimeWindow(long long timeWindowMs) {
+            timeWindowMs_ = timeWindowMs;
+        }
+
+        void Clear() {
+            std::lock_guard<std::mutex> lock(mutex_);
+            trades_.clear();
+        }
+
+    private:
+        // Helper method to calculate flow metrics for a given time window
+        FlowMetrics CalculateFlowInternal(long long windowMs) const {
             FlowMetrics metrics{};
-            metrics.timeWindowMs = timeWindowMs_;
+            metrics.timeWindowMs = windowMs;
 
             if (trades_.empty()) {
                 return metrics;
@@ -47,7 +66,7 @@ namespace TradingBot::Core::Strategy {
                 std::chrono::system_clock::now().time_since_epoch()
             ).count();
 
-            long long cutoffTime = now - timeWindowMs_;
+            long long cutoffTime = now - windowMs;
 
             for (const auto& trade : trades_) {
                 if (trade.timestamp < cutoffTime) {
@@ -77,58 +96,6 @@ namespace TradingBot::Core::Strategy {
             return metrics;
         }
 
-        FlowMetrics CalculateFlowCustomWindow(long long customWindowMs) const {
-            std::lock_guard<std::mutex> lock(mutex_);
-            
-            FlowMetrics metrics{};
-            metrics.timeWindowMs = customWindowMs;
-
-            if (trades_.empty()) {
-                return metrics;
-            }
-
-            long long now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()
-            ).count();
-
-            long long cutoffTime = now - customWindowMs;
-
-            for (const auto& trade : trades_) {
-                if (trade.timestamp < cutoffTime) {
-                    continue;
-                }
-
-                double tradeValue = trade.price * trade.quantity;
-
-                if (trade.isBuyerMaker) {
-                    metrics.sellerVolume += trade.quantity;
-                    metrics.sellerValue += tradeValue;
-                    metrics.sellerTradeCount++;
-                } else {
-                    metrics.buyerVolume += trade.quantity;
-                    metrics.buyerValue += tradeValue;
-                    metrics.buyerTradeCount++;
-                }
-            }
-
-            double totalVolume = metrics.buyerVolume + metrics.sellerVolume;
-            if (totalVolume > 0.0000001) {
-                metrics.aggression = (metrics.buyerVolume - metrics.sellerVolume) / totalVolume;
-            }
-
-            return metrics;
-        }
-
-        void SetTimeWindow(long long timeWindowMs) {
-            timeWindowMs_ = timeWindowMs;
-        }
-
-        void Clear() {
-            std::lock_guard<std::mutex> lock(mutex_);
-            trades_.clear();
-        }
-
-    private:
         mutable std::mutex mutex_;
         std::deque<Trade> trades_;
         long long timeWindowMs_;
