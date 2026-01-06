@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <chrono>
 #include <thread>
-// --- ÀÂÒÎÌÀÒÈ×ÅÑÊÀß ËÈÍÊÎÂÊÀ ---
+// --- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "crypt32.lib")
 namespace beast = boost::beast;
@@ -18,18 +18,22 @@ namespace ssl = boost::asio::ssl;
 using tcp = boost::asio::ip::tcp;
 namespace TradingBot::Core::Network {
     BinanceConnection::BinanceConnection(std::shared_ptr<SharedState> state)
-        : state_(state) {
+        : sharedState_(state),
+          reconnectStrategy_(1000, 60000, 2.0, -1),
+          connectionMonitor_(30000, 60000) {
     }
     BinanceConnection::~BinanceConnection() {
         Disconnect();
     }
     void BinanceConnection::Disconnect() {
         running_ = false;
+        SetState(ConnectionState::DISCONNECTED);
         if (wsThread_.joinable()) wsThread_.join();
     }
     void BinanceConnection::Connect(const std::string& symbol, MarketMode mode) {
         Disconnect();
         running_ = true;
+        SetState(ConnectionState::CONNECTING);
         wsThread_ = std::thread(&BinanceConnection::WebSocketThread, this, symbol, mode);
     }
     std::string BinanceConnection::PerformHttpRequest(const std::string& host, const std::string& path) {
@@ -65,7 +69,7 @@ namespace TradingBot::Core::Network {
         std::string json = PerformHttpRequest(host, path);
         if (!json.empty()) {
             auto snapshot = JsonParser::ParseSnapshot(json);
-            state_->SetSnapshot(snapshot);
+            sharedState_->SetSnapshot(snapshot);
         }
     }
     std::vector<SymbolInfo> BinanceConnection::GetExchangeInfo(MarketMode mode) {
@@ -75,42 +79,84 @@ namespace TradingBot::Core::Network {
         return JsonParser::ParseExchangeInfo(json);
     }
     void BinanceConnection::WebSocketThread(const std::string& symbol, MarketMode mode) {
+        reconnectStrategy_.Reset();
+        
         while (running_) {
             try {
+                SetState(ConnectionState::CONNECTING);
                 DownloadSnapshot(symbol, mode);
+                
                 std::string host = (mode == MarketMode::FUTURES) ? "fstream.binance.com" : "stream.binance.com";
                 std::string lowerSymbol = symbol;
                 std::transform(lowerSymbol.begin(), lowerSymbol.end(), lowerSymbol.begin(), ::tolower);
                 std::string path = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@aggTrade";
+                
                 net::io_context ioc;
                 ssl::context ctx(ssl::context::tlsv12_client);
                 ctx.set_verify_mode(ssl::verify_none);
                 tcp::resolver resolver(ioc);
                 websocket::stream<beast::ssl_stream<tcp::socket>> ws(ioc, ctx);
-                if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) throw std::runtime_error("SNI Error");
+                
+                if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) 
+                    throw std::runtime_error("SNI Error");
+                
                 auto const results = resolver.resolve(host, "443");
                 beast::get_lowest_layer(ws).connect(results);
                 ws.next_layer().handshake(ssl::stream_base::client);
                 ws.handshake(host, path);
+                
+                SetState(ConnectionState::CONNECTED);
+                reconnectStrategy_.RecordSuccess();
+                connectionMonitor_.UpdateActivity();
+                
                 beast::flat_buffer buffer;
+                buffer.reserve(8192); // Pre-allocate buffer
+                
                 while (running_) {
+                    // Check for timeout
+                    if (connectionMonitor_.IsTimedOut()) {
+                        std::cerr << "Connection timeout detected" << std::endl;
+                        break;
+                    }
+                    
                     ws.read(buffer);
+                    connectionMonitor_.UpdateActivity();
+                    
                     std::string msg = beast::buffers_to_string(buffer.data());
                     buffer.consume(buffer.size());
+                    
                     if (msg.find("depthUpdate") != std::string::npos) {
                         auto update = JsonParser::ParseDepthUpdate(msg);
-                        state_->ApplyUpdate(update);
+                        sharedState_->ApplyUpdate(update);
                     }
                     else if (msg.find("aggTrade") != std::string::npos) {
                         auto trade = JsonParser::ParseAggTrade(msg);
-                        state_->AddTrade(trade);
+                        sharedState_->AddTrade(trade);
                     }
                 }
+                
+                // Clean shutdown
+                beast::error_code ec;
+                ws.close(websocket::close_code::normal, ec);
             }
             catch (const std::exception& e) {
-                std::cerr << "WS Error: " << e.what() << ". Reconnecting in 5s..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(5));
+                reconnectStrategy_.RecordFailure();
+                SetState(ConnectionState::RECONNECTING);
+                
+                int delay = reconnectStrategy_.GetNextDelay();
+                if (delay < 0) {
+                    std::cerr << "Max reconnect attempts reached" << std::endl;
+                    SetState(ConnectionState::FAILED);
+                    break;
+                }
+                
+                std::cerr << "WS Error: " << e.what() 
+                         << ". Reconnecting in " << delay << "ms (attempt " 
+                         << reconnectStrategy_.GetAttempts() << ")..." << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(delay));
             }
         }
+        
+        SetState(ConnectionState::DISCONNECTED);
     }
 }

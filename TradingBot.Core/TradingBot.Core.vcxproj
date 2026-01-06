@@ -28,11 +28,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BinanceConnection.h" />
+    <ClInclude Include="ConnectionMonitor.h" />
+    <ClInclude Include="DensityDetector.h" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="FastParser.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
+    <ClInclude Include="LocalOrderBook.h" />
+    <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="OrderBook.h" />
     <ClInclude Include="SharedState.h" />
+    <ClInclude Include="TakerFlowAnalyzer.h" />
     <ClInclude Include="Types.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

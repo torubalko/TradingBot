@@ -9,6 +9,7 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/asio/strand.hpp>
 #include "SharedState.h"
+#include "ConnectionMonitor.h"
 namespace beast = boost::beast;
 namespace http = beast::http;
 namespace websocket = beast::websocket;
@@ -23,12 +24,17 @@ namespace TradingBot::Core::Network {
         ~BinanceConnection();
         void Connect(const std::string& symbol, MarketMode mode);
         void Disconnect();
+        ConnectionState GetState() const { return state_.load(); }
     private:
         void DownloadSnapshot(const std::string& symbol, MarketMode mode);
         void WebSocketThread(const std::string& symbol, MarketMode mode);
         std::string PerformHttpRequest(const std::string& host, const std::string& path);
-        std::shared_ptr<SharedState> state_;
+        void SetState(ConnectionState newState) { state_.store(newState); }
+        std::shared_ptr<SharedState> sharedState_;
         std::thread wsThread_;
         std::atomic<bool> running_{ false };
+        std::atomic<ConnectionState> state_{ ConnectionState::DISCONNECTED };
+        ReconnectStrategy reconnectStrategy_;
+        ConnectionMonitor connectionMonitor_;
     };
 }
