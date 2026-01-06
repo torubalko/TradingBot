@@ -22,6 +22,21 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{d7ee2f86-3755-498a-9a51-9460bb3d383f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="OrderBook">
+      <UniqueIdentifier>{e1234567-1234-1234-1234-123456789abc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Strategy">
+      <UniqueIdentifier>{e2234567-1234-1234-1234-123456789abc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Memory">
+      <UniqueIdentifier>{e3234567-1234-1234-1234-123456789abc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LockFree">
+      <UniqueIdentifier>{e4234567-1234-1234-1234-123456789abc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Parsing">
+      <UniqueIdentifier>{e5234567-1234-1234-1234-123456789abc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Environment.cpp">
@@ -58,6 +73,30 @@
     </ClInclude>
     <ClInclude Include="SharedState.h">
       <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="OrderBook\LocalOrderBook.h">
+      <Filter>OrderBook</Filter>
+    </ClInclude>
+    <ClInclude Include="Strategy\DensityDetector.h">
+      <Filter>Strategy</Filter>
+    </ClInclude>
+    <ClInclude Include="Strategy\TakerFlowAnalyzer.h">
+      <Filter>Strategy</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\ObjectPool.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFree\SPSCQueue.h">
+      <Filter>LockFree</Filter>
+    </ClInclude>
+    <ClInclude Include="Parsing\FastParser.h">
+      <Filter>Parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\DataFeedManager.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\WebSocketSession.h">
+      <Filter>Network</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
