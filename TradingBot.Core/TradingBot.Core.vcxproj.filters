@@ -22,48 +22,76 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{d7ee2f86-3755-498a-9a51-9460bb3d383f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{f8c3d1e2-9b4a-4d7e-8c1f-2a3b4c5d6e7f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Environment.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="BinanceConnection.cpp">
-      <Filter>Network</Filter>
-    </ClCompile>
-    <ClCompile Include="JsonParser.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="RestClient.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="Logger.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="BinanceConnector.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\WebSocketSession.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\UserDataStream.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\DataFeedManager.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="OrderBook\LocalOrderBook.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="OrderBook\SnapshotSynchronizer.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Strategy\DensityDetector.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Strategy\TakerFlowAnalyzer.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Strategy\StrategyEngine.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Trading\RiskManager.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Trading\RestExecutor.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Trading\OrderManagementSystem.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\HttpClient.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Infrastructure\AsyncLogger.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Infrastructure\TelemetryCollector.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Infrastructure\RemoteInterfaceServer.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="TradingBotApplication.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Memory\README.md" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Environment.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="BinanceConnection.h">
-      <Filter>Network</Filter>
-    </ClInclude>
     <ClInclude Include="Types.h">
       <Filter>Models</Filter>
     </ClInclude>
-    <ClInclude Include="JsonParser.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
     <ClInclude Include="OrderBook.h">
       <Filter>Models</Filter>
-    </ClInclude>
-    <ClInclude Include="HttpClient.h">
-      <Filter>Network</Filter>
     </ClInclude>
     <ClInclude Include="SharedState.h">
       <Filter>Файлы заголовков</Filter>
@@ -71,16 +99,82 @@
     <ClInclude Include="MarketDetails.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="RestClient.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="Logger.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="Diagnostics.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="BinanceConnector.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="..\simdjson\simdjson-master\singleheader\simdjson.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="Parsing\FastParser.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\ObjectPool.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="OrderBook\LocalOrderBook.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Strategy\DensityDetector.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Strategy\TakerFlowAnalyzer.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\WebSocketSession.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\DataFeedManager.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\UserDataStream.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="OrderBook\SnapshotSynchronizer.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Strategy\StrategyEngine.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Trading\OrderTypes.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Trading\RiskManager.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Trading\RestExecutor.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Trading\OrderManagementSystem.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Trading\ApiConfig.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\HttpClient.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Infrastructure\AsyncLogger.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Infrastructure\TelemetryCollector.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Infrastructure\RemoteInterfaceServer.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\SPSCQueue.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\MemoryUsageExamples.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\ThreadingModel.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="TradingBotApplication.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="BinanceConfig.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

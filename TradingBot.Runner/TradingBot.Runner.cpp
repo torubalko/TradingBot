@@ -2,151 +2,76 @@
 #include <thread>
 #include <memory>
 #include <string>
-#include <vector>
-#include <list>
-#include <algorithm>
-#include <iomanip>
+#include <iostream>
 #include <sstream>
-#include <cmath>
-#include <deque>
-#include <cstdlib> 
-#include <map>
-#include <boost/beast/core.hpp>
-#include <boost/asio.hpp>
-#include <boost/bind/bind.hpp>
+#include <iomanip>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 
 #include "Graphics.h"
-#include "../TradingBot.Core/SharedState.h"
-#include "../TradingBot.Core/BinanceConnector.h"
-#include "../TradingBot.Core/RestClient.h"
+#include "OrderBookRenderer.h"  // НОВОЕ
+#include "../TradingBot.Core/TradingBotApplication.h"
+
+// ═══════════════════════════════════════════════════════════════
+// НОВАЯ АРХИТЕКТУРА: Использование TradingBotApplication
+// ═══════════════════════════════════════════════════════════════
 
 using namespace TradingBot::Core;
-using namespace TradingBot::Core::Network;
 
 std::unique_ptr<Graphics> g_Graphics;
-std::shared_ptr<SharedState> g_SharedState;
+std::unique_ptr<TradingBotApplication> g_TradingBot;
+std::unique_ptr<OrderBookRenderer> g_OrderBookRenderer;  // НОВОЕ
 std::atomic<bool> g_Running(true);
 
 const double BASE_TICK_SIZE = 0.1;
 int g_ScaleIndex = 0;
 std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
 
-const float START_X_POS = 310.0f;
-
 double g_SmoothCenterPrice = 0.0;
 bool g_IsFirstFrame = true;
 
-static RenderSnapshot BuildRenderSnapshotFromBook(const std::map<double, double>& bids,
-    const std::map<double, double>& asks,
-    int depth,
-    double priceStep) {
-    RenderSnapshot snap;
-    if (asks.empty() || bids.empty() || depth <= 0 || priceStep <= 0) return snap;
+// ═══════════════════════════════════════════════════════════════
+// Trading Bot Thread: Запуск основной логики бота
+// ═══════════════════════════════════════════════════════════════
+void TradingBotThreadFunc() {
+    try {
+        OutputDebugStringA("[TradingBot] Initializing...\n");
+        
+        // Создаём приложение
+        g_TradingBot = std::make_unique<TradingBotApplication>();
 
-    double bestAsk = asks.begin()->first;
-    double bestBid = bids.rbegin()->first;
-
-    double mid = (bestAsk + bestBid) / 2.0;
-    double center = std::floor(mid / priceStep + 0.0000001) * priceStep;
-
-    double maxPrice = center + depth * priceStep;
-    double minPrice = center - depth * priceStep;
-
-    std::map<double, double> aggBidsQty;
-    std::map<double, double> aggAsksQty;
-    std::map<double, double> aggBidsQuote;
-    std::map<double, double> aggAsksQuote;
-
-    // Aggregate Asks into bins (qty and quote)
-    for (auto it = asks.lower_bound(minPrice); it != asks.end(); ++it) {
-        if (it->first > maxPrice) break;
-        double p = it->first;
-        double q = it->second;
-        double key = std::ceil(p / priceStep - 0.000001) * priceStep;
-        if (key == -0.0) key = 0.0;
-        aggAsksQty[key] += q;
-        aggAsksQuote[key] += p * q;
-    }
-
-    // Aggregate Bids into bins (qty and quote)
-    auto itBid = bids.lower_bound(minPrice);
-    auto itBidEnd = bids.upper_bound(maxPrice + 1e-12);
-    for (; itBid != itBidEnd; ++itBid) {
-        double p = itBid->first;
-        double q = itBid->second;
-        double key = std::floor(p / priceStep + 0.000001) * priceStep;
-        aggBidsQty[key] += q;
-        aggBidsQuote[key] += p * q;
-    }
-
-    double gridBid = center;
-    double gridAsk = center + priceStep;
-
-    snap.Asks.reserve(depth);
-    snap.Bids.reserve(depth);
-    snap.AsksQuote.reserve(depth);
-    snap.BidsQuote.reserve(depth);
-
-    for (int i = 0; i < depth; i++) {
-        double price = gridAsk + (i * priceStep);
-        double qty = 0;
-        double quote = 0;
-
-        auto itQty = aggAsksQty.lower_bound(price - 0.00001);
-        if (itQty != aggAsksQty.end() && std::abs(itQty->first - price) < 0.00001) qty = itQty->second;
-        auto itQ = aggAsksQuote.lower_bound(price - 0.00001);
-        if (itQ != aggAsksQuote.end() && std::abs(itQ->first - price) < 0.00001) quote = itQ->second;
-
-        snap.Asks.push_back({ price, qty });
-        snap.AsksQuote.push_back({ price, quote });
-    }
-
-    for (int i = 0; i < depth; i++) {
-        double price = gridBid - (i * priceStep);
-        double qty = 0;
-        double quote = 0;
-
-        auto itQty = aggBidsQty.lower_bound(price - 0.00001);
-        if (itQty != aggBidsQty.end() && std::abs(itQty->first - price) < 0.00001) qty = itQty->second;
-        auto itQ = aggBidsQuote.lower_bound(price - 0.00001);
-        if (itQ != aggBidsQuote.end() && std::abs(itQ->first - price) < 0.00001) quote = itQ->second;
-
-        snap.Bids.push_back({ price, qty });
-        snap.BidsQuote.push_back({ price, quote });
-    }
-
-    return snap;
-}
-
-void SnapshotPublisherThreadFunc() {
-    // Publish snapshots at fixed interval. UI reads already aggregated snapshot.
-    constexpr int depth = 80;
-    constexpr int publishMs = 50;
-
-    while (g_Running) {
-        try {
-            int scaleIndex = g_ScaleIndex;
-            if (scaleIndex < 0) scaleIndex = 0;
-            if ((size_t)scaleIndex >= g_Scales.size()) scaleIndex = (int)g_Scales.size() - 1;
-            double priceStep = BASE_TICK_SIZE * g_Scales[scaleIndex];
-
-            const auto& orderBook = g_SharedState->GetOrderBookDirect();
-            const auto& bids = orderBook.GetBids(); // std::vector<PriceLevel>&
-            const auto& asks = orderBook.GetAsks();
-
-            RenderSnapshot snap = BuildRenderSnapshotFromBook(bids, asks, depth, priceStep);
-            g_SharedState->PublishRenderSnapshot(std::move(snap));
-        }
-        catch (...) {
+        // Инициализация с конфигом
+        if (!g_TradingBot->Initialize("./config.json")) {
+            OutputDebugStringA("[TradingBot] ERROR: Failed to initialize\n");
+            g_Running = false;
+            return;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(publishMs));
+        OutputDebugStringA("[TradingBot] Starting all threads...\n");
+        
+        // Запускаем все потоки (WebSocket, Logger, TCP Server, etc.)
+        g_TradingBot->Start();
+
+        OutputDebugStringA("[TradingBot] Running main loop...\n");
+
+        // Запускаем главный цикл (MAIN THREAD processing)
+        g_TradingBot->Run();
+
+        OutputDebugStringA("[TradingBot] Main loop finished\n");
+    }
+    catch (const std::exception& e) {
+        OutputDebugStringA("[TradingBot] FATAL ERROR: ");
+        OutputDebugStringA(e.what());
+        OutputDebugStringA("\n");
+        g_Running = false;
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Helper Functions (для визуализации)
+// ═══════════════════════════════════════════════════════════════
 
 std::wstring FormatPrice(double price) {
     std::wstringstream ss;
@@ -183,49 +108,9 @@ std::wstring FormatPercent(double pct) {
     return ss.str();
 }
 
-void NetworkThreadFunc() {
-    try {
-        OutputDebugStringA("[TigerBot] Starting REST Client...\n");
-        RestClient restClient;
-        restClient.LoadExchangeInfo(g_SharedState->marketData);
-
-        if (g_SharedState->marketData.isLoaded) {
-            OutputDebugStringA("[TigerBot] Market Data Loaded Successfully!\n");
-        }
-        else {
-            OutputDebugStringA("[TigerBot] Warning: Market Data is empty.\n");
-        }
-    }
-    catch (const std::exception& e) {
-        OutputDebugStringA("[TigerBot] REST Error: ");
-        OutputDebugStringA(e.what());
-        OutputDebugStringA("\n");
-    }
-
-    while (g_Running) {
-        try {
-            std::string currentPair = "BTCUSDT";
-            
-            // ═══════════════════════════════════════════════════════════
-            // ИЗМЕНЕНИЕ: Используем новый BinanceConnector
-            // ═══════════════════════════════════════════════════════════
-            auto connector = std::make_shared<BinanceConnector>(g_SharedState);
-            connector->Start(currentPair); // Автоматически подключает Spot + Futures
-
-            // Держим соединение активным
-            while (g_Running) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            }
-
-            connector->Stop();
-            
-        }
-        catch (const std::exception& e) {
-            OutputDebugStringA(e.what());
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-        }
-    }
-}
+// ═══════════════════════════════════════════════════════════════
+// Window Procedure
+// ═══════════════════════════════════════════════════════════════
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
@@ -234,188 +119,173 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         if (zDelta > 0) { if (g_ScaleIndex < g_Scales.size() - 1) g_ScaleIndex++; }
         else { if (g_ScaleIndex > 0) g_ScaleIndex--; }
     } return 0;
+    
     case WM_SIZE:
         if (g_Graphics) {
             g_Graphics->Resize(hWnd);
         }
         return 0;
+    
     case WM_DESTROY:
+        OutputDebugStringA("[TradingBot] Window closing, shutting down...\n");
         g_Running = false;
+        
+        if (g_TradingBot) {
+            g_TradingBot->Stop();
+        }
+        
         PostQuitMessage(0);
-        std::exit(0);
         return 0;
     }
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
-    g_SharedState = std::make_shared<SharedState>();
-    std::thread networkThread(NetworkThreadFunc);
-    std::thread publisherThread(SnapshotPublisherThreadFunc);
+// ═══════════════════════════════════════════════════════════════
+// WinMain: Entry Point
+// ═══════════════════════════════════════════════════════════════
 
-    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"TigerBotZone", NULL };
-    RegisterClassEx(&wc);
+int APIENTRY WinMain(_In_ HINSTANCE hInstance, 
+                     _In_opt_ HINSTANCE hPrevInstance, 
+                     _In_ LPSTR lpCmdLine, 
+                     _In_ int nCmdShow) 
+{
+    // Запускаем Trading Bot в отдельном потоке
+    std::thread tradingBotThread(TradingBotThreadFunc);
 
-    HWND hWnd = CreateWindow(L"TigerBotZone", L"TigerBot HFT", WS_OVERLAPPEDWINDOW, 100, 100, 1200, 1200, NULL, NULL, wc.hInstance, NULL);
+    // Создаём окно для визуализации
+    WNDCLASSEXW wc = {  // Было WNDCLASSEX, теперь WNDCLASSEXW
+        sizeof(WNDCLASSEXW), 
+        CS_CLASSDC, 
+        WndProc, 
+        0L, 0L, 
+        GetModuleHandle(NULL), 
+        NULL, NULL, NULL, NULL, 
+        L"TradingBotWindow", 
+        NULL 
+    };
+    RegisterClassExW(&wc);  // Было RegisterClassEx, теперь RegisterClassExW
 
+    HWND hWnd = CreateWindowW(  // Было CreateWindow, теперь CreateWindowW
+        L"TradingBotWindow", 
+        L"TradingBot HFT v2.0", 
+        WS_OVERLAPPEDWINDOW, 
+        100, 100, 1200, 1200, 
+        NULL, NULL, 
+        wc.hInstance, 
+        NULL
+    );
+
+    // Инициализируем графику
     g_Graphics = std::make_unique<Graphics>();
-    if (!g_Graphics->Initialize(hWnd)) return 1;
+    if (!g_Graphics->Initialize(hWnd)) {
+        OutputDebugStringA("[Graphics] Failed to initialize\n");
+        return 1;
+    }
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
+    // ═══════════════════════════════════════════════════════════════
+    // НОВОЕ: Ждём пока TradingBot инициализируется
+    // ═══════════════════════════════════════════════════════════════
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
+    // Создаём OrderBookRenderer после инициализации бота
+    if (g_TradingBot) {
+        g_OrderBookRenderer = std::make_unique<OrderBookRenderer>(
+            g_Graphics.get(),
+            g_TradingBot->GetSharedState()
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Main Render Loop
+    // ═══════════════════════════════════════════════════════════════
     MSG msg = { 0 };
-    while (msg.message != WM_QUIT) {
+    while (msg.message != WM_QUIT && g_Running) {
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
         else {
+            // Render frame
             g_Graphics->BeginFrame(0.12f, 0.12f, 0.14f);
 
             float screenWidth = g_Graphics->GetWidth();
             float screenHeight = g_Graphics->GetHeight();
             float headerHeight = 50.0f;
 
-            float chartAreaY = headerHeight;
-            float chartAreaHeight = screenHeight - headerHeight;
-            float centerY = chartAreaY + (chartAreaHeight / 2.0f);
-            float rowHeight = 22.0f;
-
-            double currentStep = BASE_TICK_SIZE * g_Scales[g_ScaleIndex];
-            auto snap = g_SharedState->GetSnapshotForRender(80, currentStep);
-
-            double bestAsk = snap.Asks.empty() ? 0 : snap.Asks[0].first;
-            double bestBid = snap.Bids.empty() ? 0 : snap.Bids[0].first;
-            double targetCenterPrice = 0;
-
-            if (bestAsk > 0 && bestBid > 0) targetCenterPrice = (bestAsk + bestBid) / 2.0;
-            else if (bestAsk > 0) targetCenterPrice = bestAsk;
-            else if (bestBid > 0) targetCenterPrice = bestBid;
-
-            if (targetCenterPrice > 0) {
-                if (g_IsFirstFrame || g_SmoothCenterPrice == 0) {
-                    g_SmoothCenterPrice = targetCenterPrice;
-                    g_IsFirstFrame = false;
-                }
-                else {
-                    g_SmoothCenterPrice += (targetCenterPrice - g_SmoothCenterPrice) * 0.15;
-                }
-            }
-
-            double maxVol = 1.0;
-            for (auto& p : snap.Bids) if (p.second > maxVol) maxVol = p.second;
-            for (auto& p : snap.Asks) if (p.second > maxVol) maxVol = p.second;
-            if (maxVol < 100) maxVol = 100;
-
-            g_Graphics->DrawRectPixels(0, centerY - 1.0f, screenWidth, 2.0f, 1.0f, 0.8f, 0.0f, 0.8f);
-
-            if (g_SmoothCenterPrice > 0) {
-                for (size_t idx = 0; idx < snap.Asks.size() && idx < snap.AsksQuote.size(); ++idx) {
-                    const auto& level = snap.Asks[idx];
-                    const auto& levelQ = snap.AsksQuote[idx];
-
-                    double diff = level.first - g_SmoothCenterPrice;
-                    double rows = diff / currentStep;
-                    float rectY = centerY - (float)(rows * rowHeight) - (rowHeight / 2.0f);
-                    if (rectY < -headerHeight || rectY > screenHeight) continue;
-
-                    float width = (float)((level.second / maxVol) * 280.0f);
-                    g_Graphics->DrawRectPixels(0, rectY, width, rowHeight - 1.0f, 0.8f, 0.25f, 0.25f, 1.0f);
-
-                    // Display quote volume (USDT) aggregated correctly inside the bin
-                    double quoteVol = levelQ.second;
-                    std::wstringstream ss;
-                    ss << FormatPrice(level.first) << L"  " << FormatQuoteVolume(quoteVol);
-                    g_Graphics->DrawTextPixels(ss.str(), 10.0f, rectY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-                }
-
-                for (size_t idx = 0; idx < snap.Bids.size() && idx < snap.BidsQuote.size(); ++idx) {
-                    const auto& level = snap.Bids[idx];
-                    const auto& levelQ = snap.BidsQuote[idx];
-
-                    double diff = level.first - g_SmoothCenterPrice;
-                    double rows = diff / currentStep;
-                    float rectY = centerY - (float)(rows * rowHeight) - (rowHeight / 2.0f);
-                    if (rectY < -headerHeight || rectY > screenHeight) continue;
-
-                    float width = (float)((level.second / maxVol) * 280.0f);
-                    g_Graphics->DrawRectPixels(0, rectY, width, rowHeight - 1.0f, 0.25f, 0.8f, 0.25f, 1.0f);
-
-                    // Display quote volume (USDT) aggregated correctly inside the bin
-                    double quoteVol = levelQ.second;
-                    std::wstringstream ss;
-                    ss << FormatPrice(level.first) << L"  " << FormatQuoteVolume(quoteVol);
-                    g_Graphics->DrawTextPixels(ss.str(), 10.0f, rectY, 300.0f, rowHeight, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-                }
-            }
-
-            if (g_SmoothCenterPrice > 0) {
-                float rightScaleX = screenWidth - 60.0f;
-                g_Graphics->DrawRectPixels(rightScaleX, headerHeight, 1.0f, screenHeight - headerHeight, 0.5f, 0.5f, 0.5f, 1.0f);
-                int rowsStep = 5;
-
-                for (int i = 0; ; i += rowsStep) {
-                    float y = centerY - (i * rowHeight);
-                    if (y < headerHeight) break;
-                    double pct = (i * currentStep / g_SmoothCenterPrice) * 100.0;
-                    g_Graphics->DrawRectPixels(rightScaleX, y, 5.0f, 1.0f, 0.7f, 0.7f, 0.7f, 1.0f);
-                    if (i > 0) g_Graphics->DrawTextPixels(FormatPercent(pct), rightScaleX + 8.0f, y - 6.0f, 50.0f, 12.0f, 10.0f, 0.8f, 0.8f, 0.8f, 1.0f);
-                }
-                for (int i = rowsStep; ; i += rowsStep) {
-                    float y = centerY + (i * rowHeight);
-                    if (y > screenHeight) break;
-                    double pct = -(i * currentStep / g_SmoothCenterPrice) * 100.0;
-                    g_Graphics->DrawRectPixels(rightScaleX, y, 5.0f, 1.0f, 0.7f, 0.7f, 0.7f, 1.0f);
-                    g_Graphics->DrawTextPixels(FormatPercent(pct), rightScaleX + 8.0f, y - 6.0f, 50.0f, 12.0f, 10.0f, 0.8f, 0.8f, 0.8f, 1.0f);
-                }
-            }
-
+            // Header
             g_Graphics->DrawRectPixels(0, 0, screenWidth, headerHeight, 0.1f, 0.1f, 0.12f, 1.0f);
             g_Graphics->DrawRectPixels(0, headerHeight - 1.0f, screenWidth, 1.0f, 0.3f, 0.3f, 0.3f, 1.0f);
 
-            g_Graphics->DrawTextPixels(L"SPOT", 20, 15, 50, 20, 14, 0.6f, 0.6f, 0.6f, 1.0f);
-            g_Graphics->DrawTextPixels(L"FUTURES", 80, 15, 80, 20, 14, 1.0f, 0.8f, 0.2f, 1.0f);
+            g_Graphics->DrawTextPixels(L"TradingBot HFT v2.0", 20, 15, 200, 20, 14, 1.0f, 1.0f, 1.0f, 1.0f);
+            g_Graphics->DrawTextPixels(L"BTCUSDT", 250, 15, 100, 20, 14, 0.8f, 0.8f, 1.0f, 1.0f);
 
-            float dropX = 200.0f;
-            float dropY = 10.0f;
-            float dropW = 150.0f;
-            float dropH = 30.0f;
-            g_Graphics->DrawRectPixels(dropX, dropY, dropW, dropH, 0.2f, 0.2f, 0.25f, 1.0f);
-            g_Graphics->DrawTextPixels(L"BTCUSDT", dropX + 10.0f, dropY + 5.0f, 100.0f, 20.0f, 14, 1.0f, 1.0f, 1.0f, 1.0f);
+            // Status
+            std::wstring status = g_TradingBot ? L"RUNNING" : L"STOPPED";
+            float statusR = g_TradingBot ? 0.0f : 1.0f;
+            float statusG = g_TradingBot ? 1.0f : 0.0f;
+            g_Graphics->DrawTextPixels(status, screenWidth - 120, 15, 100, 20, 14, statusR, statusG, 0.0f, 1.0f);
 
-            std::wstringstream ssScale;
-            ssScale << L"Scale: x" << g_Scales[g_ScaleIndex];
-            g_Graphics->DrawTextPixels(ssScale.str(), screenWidth - 120.0f, 15.0f, 100.0f, 20.0f, 14, 0.7f, 0.7f, 0.7f, 1.0f);
-
-            // Metrics (latency / staleness) with throttling ~100ms
-            static std::wstring cachedLatency = L"-- мс.↓";
-            static std::wstring cachedStale = L"-- мс.↑";
-            static auto lastMetricsDraw = std::chrono::steady_clock::now();
-            auto nowMetrics = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(nowMetrics - lastMetricsDraw).count() >= 100) {
-                MetricsSnapshot metrics = g_SharedState->GetMetrics();
-                std::wstringstream ssLatency;
-                ssLatency << metrics.latencyMs << L" мс.↓";
-                std::wstringstream ssStale;
-                ssStale << metrics.stalenessMs << L" мс.↑";
-                cachedLatency = ssLatency.str();
-                cachedStale = ssStale.str();
-                lastMetricsDraw = nowMetrics;
+            // ═══════════════════════════════════════════════════════════════
+            // НОВОЕ: Базовая визуализация Order Book
+            // ═══════════════════════════════════════════════════════════════
+            if (g_TradingBot) {
+                auto sharedState = g_TradingBot->GetSharedState();
+                if (sharedState) {
+                    // Получаем метрики
+                    auto metrics = sharedState->GetMetrics();
+                    
+                    float y = headerHeight + 20;
+                    float x = 20;
+                    
+                    // Показываем латентность и staleness
+                    std::wstringstream ss;
+                    ss << L"Latency: " << metrics.latencyMs << L" ms";
+                    g_Graphics->DrawTextPixels(ss.str(), x, y, 200, 20, 12, 0.8f, 1.0f, 0.8f, 1.0f);
+                    
+                    ss.str(L"");
+                    ss << L"Staleness: " << metrics.stalenessMs << L" ms";
+                    g_Graphics->DrawTextPixels(ss.str(), x, y + 20, 200, 20, 12, 0.8f, 1.0f, 0.8f, 1.0f);
+                    
+                    // Показываем что Order Book синхронизирован
+                    g_Graphics->DrawTextPixels(L"Order Book: SYNCHRONIZED", x, y + 50, 300, 20, 14, 0.0f, 1.0f, 0.0f, 1.0f);
+                    
+                    // ═══════════════════════════════════════════════════════════
+                    // НОВОЕ: GPU-accelerated Order Book Rendering
+                    // ═══════════════════════════════════════════════════════════
+                    if (g_OrderBookRenderer) {
+                        float obX = 20;
+                        float obY = headerHeight + 90;
+                        float obWidth = screenWidth - 40;
+                        float obHeight = screenHeight - headerHeight - 110;
+                        
+                        g_OrderBookRenderer->Render(obX, obY, obWidth, obHeight);
+                    }
+                }
             }
-            float metricsX = screenWidth - 180.0f;
-            float metricsY = 12.0f;
-            g_Graphics->DrawTextPixels(cachedLatency, metricsX, metricsY + 18.0f, 120.0f, 18.0f, 14.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-            g_Graphics->DrawTextPixels(cachedStale, metricsX, metricsY, 120.0f, 18.0f, 14.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 
             g_Graphics->EndFrame();
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Cleanup
+    // ═══════════════════════════════════════════════════════════════
+    OutputDebugStringA("[TradingBot] Shutting down...\n");
+    
     g_Running = false;
-    if (publisherThread.joinable()) publisherThread.join();
-    if (networkThread.joinable()) networkThread.join();
 
-    std::exit(0);
+    if (g_TradingBot) {
+        g_TradingBot->Stop();
+    }
+
+    if (tradingBotThread.joinable()) {
+        tradingBotThread.join();
+    }
+
+    OutputDebugStringA("[TradingBot] Shutdown complete\n");
+
     return (int)msg.wParam;
 }

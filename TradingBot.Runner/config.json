@@ -1,0 +1,41 @@
+{
+    "api": {
+        "apiKey": "qvDDXIinfIY5Inu4ymyj04CtaR0zHdNpCa1qWk86MsO0BX5gv8jFGn6NCXYAEQAt",
+        "secretKey": "MTeHNwF7R4Aj5pxFaO0FsnuBoUY37HabGrFKTvur7BMhEfXxDVCEbBXHnfIQu5zo",
+        "isTestnet": false,
+        "spotHost": "api.binance.com",
+        "futuresHost": "fapi.binance.com",
+        "connectionTimeoutMs": 3000,
+        "requestTimeoutMs": 5000,
+        "maxRetries": 2,
+        "retryDelayMs": 500
+    },
+  "strategy": {
+    "minDistanceToWall": 0.5,
+    "maxDistanceToWall": 2.0,
+    "minImbalanceForEntry": 0.3,
+    "filterWallUnderAttack": true,
+    "defaultQuantity": 0.01,
+    "stopLossPercent": 0.5,
+    "takeProfitPercent": 1.0
+  },
+  "risk": {
+    "maxPositionBtc": 1.0,
+    "maxOrderSizeBtc": 0.1,
+    "maxTotalExposureUsdt": 50000.0,
+    "maxDailyLossUsdt": 500.0,
+    "maxDrawdownPct": 5.0,
+    "maxOrdersPerMinute": 600,
+    "maxCancelsPerMinute": 600,
+    "maxPriceDeviationPct": 0.5
+  },
+  "orderBook": {
+    "maxLevels": 1000,
+    "snapshotUrl": "https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000"
+  },
+  "logging": {
+    "level": "info",
+    "enableFileLog": true,
+    "logPath": "./logs"
+  }
+}

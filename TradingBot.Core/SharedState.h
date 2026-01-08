@@ -6,6 +6,13 @@
 #include <cmath>
 #include <atomic>
 #include <chrono>
+#include <sstream>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX  // ← КРИТИЧНО! Предотвращает конфликт min/max макросов
+#include <windows.h>
+#endif
 
 #include "Types.h"
 #include "MarketDetails.h"
@@ -50,8 +57,26 @@ namespace TradingBot::Core {
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // Symbol Management
+        // ═══════════════════════════════════════════════════════════════
+        void SetSymbol(const std::string& symbol) {
+            std::lock_guard<std::mutex> lock(symbolMutex_);
+            currentSymbol_ = symbol;
+        }
+
+        std::string GetSymbol() const {
+            std::lock_guard<std::mutex> lock(symbolMutex_);
+            return currentSymbol_;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // Metrics Management
         // ═══════════════════════════════════════════════════════════════
+        void UpdateLatency(long long latencyMs) {
+            SetLatencySample(latencyMs);
+            SetAppliedNow();
+        }
+
         void SetLatencySample(long long latencyMs) {
             lastLatencyMs_.store(latencyMs, std::memory_order_relaxed);
             long long prev = latencyAvgMs_.load(std::memory_order_relaxed);
@@ -92,9 +117,40 @@ namespace TradingBot::Core {
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // NEW: Применение снэпшота (snapshot from REST API)
+        // ОТЛИЧАЕТСЯ от ApplyUpdate - заменяет ВЕСЬ Order Book
+        // ═══════════════════════════════════════════════════════════
+        void ApplySnapshot(const std::vector<OrderBookLevel>& bids,
+                          const std::vector<OrderBookLevel>& asks) {
+            std::lock_guard<std::mutex> lock(mutex_);
+
+            // Конвертируем OrderBookLevel -> PriceLevel
+            std::vector<Models::PriceLevel> bidLevels;
+            std::vector<Models::PriceLevel> askLevels;
+
+            bidLevels.reserve(bids.size());
+            askLevels.reserve(asks.size());
+
+            for (const auto& level : bids) {
+                bidLevels.push_back({ level.price, level.quantity });
+            }
+
+            for (const auto& level : asks) {
+                askLevels.push_back({ level.price, level.quantity });
+            }
+
+            // Применяем snapshot (заменяет ВСЁ + сортирует)
+            orderBook_.ApplySnapshot(bidLevels, askLevels);
+            
+            // Немедленно публикуем
+            PublishCurrentOrderBook();
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // NEW: Применение обновлений к OrderBook (std::vector based)
-        // Вызывается из BinanceConnector
-        // ═══════════════════════════════════════════════════════════════
+        // Вызывается из BinanceConnector для DIFF updates
+        // ОПТИМИЗИРОВАНО: Минимальное логирование для низкой latency
+        // ═══════════════════════════════════════════════════════════
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
                         const std::vector<OrderBookLevel>& asks) {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -116,8 +172,36 @@ namespace TradingBot::Core {
 
             // Применяем к новому OrderBook (std::vector)
             orderBook_.ApplyUpdate(bidLevels, askLevels);
+            
+            // Немедленно публикуем snapshot для UI!
+            PublishCurrentOrderBook();
+            
+            // DEBUG: Логирование ТОЛЬКО каждые 500 обновлений (было 100)
+            static std::atomic<int> updateCount{0};
+            int count = updateCount.fetch_add(1, std::memory_order_relaxed);
+            
+            if (count % 500 == 0) {
+                const auto& currentBids = orderBook_.GetBids();
+                const auto& currentAsks = orderBook_.GetAsks();
+                
+                std::ostringstream oss;
+                oss << "[SharedState] Update #" << count 
+                    << " | OB: bids=" << currentBids.size() 
+                    << " asks=" << currentAsks.size();
+                
+                if (!currentBids.empty() && !currentAsks.empty()) {
+                    double spread = currentAsks[0].price - currentBids[0].price;
+                    double spreadPct = (spread / currentBids[0].price) * 100.0;
+                    oss << " | Best: " << currentBids[0].price 
+                        << " / " << currentAsks[0].price 
+                        << " (spread: " << spread << " / " << spreadPct << "%)";
+                }
+                
+                OutputDebugStringA(oss.str().c_str());
+                OutputDebugStringA("\n");
+            }
         }
-
+        
         // ═══════════════════════════════════════════════════════════════
         // LEGACY: Поддержка старого UI (std::map interface)
         // Конвертируем std::vector -> std::map для совместимости
@@ -165,6 +249,10 @@ namespace TradingBot::Core {
 
     private:
         std::mutex mutex_;
+        mutable std::mutex symbolMutex_;
+
+        // Current trading symbol
+        std::string currentSymbol_{ "BTCUSDT" };
 
         // NEW: Оптимизированный OrderBook (std::vector)
         Models::OrderBook orderBook_;
@@ -179,6 +267,38 @@ namespace TradingBot::Core {
         // Double buffering for rendering
         RenderSnapshot published_[2];
         std::atomic<int> publishedIndex_{ 0 };
+
+        // ═══════════════════════════════════════════════════════════
+        // Публикация текущего Order Book в double buffer для UI
+        // ═══════════════════════════════════════════════════════════
+        void PublishCurrentOrderBook() {
+            // Вызывается УЖЕ под mutex_, поэтому безопасно
+            
+            RenderSnapshot snapshot;
+            
+            const auto& bids = orderBook_.GetBids();
+            const auto& asks = orderBook_.GetAsks();
+            
+            constexpr int MAX_LEVELS = 50;
+            int bidCount = (std::min)((int)bids.size(), MAX_LEVELS);
+            int askCount = (std::min)((int)asks.size(), MAX_LEVELS);
+            
+            snapshot.Bids.reserve(bidCount);
+            snapshot.Asks.reserve(askCount);
+            
+            for (int i = 0; i < bidCount; ++i) {
+                snapshot.Bids.emplace_back(bids[i].price, bids[i].quantity);
+            }
+            
+            for (int i = 0; i < askCount; ++i) {
+                snapshot.Asks.emplace_back(asks[i].price, asks[i].quantity);
+            }
+            
+            // Атомарная публикация в double buffer
+            int next = 1 - publishedIndex_.load(std::memory_order_relaxed);
+            published_[next] = std::move(snapshot);
+            publishedIndex_.store(next, std::memory_order_release);
+        }
     };
 
 } // namespace TradingBot::Core

@@ -19,6 +19,9 @@
 #include "simdjson.h"
 #include "SharedState.h"
 #include "Types.h"
+#include "Memory/ObjectPool.h"
+#include "Memory/SPSCQueue.h"
+#include "BinanceConfig.h"  // Новый файл с конфигурацией
 
 namespace TradingBot::Core::Network {
 
@@ -31,40 +34,6 @@ namespace TradingBot::Core::Network {
     // ═══════════════════════════════════════════════════════════════
     // Pre-allocated структуры для Zero-Allocation в Hot Path
     // ═══════════════════════════════════════════════════════════════
-
-    // Object Pool для переиспользования OrderBookUpdate структур
-    template<typename T, size_t PoolSize = 256>
-    class ObjectPool {
-    public:
-        ObjectPool() {
-            // PRE-ALLOCATION: Выделяем всю память при старте
-            pool_.reserve(PoolSize);
-            for (size_t i = 0; i < PoolSize; ++i) {
-                pool_.emplace_back(std::make_unique<T>());
-                freeList_.push(pool_.back().get());
-            }
-        }
-
-        T* Acquire() {
-            T* obj = nullptr;
-            if (freeList_.pop(obj)) {
-                return obj;
-            }
-            // Fallback: если пул исчерпан (не должно происходить в production)
-            return new T();
-        }
-
-        void Release(T* obj) {
-            // Очищаем содержимое для переиспользования
-            obj->bids.clear();
-            obj->asks.clear();
-            freeList_.push(obj);
-        }
-
-    private:
-        std::vector<std::unique_ptr<T>> pool_;
-        boost::lockfree::stack<T*> freeList_{ PoolSize };
-    };
 
     // Буфер для хранения diff-обновлений до получения snapshot
     struct DiffBufferEntry {
@@ -79,7 +48,10 @@ namespace TradingBot::Core::Network {
 
     class BinanceConnector {
     public:
-        explicit BinanceConnector(std::shared_ptr<SharedState> sharedState);
+        explicit BinanceConnector(
+            std::shared_ptr<SharedState> sharedState,
+            const BinanceConfig& config  // Добавили параметр конфигурации
+        );
         ~BinanceConnector();
 
         // Запуск подключения к Spot и Futures одновременно
@@ -159,9 +131,14 @@ namespace TradingBot::Core::Network {
 
             // Парсинг depth update (diff)
             OrderBookUpdate* ParseDepthUpdate(simdjson::ondemand::document& doc);
+            OrderBookUpdate* ParseDepthUpdateFromData(simdjson::ondemand::object& dataObj);
 
             // Парсинг aggTrade
             void ParseAggTrade(simdjson::ondemand::document& doc);
+            void ParseAggTradeFromData(simdjson::ondemand::object& dataObj);
+            
+            // Обработка depth update
+            void ProcessDepthUpdate(OrderBookUpdate* update);
 
             // ═══════════════════════════════════════════════════════════
             // Члены класса
@@ -192,13 +169,11 @@ namespace TradingBot::Core::Network {
             // ВАЖНО: reserve() вызывается в конструкторе
             std::deque<DiffBufferEntry> diffBuffer_;
 
-            // Object Pool для OrderBookUpdate
-            ObjectPool<OrderBookUpdate, 512> updatePool_;
+            // Object Pool для OrderBookUpdate (из Memory/ObjectPool.h)
+            Memory::ObjectPool<OrderBookUpdate, 512> updatePool_;
 
-            // Lock-free SPSC очередь для передачи updates в стратегию
-            // (если потребуется отдельный thread для strategy logic)
-            boost::lockfree::spsc_queue<OrderBookUpdate*, 
-                boost::lockfree::capacity<1024>> updateQueue_;
+            // Lock-free SPSC очередь для передачи updates (из Memory/SPSCQueue.h)
+            Memory::SPSCQueue<OrderBookUpdate*, 1024> updateQueue_;
 
             // Состояние синхронизации
             std::atomic<bool> running_{ false };
@@ -214,6 +189,7 @@ namespace TradingBot::Core::Network {
         // ═══════════════════════════════════════════════════════════════
 
         std::shared_ptr<SharedState> state_;
+        BinanceConfig config_;  // Сохраняем конфигурацию
         std::string symbol_;
 
         // Два независимых соединения в отдельных потоках

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -19,29 +19,60 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BinanceConnection.cpp" />
     <ClCompile Include="BinanceConnector.cpp" />
-    <ClCompile Include="Environment.cpp" />
-    <ClCompile Include="JsonParser.cpp" />
-    <ClCompile Include="Logger.cpp" />
-    <ClCompile Include="RestClient.cpp" />
+    <ClCompile Include="Infrastructure\AsyncLogger.cpp" />
+    <ClCompile Include="Infrastructure\RemoteInterfaceServer.cpp" />
+    <ClCompile Include="Infrastructure\TelemetryCollector.cpp" />
+    <ClCompile Include="Network\DataFeedManager.cpp" />
+    <ClCompile Include="Network\HttpClient.cpp" />
+    <ClCompile Include="Network\UserDataStream.cpp" />
+    <ClCompile Include="Network\WebSocketSession.cpp" />
+    <ClCompile Include="OrderBook\LocalOrderBook.cpp" />
+    <ClCompile Include="OrderBook\SnapshotSynchronizer.cpp" />
+    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp" />
+    <ClCompile Include="Strategy\DensityDetector.cpp" />
+    <ClCompile Include="Strategy\StrategyEngine.cpp" />
+    <ClCompile Include="Strategy\TakerFlowAnalyzer.cpp" />
+    <ClCompile Include="TradingBotApplication.cpp" />
+    <ClCompile Include="Trading\OrderManagementSystem.cpp" />
+    <ClCompile Include="Trading\RestExecutor.cpp" />
+    <ClCompile Include="Trading\RiskManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Memory\README.md" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BinanceConnection.h" />
+    <ClInclude Include="BinanceConfig.h" />
     <ClInclude Include="BinanceConnector.h" />
-    <ClInclude Include="Diagnostics.h" />
-    <ClInclude Include="Environment.h" />
-    <ClInclude Include="HttpClient.h" />
-    <ClInclude Include="JsonParser.h" />
-    <ClInclude Include="Logger.h" />
+    <ClInclude Include="Infrastructure\AsyncLogger.h" />
+    <ClInclude Include="Infrastructure\RemoteInterfaceServer.h" />
+    <ClInclude Include="Infrastructure\TelemetryCollector.h" />
     <ClInclude Include="MarketDetails.h" />
+    <ClInclude Include="Memory\MemoryUsageExamples.h" />
+    <ClInclude Include="Memory\ObjectPool.h" />
+    <ClInclude Include="Memory\SPSCQueue.h" />
+    <ClInclude Include="Network\DataFeedManager.h" />
+    <ClInclude Include="Network\HttpClient.h" />
+    <ClInclude Include="Network\UserDataStream.h" />
+    <ClInclude Include="Network\WebSocketSession.h" />
     <ClInclude Include="OrderBook.h" />
-    <ClInclude Include="RestClient.h" />
+    <ClInclude Include="OrderBook\LocalOrderBook.h" />
+    <ClInclude Include="OrderBook\SnapshotSynchronizer.h" />
+    <ClInclude Include="Parsing\FastParser.h" />
     <ClInclude Include="SharedState.h" />
+    <ClInclude Include="Strategy\DensityDetector.h" />
+    <ClInclude Include="Strategy\StrategyEngine.h" />
+    <ClInclude Include="Strategy\TakerFlowAnalyzer.h" />
+    <ClInclude Include="Threading\ThreadingModel.h" />
+    <ClInclude Include="TradingBotApplication.h" />
+    <ClInclude Include="Trading\ApiConfig.h" />
+    <ClInclude Include="Trading\OrderManagementSystem.h" />
+    <ClInclude Include="Trading\OrderTypes.h" />
+    <ClInclude Include="Trading\RestExecutor.h" />
+    <ClInclude Include="Trading\RiskManager.h" />
     <ClInclude Include="Types.h" />
+    <ClInclude Include="..\simdjson\simdjson-master\singleheader\simdjson.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
@@ -99,11 +130,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0A00;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -117,11 +149,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0A00;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -133,11 +166,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0A00;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -151,11 +185,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0A00;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>

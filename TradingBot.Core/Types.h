@@ -55,4 +55,15 @@ namespace TradingBot::Core {
         long long timestamp{ 0 };
     };
 
+    // ═══════════════════════════════════════════════════════════════
+    // Aggregated Trade (полная структура для стратегии)
+    // ═══════════════════════════════════════════════════════════════
+    struct AggTrade {
+        uint64_t tradeId{ 0 };
+        double price{ 0.0 };
+        double quantity{ 0.0 };
+        bool isBuyerMaker{ false };    // true = продавец агрессор, false = покупатель агрессор
+        uint64_t timestampMs{ 0 };
+    };
+
 } // namespace TradingBot::Core
