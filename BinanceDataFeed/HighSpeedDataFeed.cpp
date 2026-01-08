@@ -2,6 +2,9 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#ifdef _MSC_VER
+#include <immintrin.h>
+#endif
 
 namespace hft {
 
@@ -207,15 +210,28 @@ void BinanceDataFeed::Start() {
     
     running_.store(true);
     
-    // Create sessions FIRST (before starting threads)
+    std::cout << "\n";
+    std::cout << "╔════════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║         BINANCE HFT DATA FEED - STARTING                       ║\n";
+    std::cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    std::cout << "║ Host: " << std::setw(55) << std::left << config_.host << "║\n";
+    std::cout << "║ Symbols: ";
+    for (const auto& s : config_.symbols) std::cout << s << " ";
+    std::cout << std::setw(50) << " " << "║\n";
+    std::cout << "║ Streams: ";
+    if (config_.subscribeDepth) std::cout << "depth ";
+    if (config_.subscribeBookTicker) std::cout << "bookTicker ";
+    if (config_.subscribeAggTrade) std::cout << "aggTrade ";
+    std::cout << std::setw(40) << " " << "║\n";
+    std::cout << "║ Parser threads: " << std::setw(45) << config_.numParserThreads << "║\n";
+    std::cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
+    
     CreateSessions();
     
-    // Start processor threads (they wait on the queue)
     int numProcessors = config_.numParserThreads;
     for (int i = 0; i < numProcessors; ++i) {
         processorThreads_.emplace_back([this, i] {
 #ifdef _WIN32
-            // set affinity and priority
             DWORD_PTR mask = 1ULL << (i % std::thread::hardware_concurrency());
             SetThreadAffinityMask(GetCurrentThread(), mask);
             SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
@@ -224,13 +240,11 @@ void BinanceDataFeed::Start() {
         });
     }
     
-    // Start sessions BEFORE I/O threads (post async operations)
     for (auto& session : sessions_) {
         session->Start();
     }
     
-    // Now start I/O threads to process the async operations
-    int numIoThreads = std::max(1, static_cast<int>(sessions_.size()));
+    int numIoThreads = std::max(2, static_cast<int>(sessions_.size()));
     for (int i = 0; i < numIoThreads; ++i) {
         ioThreads_.emplace_back([this, i] {
 #ifdef _WIN32
@@ -355,9 +369,10 @@ void BinanceDataFeed::ProcessorThreadFunc() {
         auto msg = messageQueue_->TryPop();
 
         if (!msg) {
-            // tight spin with occasional yield to minimize latency
-            if (++idleSpins >= 5000) {
-                std::this_thread::yield();
+#ifdef _MSC_VER
+            _mm_pause();
+#endif
+            if (++idleSpins >= 100000) {
                 idleSpins = 0;
             }
             continue;

@@ -61,7 +61,7 @@ void OnAggTrade(const std::string& symbol, const ParsedAggTrade& trade) {
 // ═══════════════════════════════════════════════════════════════════════════════
 void DisplayThread(const std::string& symbol) {
     int64_t lastStatsTime = HighResTimer::NowMs();
-    int64_t lastFullReportTime = HighResTimer::NowMs();
+    size_t lastLen = 0;
 
     while (g_Running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -70,15 +70,12 @@ void DisplayThread(const std::string& symbol) {
 
         int64_t now = HighResTimer::NowMs();
 
-        // Print stats every second
         if (now - lastStatsTime >= 1000) {
             lastStatsTime = now;
 
-            // Get order book data
             if (g_DataFeed->HasOrderBook(symbol)) {
                 const auto& ob = g_DataFeed->GetOrderBook(symbol);
 
-                // Get atomic counters
                 int64_t depthUpdates = g_DepthUpdates.exchange(0, std::memory_order_relaxed);
                 int64_t bookTickerUpdates = g_BookTickerUpdates.exchange(0, std::memory_order_relaxed);
                 int64_t trades = g_TradeCount.exchange(0, std::memory_order_relaxed);
@@ -91,29 +88,34 @@ void DisplayThread(const std::string& symbol) {
                 tradeVol = oldVol;
 
                 auto& lt = g_DataFeed->GetLatencyTracker();
+                int64_t totalP99 = lt.GetEndToEndP99Ms();
 
-                // Single line compact output
-                std::cout << std::fixed << std::setprecision(2)
-                          << "[" << symbol << "] "
-                          << "Mid: " << ob.GetMidPrice()
-                          << " | Spread: " << ob.GetSpreadBps() << "bps"
-                          << " | Depth: " << depthUpdates << "/s"
-                          << " | Ticks: " << bookTickerUpdates << "/s"
-                          << " | Trades: " << trades << " ($" << std::setprecision(0) << tradeVol << ")"
-                          << " | Levels: " << ob.BidLevels() << "/" << ob.AskLevels()
-                          << " | Drops: " << g_DataFeed->GetDroppedMessages()
-                          << " | Qmax: " << g_DataFeed->GetQueueHighWaterMark()
-                          << "\n    " << lt.GetSummaryString()
-                          << std::endl;
+                std::ostringstream line;
+                line << std::fixed << std::setprecision(2)
+                     << "[" << symbol << "] "
+                     << "Mid=" << ob.GetMidPrice()
+                     << " Spr=" << ob.GetSpreadBps() << "bps"
+                     << " D=" << depthUpdates << "/s"
+                     << " Ticks=" << bookTickerUpdates << "/s"
+                     << " Tr=" << trades << "($" << std::setprecision(0) << tradeVol << ")"
+                     << " Lvl=" << ob.BidLevels() << "/" << ob.AskLevels()
+                     << " Dr=" << g_DataFeed->GetDroppedMessages()
+                     << " Q=" << g_DataFeed->GetQueueHighWaterMark()
+                     << " Total=" << totalP99 << "ms"
+                     << " Msg=" << lt.GetMessagesPerSecond();
+
+                std::string out = line.str();
+                size_t len = out.size();
+                std::string padding;
+                if (len < lastLen) padding.assign(lastLen - len, ' ');
+                lastLen = len;
+
+                std::cout << "\r" << out << padding << std::flush;
             }
         }
-
-        // Print full latency report every 10 seconds
-        if (now - lastFullReportTime >= 10000) {
-            lastFullReportTime = now;
-            std::cout << "\n" << g_DataFeed->GetLatencyTracker().GetSummaryString() << "\n" << std::endl;
-        }
     }
+
+    std::cout << std::endl;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -149,7 +151,7 @@ int main(int argc, char* argv[]) {
     
     config.depthSpeed = "@100ms";
     config.numParserThreads = std::max<int>(4, static_cast<int>(std::thread::hardware_concurrency()));
-    config.messageQueueSize = 16384;
+    config.messageQueueSize = 32768;
     config.enableLatencyTracking = true;
     config.enableDetailedLogging = false;
     

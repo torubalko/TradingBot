@@ -63,7 +63,7 @@ struct DataFeedConfig {
     
     // Buffer sizes
     size_t readBufferSize = 64 * 1024;    // 64KB
-    size_t messageQueueSize = 16384;
+    size_t messageQueueSize = 32768;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

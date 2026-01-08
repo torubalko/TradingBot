@@ -276,6 +276,8 @@ public:
         return ss.str();
     }
 
+    int64_t GetEndToEndP99Ms() const { return endToEndHistogram_.P99Ms(); }
+
 private:
     AtomicLatencyStats networkLatency_;
     AtomicLatencyStats exchangeLatency_;
