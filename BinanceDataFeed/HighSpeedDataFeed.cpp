@@ -231,11 +231,6 @@ void BinanceDataFeed::Start() {
     int numProcessors = config_.numParserThreads;
     for (int i = 0; i < numProcessors; ++i) {
         processorThreads_.emplace_back([this, i] {
-#ifdef _WIN32
-            DWORD_PTR mask = 1ULL << (i % std::thread::hardware_concurrency());
-            SetThreadAffinityMask(GetCurrentThread(), mask);
-            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-#endif
             ProcessorThreadFunc();
         });
     }
@@ -247,11 +242,6 @@ void BinanceDataFeed::Start() {
     int numIoThreads = std::max(2, static_cast<int>(sessions_.size()));
     for (int i = 0; i < numIoThreads; ++i) {
         ioThreads_.emplace_back([this, i] {
-#ifdef _WIN32
-            DWORD_PTR mask = 1ULL << ((i + config_.numParserThreads) % std::thread::hardware_concurrency());
-            SetThreadAffinityMask(GetCurrentThread(), mask);
-            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-#endif
             IoThreadFunc();
         });
     }
@@ -372,8 +362,9 @@ void BinanceDataFeed::ProcessorThreadFunc() {
 #ifdef _MSC_VER
             _mm_pause();
 #endif
-            if (++idleSpins >= 100000) {
+            if (++idleSpins >= 1000) {
                 idleSpins = 0;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
             continue;
         }

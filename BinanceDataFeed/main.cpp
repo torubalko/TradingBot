@@ -5,10 +5,16 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
+#ifdef _WIN32
+extern "C" __declspec(dllimport) int __stdcall FreeConsole(void);
+#pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+#endif
 
 #include "HighSpeedDataFeed.h"
 
 using namespace hft;
+
+static constexpr bool kShowConsole = false;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Global state
@@ -60,58 +66,48 @@ void OnAggTrade(const std::string& symbol, const ParsedAggTrade& trade) {
 // Display thread - single thread for all console output (no races!)
 // ═══════════════════════════════════════════════════════════════════════════════
 void DisplayThread(const std::string& symbol) {
-    int64_t lastStatsTime = HighResTimer::NowMs();
     size_t lastLen = 0;
 
     while (g_Running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // ~10 Hz
 
         if (!g_Running || !g_DataFeed) break;
 
-        int64_t now = HighResTimer::NowMs();
+        if (g_DataFeed->HasOrderBook(symbol)) {
+            const auto& ob = g_DataFeed->GetOrderBook(symbol);
 
-        if (now - lastStatsTime >= 1000) {
-            lastStatsTime = now;
+            int64_t depthUpdates = g_DepthUpdates.exchange(0, std::memory_order_relaxed);
+            int64_t bookTickerUpdates = g_BookTickerUpdates.exchange(0, std::memory_order_relaxed);
+            int64_t trades = g_TradeCount.exchange(0, std::memory_order_relaxed);
 
-            if (g_DataFeed->HasOrderBook(symbol)) {
-                const auto& ob = g_DataFeed->GetOrderBook(symbol);
-
-                int64_t depthUpdates = g_DepthUpdates.exchange(0, std::memory_order_relaxed);
-                int64_t bookTickerUpdates = g_BookTickerUpdates.exchange(0, std::memory_order_relaxed);
-                int64_t trades = g_TradeCount.exchange(0, std::memory_order_relaxed);
-
-                double tradeVol = 0;
-                double oldVol = g_TradeVolume.load(std::memory_order_relaxed);
-                while (!g_TradeVolume.compare_exchange_weak(oldVol, 0.0, std::memory_order_relaxed)) {
-                    oldVol = g_TradeVolume.load(std::memory_order_relaxed);
-                }
-                tradeVol = oldVol;
-
-                auto& lt = g_DataFeed->GetLatencyTracker();
-                int64_t totalP99 = lt.GetEndToEndP99Ms();
-
-                std::ostringstream line;
-                line << std::fixed << std::setprecision(2)
-                     << "[" << symbol << "] "
-                     << "Mid=" << ob.GetMidPrice()
-                     << " Spr=" << ob.GetSpreadBps() << "bps"
-                     << " D=" << depthUpdates << "/s"
-                     << " Ticks=" << bookTickerUpdates << "/s"
-                     << " Tr=" << trades << "($" << std::setprecision(0) << tradeVol << ")"
-                     << " Lvl=" << ob.BidLevels() << "/" << ob.AskLevels()
-                     << " Dr=" << g_DataFeed->GetDroppedMessages()
-                     << " Q=" << g_DataFeed->GetQueueHighWaterMark()
-                     << " Total=" << totalP99 << "ms"
-                     << " Msg=" << lt.GetMessagesPerSecond();
-
-                std::string out = line.str();
-                size_t len = out.size();
-                std::string padding;
-                if (len < lastLen) padding.assign(lastLen - len, ' ');
-                lastLen = len;
-
-                std::cout << "\r" << out << padding << std::flush;
+            double tradeVol = 0;
+            double oldVol = g_TradeVolume.load(std::memory_order_relaxed);
+            while (!g_TradeVolume.compare_exchange_weak(oldVol, 0.0, std::memory_order_relaxed)) {
+                oldVol = g_TradeVolume.load(std::memory_order_relaxed);
             }
+            tradeVol = oldVol;
+
+            auto& lt = g_DataFeed->GetLatencyTracker();
+
+            std::ostringstream line;
+            line << std::fixed << std::setprecision(2)
+                 << "[" << symbol << "] "
+                 << "Mid: " << ob.GetMidPrice()
+                 << " | Spread: " << ob.GetSpreadBps() << "bps"
+                 << " | Depth: " << depthUpdates << "/s"
+                 << " | Ticks: " << bookTickerUpdates << "/s"
+                 << " | Trades: " << trades << " ($" << std::setprecision(0) << tradeVol << ")"
+                 << " | Levels: " << ob.BidLevels() << "/" << ob.AskLevels()
+                 << " | Drops: " << g_DataFeed->GetDroppedMessages()
+                 << " | Qmax: " << g_DataFeed->GetQueueHighWaterMark()
+                 << " | Total: " << lt.GetEndToEndP99Ms() << "ms"
+                 << " | " << lt.GetMessagesPerSecond() << " msg/s";
+
+            std::string out = line.str();
+            if (out.size() < lastLen) out.append(lastLen - out.size(), ' ');
+            lastLen = out.size();
+
+            std::cout << "\r" << out << std::flush;
         }
     }
 
@@ -122,15 +118,23 @@ void DisplayThread(const std::string& symbol) {
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 int main(int argc, char* argv[]) {
+    if (!kShowConsole) {
+#ifdef _WIN32
+        FreeConsole();
+#endif
+    }
+
     std::signal(SIGINT, SignalHandler);
     std::signal(SIGTERM, SignalHandler);
     
-    std::cout << R"(
+    if (kShowConsole) {
+        std::cout << R"(
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║   BINANCE HFT DATA FEED - Ultra-Low Latency Market Data                       ║
 ║   Lock-Free Architecture | Multi-Threaded | simdjson Parsing                  ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 )" << std::endl;
+    }
     
     // Parse command line
     std::string symbol = "btcusdt";
@@ -155,10 +159,12 @@ int main(int argc, char* argv[]) {
     config.enableLatencyTracking = true;
     config.enableDetailedLogging = false;
     
-    std::cout << "[CONFIG] Symbol: " << symbol << "\n";
-    std::cout << "[CONFIG] Streams: depth@100ms, bookTicker, aggTrade\n";
-    std::cout << "[CONFIG] Threads: " << config.numParserThreads << " parser, " 
-              << std::thread::hardware_concurrency() << " CPU cores\n\n";
+    if (kShowConsole) {
+        std::cout << "[CONFIG] Symbol: " << symbol << "\n";
+        std::cout << "[CONFIG] Streams: depth@100ms, bookTicker, aggTrade\n";
+        std::cout << "[CONFIG] Threads: " << config.numParserThreads << " parser, " 
+                  << std::thread::hardware_concurrency() << " CPU cores\n\n";
+    }
     
     try {
         g_DataFeed = std::make_unique<BinanceDataFeed>(config);
@@ -170,10 +176,15 @@ int main(int argc, char* argv[]) {
         
         g_DataFeed->Start();
         
-        std::cout << "[STATUS] Data feed started. Press Ctrl+C to stop.\n\n";
+        if (kShowConsole) {
+            std::cout << "[STATUS] Data feed started. Press Ctrl+C to stop.\n\n";
+        }
         
-        // Start display thread (single thread for all output)
-        std::thread displayThread(DisplayThread, symbol);
+        std::thread displayThread;
+        if (kShowConsole) {
+            // Start display thread (single thread for all output)
+            displayThread = std::thread(DisplayThread, symbol);
+        }
         
         // Wait for shutdown
         while (g_Running) {
@@ -186,15 +197,21 @@ int main(int argc, char* argv[]) {
             displayThread.join();
         }
         
-        // Final report
-        std::cout << "\n[FINAL REPORT]\n";
-        g_DataFeed->GetLatencyTracker().PrintReport();
+        if (kShowConsole) {
+            // Final report
+            std::cout << "\n[FINAL REPORT]\n";
+            g_DataFeed->GetLatencyTracker().PrintReport();
+        }
         
     } catch (const std::exception& e) {
-        std::cerr << "[FATAL] " << e.what() << std::endl;
+        if (kShowConsole) {
+            std::cerr << "[FATAL] " << e.what() << std::endl;
+        }
         return 1;
     }
     
-    std::cout << "[STATUS] Shutdown complete.\n";
+    if (kShowConsole) {
+        std::cout << "[STATUS] Shutdown complete.\n";
+    }
     return 0;
 }

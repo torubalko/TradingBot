@@ -11,55 +11,73 @@
 #include <windows.h>
 
 #include "Graphics.h"
-#include "OrderBookRenderer.h"  // НОВОЕ
-#include "../TradingBot.Core/TradingBotApplication.h"
+#include "OrderBookRenderer.h"
+#include "BinanceFeedAdapter.h"
+#include "../BinanceDataFeed/HighSpeedDataFeed.h"
 
-// ═══════════════════════════════════════════════════════════════
-// НОВАЯ АРХИТЕКТУРА: Использование TradingBotApplication
-// ═══════════════════════════════════════════════════════════════
-
-using namespace TradingBot::Core;
+using TradingBot::Core::SharedState;
+using TradingBot::Core::ExternalMetricsSnapshot;
 
 std::unique_ptr<Graphics> g_Graphics;
-std::unique_ptr<TradingBotApplication> g_TradingBot;
-std::unique_ptr<OrderBookRenderer> g_OrderBookRenderer;  // НОВОЕ
+std::unique_ptr<OrderBookRenderer> g_OrderBookRenderer;
+std::shared_ptr<SharedState> g_SharedState;
 std::atomic<bool> g_Running(true);
 
-const double BASE_TICK_SIZE = 0.1;
-int g_ScaleIndex = 0;
-std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
+std::unique_ptr<hft::BinanceDataFeed> g_Feed;
+std::unique_ptr<BinanceFeedAdapter> g_FeedAdapter;
 
-double g_SmoothCenterPrice = 0.0;
-bool g_IsFirstFrame = true;
+std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
+int g_ScaleIndex = 0;
 
 // ═══════════════════════════════════════════════════════════════
 // Trading Bot Thread: Запуск основной логики бота
 // ═══════════════════════════════════════════════════════════════
+
 void TradingBotThreadFunc() {
     try {
-        OutputDebugStringA("[TradingBot] Initializing...\n");
-        
-        // Создаём приложение
-        g_TradingBot = std::make_unique<TradingBotApplication>();
+        OutputDebugStringA("[TradingBot] Initializing BinanceDataFeed...\n");
 
-        // Инициализация с конфигом
-        if (!g_TradingBot->Initialize("./config.json")) {
-            OutputDebugStringA("[TradingBot] ERROR: Failed to initialize\n");
-            g_Running = false;
-            return;
+        g_SharedState = std::make_shared<SharedState>();
+        g_FeedAdapter = std::make_unique<BinanceFeedAdapter>(g_SharedState);
+
+        hft::DataFeedConfig cfg;
+        cfg.subscribeDepth = true;
+        cfg.subscribeBookTicker = true;
+        cfg.subscribeAggTrade = true;
+        cfg.depthSpeed = "@100ms";
+        cfg.numParserThreads = std::max<int>(4, static_cast<int>(std::thread::hardware_concurrency()));
+        cfg.messageQueueSize = 32768;
+        cfg.enableLatencyTracking = true;
+        cfg.enableDetailedLogging = false;
+
+        g_Feed = std::make_unique<hft::BinanceDataFeed>(cfg);
+
+        g_Feed->SetDepthUpdateCallback([adapter = g_FeedAdapter.get()](const std::string& sym, const hft::ParsedDepthUpdate& upd) {
+            if (adapter) adapter->OnDepth(sym, upd);
+        });
+        g_Feed->SetBookTickerCallback([adapter = g_FeedAdapter.get()](const std::string& sym, const hft::ParsedBookTicker& bt) {
+            if (adapter) adapter->OnBookTicker(sym, bt);
+        });
+        g_Feed->SetAggTradeCallback([adapter = g_FeedAdapter.get()](const std::string& sym, const hft::ParsedAggTrade& tr) {
+            if (adapter) adapter->OnAggTrade(sym, tr);
+        });
+
+        g_Feed->Start();
+
+        // Metrics pump: update external metrics every 200 ms
+        while (g_Running) {
+            ExternalMetricsSnapshot snap{};
+            auto& lt = g_Feed->GetLatencyTracker();
+            snap.endToEndP99Ns = lt.GetEndToEndP99Ms() * 1'000'000; // ms->ns
+            snap.messagesPerSecond = lt.GetMessagesPerSecond();
+            snap.droppedMessages = g_Feed->GetDroppedMessages();
+            snap.queueHighWater = g_Feed->GetQueueHighWaterMark();
+            g_SharedState->UpdateExternalMetrics(snap);
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
 
-        OutputDebugStringA("[TradingBot] Starting all threads...\n");
-        
-        // Запускаем все потоки (WebSocket, Logger, TCP Server, etc.)
-        g_TradingBot->Start();
-
-        OutputDebugStringA("[TradingBot] Running main loop...\n");
-
-        // Запускаем главный цикл (MAIN THREAD processing)
-        g_TradingBot->Run();
-
-        OutputDebugStringA("[TradingBot] Main loop finished\n");
+        g_Feed->Stop();
     }
     catch (const std::exception& e) {
         OutputDebugStringA("[TradingBot] FATAL ERROR: ");
@@ -129,11 +147,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_DESTROY:
         OutputDebugStringA("[TradingBot] Window closing, shutting down...\n");
         g_Running = false;
-        
-        if (g_TradingBot) {
-            g_TradingBot->Stop();
-        }
-        
+        if (g_Feed) g_Feed->Stop();
         PostQuitMessage(0);
         return 0;
     }
@@ -149,6 +163,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                      _In_ LPSTR lpCmdLine, 
                      _In_ int nCmdShow) 
 {
+    // Detach console to keep only the graphics window
+    FreeConsole();
+
     // Запускаем Trading Bot в отдельном потоке
     std::thread tradingBotThread(TradingBotThreadFunc);
 
@@ -191,10 +208,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
     // Создаём OrderBookRenderer после инициализации бота
-    if (g_TradingBot) {
+    if (g_SharedState) {
         g_OrderBookRenderer = std::make_unique<OrderBookRenderer>(
             g_Graphics.get(),
-            g_TradingBot->GetSharedState()
+            g_SharedState
         );
     }
 
@@ -223,68 +240,71 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
             g_Graphics->DrawTextPixels(L"BTCUSDT", 250, 15, 100, 20, 14, 0.8f, 0.8f, 1.0f, 1.0f);
 
             // Status
-            std::wstring status = g_TradingBot ? L"RUNNING" : L"STOPPED";
-            float statusR = g_TradingBot ? 0.0f : 1.0f;
-            float statusG = g_TradingBot ? 1.0f : 0.0f;
+            bool runningFeed = (g_Feed != nullptr);
+            std::wstring status = runningFeed ? L"RUNNING" : L"STOPPED";
+            float statusR = runningFeed ? 0.0f : 1.0f;
+            float statusG = runningFeed ? 1.0f : 0.0f;
             g_Graphics->DrawTextPixels(status, screenWidth - 120, 15, 100, 20, 14, statusR, statusG, 0.0f, 1.0f);
 
-            // ═══════════════════════════════════════════════════════════════
-            // НОВОЕ: Базовая визуализация Order Book
-            // ═══════════════════════════════════════════════════════════════
-            if (g_TradingBot) {
-                auto sharedState = g_TradingBot->GetSharedState();
-                if (sharedState) {
-                    // Получаем метрики
-                    auto metrics = sharedState->GetMetrics();
-                    
-                    float y = headerHeight + 20;
-                    float x = 20;
-                    
-                    // Показываем латентность и staleness
-                    std::wstringstream ss;
-                    ss << L"Latency: " << metrics.latencyMs << L" ms";
-                    g_Graphics->DrawTextPixels(ss.str(), x, y, 200, 20, 12, 0.8f, 1.0f, 0.8f, 1.0f);
-                    
-                    ss.str(L"");
-                    ss << L"Staleness: " << metrics.stalenessMs << L" ms";
-                    g_Graphics->DrawTextPixels(ss.str(), x, y + 20, 200, 20, 12, 0.8f, 1.0f, 0.8f, 1.0f);
-                    
-                    // Показываем что Order Book синхронизирован
-                    g_Graphics->DrawTextPixels(L"Order Book: SYNCHRONIZED", x, y + 50, 300, 20, 14, 0.0f, 1.0f, 0.0f, 1.0f);
-                    
-                    // ═══════════════════════════════════════════════════════════
-                    // НОВОЕ: GPU-accelerated Order Book Rendering
-                    // ═══════════════════════════════════════════════════════════
-                    if (g_OrderBookRenderer) {
-                        float obX = 20;
-                        float obY = headerHeight + 90;
-                        float obWidth = screenWidth - 40;
-                        float obHeight = screenHeight - headerHeight - 110;
-                        
-                        g_OrderBookRenderer->Render(obX, obY, obWidth, obHeight);
-                    }
+            if (g_SharedState) {
+                auto sharedState = g_SharedState;
+                // Получаем метрики
+                auto metrics = sharedState->GetMetrics();
+                auto ext = sharedState->GetExternalMetrics();
+                
+                float y = headerHeight + 20;
+                float x = 20;
+                
+                // Latency/staleness
+                std::wstringstream ss;
+                ss << L"Latency: " << metrics.latencyMs << L" ms";
+                g_Graphics->DrawTextPixels(ss.str(), x, y, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
+                ss.str(L""); ss.clear();
+                ss << L"Staleness: " << metrics.stalenessMs << L" ms";
+                g_Graphics->DrawTextPixels(ss.str(), x, y + 18, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
+
+                auto toMs = [](long long ns) { return ns / 1'000'000.0; };
+                auto toUs = [](long long ns) { return ns / 1'000.0; };
+
+                float yExt = y + 40;
+                ss.str(L""); ss.clear();
+                ss << L"Exch " << std::fixed << std::setprecision(1) << toMs(ext.exchLatencyNs) << L"ms"
+                   << L" | Net " << toMs(ext.netLatencyNs) << L"ms"
+                   << L" | Eq " << std::setprecision(1) << toUs(ext.enqueueLatencyNs) << L"us";
+                g_Graphics->DrawTextPixels(ss.str(), x, yExt, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
+
+                ss.str(L""); ss.clear();
+                ss << L"Parse " << toUs(ext.parseLatencyNs) << L"us"
+                   << L" | Proc " << toUs(ext.processLatencyNs) << L"us"
+                   << L" | Cb " << toUs(ext.callbackLatencyNs) << L"us";
+                g_Graphics->DrawTextPixels(ss.str(), x, yExt + 18, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
+
+                ss.str(L""); ss.clear();
+                ss << L"E2E P99 " << toMs(ext.endToEndP99Ns) << L"ms"
+                   << L" | Drops " << ext.droppedMessages
+                   << L" | Qmax " << ext.queueHighWater
+                   << L" | " << ext.messagesPerSecond << L" msg/s";
+                g_Graphics->DrawTextPixels(ss.str(), x, yExt + 36, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
+
+                // Order Book visualization
+                if (g_OrderBookRenderer) {
+                    float obX = 20;
+                    float obY = headerHeight + 120;
+                    float obWidth = screenWidth - 40;
+                    float obHeight = screenHeight - headerHeight - 140;
+                    g_OrderBookRenderer->Render(obX, obY, obWidth, obHeight);
                 }
             }
 
             g_Graphics->EndFrame();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Cleanup
-    // ═══════════════════════════════════════════════════════════════
     OutputDebugStringA("[TradingBot] Shutting down...\n");
-    
     g_Running = false;
-
-    if (g_TradingBot) {
-        g_TradingBot->Stop();
-    }
-
-    if (tradingBotThread.joinable()) {
-        tradingBotThread.join();
-    }
-
+    if (g_Feed) g_Feed->Stop();
+    if (tradingBotThread.joinable()) tradingBotThread.join();
     OutputDebugStringA("[TradingBot] Shutdown complete\n");
 
     return (int)msg.wParam;

@@ -35,8 +35,21 @@ namespace TradingBot::Core {
         long long stalenessMs;
     };
 
+    struct ExternalMetricsSnapshot {
+        long long exchLatencyNs{0};
+        long long netLatencyNs{0};
+        long long enqueueLatencyNs{0};
+        long long parseLatencyNs{0};
+        long long processLatencyNs{0};
+        long long callbackLatencyNs{0};
+        long long endToEndP99Ns{0};
+        long long messagesPerSecond{0};
+        long long droppedMessages{0};
+        size_t queueHighWater{0};
+    };
+
     // ═══════════════════════════════════════════════════════════════
-    // SharedState: Bridge между новым OrderBook и старым UI
+    // SharedState: Bridge mellan новом OrderBook и старом UI
     // ═══════════════════════════════════════════════════════════════
     class SharedState {
     public:
@@ -247,6 +260,34 @@ namespace TradingBot::Core {
             return orderBook_;
         }
 
+        void UpdateExternalMetrics(const ExternalMetricsSnapshot& snap) {
+            exchLatencyNs_.store(snap.exchLatencyNs, std::memory_order_relaxed);
+            netLatencyNs_.store(snap.netLatencyNs, std::memory_order_relaxed);
+            enqueueLatencyNs_.store(snap.enqueueLatencyNs, std::memory_order_relaxed);
+            parseLatencyNs_.store(snap.parseLatencyNs, std::memory_order_relaxed);
+            processLatencyNs_.store(snap.processLatencyNs, std::memory_order_relaxed);
+            callbackLatencyNs_.store(snap.callbackLatencyNs, std::memory_order_relaxed);
+            endToEndP99Ns_.store(snap.endToEndP99Ns, std::memory_order_relaxed);
+            messagesPerSecond_.store(snap.messagesPerSecond, std::memory_order_relaxed);
+            droppedMessages_.store(snap.droppedMessages, std::memory_order_relaxed);
+            queueHighWater_.store(snap.queueHighWater, std::memory_order_relaxed);
+        }
+
+        ExternalMetricsSnapshot GetExternalMetrics() const {
+            ExternalMetricsSnapshot out;
+            out.exchLatencyNs = exchLatencyNs_.load(std::memory_order_relaxed);
+            out.netLatencyNs = netLatencyNs_.load(std::memory_order_relaxed);
+            out.enqueueLatencyNs = enqueueLatencyNs_.load(std::memory_order_relaxed);
+            out.parseLatencyNs = parseLatencyNs_.load(std::memory_order_relaxed);
+            out.processLatencyNs = processLatencyNs_.load(std::memory_order_relaxed);
+            out.callbackLatencyNs = callbackLatencyNs_.load(std::memory_order_relaxed);
+            out.endToEndP99Ns = endToEndP99Ns_.load(std::memory_order_relaxed);
+            out.messagesPerSecond = messagesPerSecond_.load(std::memory_order_relaxed);
+            out.droppedMessages = droppedMessages_.load(std::memory_order_relaxed);
+            out.queueHighWater = queueHighWater_.load(std::memory_order_relaxed);
+            return out;
+        }
+
     private:
         std::mutex mutex_;
         mutable std::mutex symbolMutex_;
@@ -267,6 +308,18 @@ namespace TradingBot::Core {
         // Double buffering for rendering
         RenderSnapshot published_[2];
         std::atomic<int> publishedIndex_{ 0 };
+
+        // External latency/queue metrics (atomic, no locks)
+        std::atomic<long long> exchLatencyNs_{0};
+        std::atomic<long long> netLatencyNs_{0};
+        std::atomic<long long> enqueueLatencyNs_{0};
+        std::atomic<long long> parseLatencyNs_{0};
+        std::atomic<long long> processLatencyNs_{0};
+        std::atomic<long long> callbackLatencyNs_{0};
+        std::atomic<long long> endToEndP99Ns_{0};
+        std::atomic<long long> messagesPerSecond_{0};
+        std::atomic<long long> droppedMessages_{0};
+        std::atomic<size_t> queueHighWater_{0};
 
         // ═══════════════════════════════════════════════════════════
         // Публикация текущего Order Book в double buffer для UI

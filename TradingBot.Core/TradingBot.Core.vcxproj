@@ -29,7 +29,6 @@
     <ClCompile Include="Network\WebSocketSession.cpp" />
     <ClCompile Include="OrderBook\LocalOrderBook.cpp" />
     <ClCompile Include="OrderBook\SnapshotSynchronizer.cpp" />
-    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp" />
     <ClCompile Include="Strategy\DensityDetector.cpp" />
     <ClCompile Include="Strategy\StrategyEngine.cpp" />
     <ClCompile Include="Strategy\TakerFlowAnalyzer.cpp" />
