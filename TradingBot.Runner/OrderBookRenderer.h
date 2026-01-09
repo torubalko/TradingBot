@@ -39,7 +39,7 @@ private:
                     const std::vector<std::pair<double, double>>& asks,
                     double maxVolume);
     
-    void RenderSpread(float x, float y, float width, double bidPrice, double askPrice);
+    void RenderSpreadLine(float x, float y, float width, double bidPrice, double askPrice);
     
     // Расчёт максимального объёма для нормализации баров
     double CalculateMaxVolume(const std::vector<std::pair<double, double>>& bids,
