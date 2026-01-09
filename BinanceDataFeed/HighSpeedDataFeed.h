@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -14,6 +15,7 @@
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/websocket/ssl.hpp>
+#include <boost/beast/http.hpp>
 
 #include "OrderBook.h"
 #include "SimdJsonParser.h"
@@ -166,6 +168,8 @@ private:
     void IoThreadFunc();
     void ProcessorThreadFunc();
     void ProcessMessage(RawMessage&& msg);
+    void SyncClockThread();
+    int64_t FetchServerTimeMs();
     
     std::string BuildStreamPath();
     
@@ -208,6 +212,15 @@ private:
     
     // Latency tracking
     LatencyTracker latencyTracker_;
+    std::atomic<int64_t> clockOffsetMs_{0};
+    std::atomic<int64_t> lastTimeSyncRttMs_{0};
+    std::thread timeSyncThread_;
 };
 
-} // namespace hft
+inline std::string upper_symbol(const std::string& s) {
+    std::string out = s;
+    std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+    return out;
+}
+
+} // namespace hft} // namespace hft

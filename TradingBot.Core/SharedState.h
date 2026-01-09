@@ -42,6 +42,7 @@ namespace TradingBot::Core {
         long long parseLatencyNs{0};
         long long processLatencyNs{0};
         long long callbackLatencyNs{0};
+        long long procChainLatencyNs{0};
         long long endToEndP99Ns{0};
         long long messagesPerSecond{0};
         long long droppedMessages{0};
@@ -267,6 +268,7 @@ namespace TradingBot::Core {
             parseLatencyNs_.store(snap.parseLatencyNs, std::memory_order_relaxed);
             processLatencyNs_.store(snap.processLatencyNs, std::memory_order_relaxed);
             callbackLatencyNs_.store(snap.callbackLatencyNs, std::memory_order_relaxed);
+            procChainLatencyNs_.store(snap.procChainLatencyNs, std::memory_order_relaxed);
             endToEndP99Ns_.store(snap.endToEndP99Ns, std::memory_order_relaxed);
             messagesPerSecond_.store(snap.messagesPerSecond, std::memory_order_relaxed);
             droppedMessages_.store(snap.droppedMessages, std::memory_order_relaxed);
@@ -281,6 +283,7 @@ namespace TradingBot::Core {
             out.parseLatencyNs = parseLatencyNs_.load(std::memory_order_relaxed);
             out.processLatencyNs = processLatencyNs_.load(std::memory_order_relaxed);
             out.callbackLatencyNs = callbackLatencyNs_.load(std::memory_order_relaxed);
+            out.procChainLatencyNs = procChainLatencyNs_.load(std::memory_order_relaxed);
             out.endToEndP99Ns = endToEndP99Ns_.load(std::memory_order_relaxed);
             out.messagesPerSecond = messagesPerSecond_.load(std::memory_order_relaxed);
             out.droppedMessages = droppedMessages_.load(std::memory_order_relaxed);
@@ -316,6 +319,7 @@ namespace TradingBot::Core {
         std::atomic<long long> parseLatencyNs_{0};
         std::atomic<long long> processLatencyNs_{0};
         std::atomic<long long> callbackLatencyNs_{0};
+        std::atomic<long long> procChainLatencyNs_{0};
         std::atomic<long long> endToEndP99Ns_{0};
         std::atomic<long long> messagesPerSecond_{0};
         std::atomic<long long> droppedMessages_{0};

@@ -157,12 +157,12 @@ public:
     // This is always accurate regardless of local clock!
     void RecordExchangeLatency(int64_t eventTimeMs, int64_t transactionTimeMs) {
         int64_t latencyMs = transactionTimeMs - eventTimeMs;
-        // Binance: T >= E always, typical range 0-10ms
-        if (latencyMs >= 0 && latencyMs < 1000) {
+        if (latencyMs < 0) latencyMs = -latencyMs; // guard against clock drift or bad ordering
+        if (latencyMs <= 60000) {
             exchangeLatency_.RecordMs(latencyMs);
         }
     }
-    
+
     // Network latency (our receive time - exchange transaction time)
     // Requires NTP-synchronized clock!
     void RecordNetworkLatency(int64_t exchangeTimestampMs, int64_t receiveTimeMs) {
@@ -277,6 +277,13 @@ public:
     }
 
     int64_t GetEndToEndP99Ms() const { return endToEndHistogram_.P99Ms(); }
+
+    int64_t GetExchangeAvgNs() const { return static_cast<int64_t>(exchangeLatency_.AvgUs() * 1000.0); }
+    int64_t GetNetworkAvgNs() const { return static_cast<int64_t>(networkLatency_.AvgUs() * 1000.0); }
+    int64_t GetEnqueueAvgNs() const { return static_cast<int64_t>(enqueueLatency_.AvgUs() * 1000.0); }
+    int64_t GetParseAvgNs() const { return static_cast<int64_t>(parseLatency_.AvgUs() * 1000.0); }
+    int64_t GetProcessAvgNs() const { return static_cast<int64_t>(processLatency_.AvgUs() * 1000.0); }
+    int64_t GetCallbackAvgNs() const { return static_cast<int64_t>(callbackLatency_.AvgUs() * 1000.0); }
 
 private:
     AtomicLatencyStats networkLatency_;

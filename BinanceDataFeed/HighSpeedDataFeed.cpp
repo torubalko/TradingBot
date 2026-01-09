@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
 #ifdef _MSC_VER
 #include <immintrin.h>
 #endif
@@ -249,6 +250,9 @@ void BinanceDataFeed::Start() {
     if (connectedCallback_) {
         connectedCallback_();
     }
+
+    // Start clock sync thread
+    timeSyncThread_ = std::thread([this] { SyncClockThread(); });
 }
 
 void BinanceDataFeed::Stop() {
@@ -275,6 +279,8 @@ void BinanceDataFeed::Stop() {
     for (auto& t : processorThreads_) {
         if (t.joinable()) t.join();
     }
+
+    if (timeSyncThread_.joinable()) timeSyncThread_.join();
     
     sessions_.clear();
     ioThreads_.clear();
@@ -285,6 +291,25 @@ void BinanceDataFeed::Stop() {
     }
     
     std::cout << "[DataFeed] Stopped\n";
+}
+
+void BinanceDataFeed::SyncClockThread() {
+    while (running_.load()) {
+        int64_t t0 = HighResTimer::UnixMs();
+        int64_t serverMs = FetchServerTimeMs();
+        int64_t t1 = HighResTimer::UnixMs();
+        if (serverMs > 0) {
+            int64_t rtt = t1 - t0;
+            int64_t midpoint = t0 + rtt / 2;
+            int64_t offset = serverMs - midpoint;
+            clockOffsetMs_.store(offset, std::memory_order_relaxed);
+            lastTimeSyncRttMs_.store(rtt, std::memory_order_relaxed);
+        }
+
+        for (int i = 0; i < 30 && running_.load(); ++i) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
 }
 
 void BinanceDataFeed::CreateSessions() {
@@ -407,6 +432,11 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
     }
 
     const int64_t processStartNs = HighResTimer::NowNs();
+    int64_t recvMsAdjusted = HighResTimer::UnixMs() + clockOffsetMs_.load(std::memory_order_relaxed);
+    int64_t rttHalf = lastTimeSyncRttMs_.load(std::memory_order_relaxed) / 2;
+    if (rttHalf > 0 && rttHalf < 5000) {
+        recvMsAdjusted -= rttHalf; // remove half RTT to approximate one-way
+    }
     if (config_.enableLatencyTracking) {
         latencyTracker_.RecordEnqueueLatencyNs(processStartNs - msg.ReceiveTimestampNs());
     }
@@ -420,7 +450,8 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordParseLatency(parseTime);
                     latencyTracker_.RecordExchangeLatency(update.eventTime, update.transactionTime);
-                    latencyTracker_.RecordNetworkLatency(update.transactionTime, msg.ReceiveTimestampNs() / 1'000'000);
+                    int64_t recvMs = recvMsAdjusted;
+                    latencyTracker_.RecordNetworkLatency(update.transactionTime, recvMs);
                 }
 
                 int64_t processApplyStart = HighResTimer::NowNs();
@@ -464,7 +495,8 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordParseLatency(parseTime);
                     latencyTracker_.RecordExchangeLatency(ticker.eventTime, ticker.transactionTime);
-                    latencyTracker_.RecordNetworkLatency(ticker.transactionTime, msg.ReceiveTimestampNs() / 1'000'000);
+                    int64_t recvMs = recvMsAdjusted;
+                    latencyTracker_.RecordNetworkLatency(ticker.transactionTime, recvMs);
                 }
 
                 auto it = orderBooks_.find(ticker.symbol);
@@ -499,7 +531,9 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
 
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordParseLatency(parseTime);
-                    latencyTracker_.RecordEndToEndNs(HighResTimer::NowNs() - msg.ReceiveTimestampNs());
+                    latencyTracker_.RecordExchangeLatency(trade.eventTime, trade.tradeTime);
+                    int64_t recvMs = recvMsAdjusted;
+                    latencyTracker_.RecordNetworkLatency(trade.tradeTime, recvMs);
                 }
 
                 if (aggTradeCallback_) {
@@ -508,6 +542,10 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                     if (config_.enableLatencyTracking) {
                         latencyTracker_.RecordCallbackLatency(HighResTimer::NowNs() - cbStart);
                     }
+                }
+
+                if (config_.enableLatencyTracking) {
+                    latencyTracker_.RecordEndToEndNs(HighResTimer::NowNs() - msg.ReceiveTimestampNs());
                 }
             }
             break;
@@ -574,6 +612,51 @@ void BinanceDataFeed::PrintStatistics() {
     if (config_.enableLatencyTracking) {
         latencyTracker_.PrintReport();
     }
+}
+
+int64_t BinanceDataFeed::FetchServerTimeMs() {
+    try {
+        net::io_context ioc;
+        ssl::context ctx{ssl::context::tlsv12_client};
+        ctx.set_default_verify_paths();
+        ctx.set_verify_mode(ssl::verify_none);
+
+        tcp::resolver resolver(ioc);
+        auto const results = resolver.resolve(config_.host, config_.port);
+
+        beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+        beast::get_lowest_layer(stream).connect(results);
+        stream.handshake(ssl::stream_base::client);
+
+        namespace http = beast::http;
+        std::string path = (config_.host.find("fstream") != std::string::npos) ? "/fapi/v1/time" : "/api/v3/time";
+        http::request<http::string_body> req{http::verb::get, path, 11};
+        req.set(http::field::host, config_.host);
+        req.set(http::field::user_agent, "TradingBot/1.0");
+
+        auto start = HighResTimer::NowMs();
+        http::write(stream, req);
+        beast::flat_buffer buffer;
+        http::response<http::string_body> res;
+        http::read(stream, buffer, res);
+        auto end = HighResTimer::NowMs();
+
+        beast::error_code ec;
+        stream.shutdown(ec);
+
+        auto body = res.body();
+        auto pos = body.find("serverTime");
+        if (pos != std::string::npos) {
+            pos = body.find(":", pos);
+            if (pos != std::string::npos) {
+                size_t endNum = body.find_first_not_of("0123456789", pos + 1);
+                std::string num = body.substr(pos + 1, endNum == std::string::npos ? endNum : endNum - (pos + 1));
+                return std::stoll(num);
+            }
+        }
+    } catch (...) {
+    }
+    return -1;
 }
 
 } // namespace hft

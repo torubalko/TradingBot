@@ -68,6 +68,13 @@ void TradingBotThreadFunc() {
         while (g_Running) {
             ExternalMetricsSnapshot snap{};
             auto& lt = g_Feed->GetLatencyTracker();
+            snap.exchLatencyNs = lt.GetExchangeAvgNs();
+            snap.netLatencyNs = lt.GetNetworkAvgNs();
+            snap.enqueueLatencyNs = lt.GetEnqueueAvgNs();
+            snap.parseLatencyNs = lt.GetParseAvgNs();
+            snap.processLatencyNs = lt.GetProcessAvgNs();
+            snap.callbackLatencyNs = lt.GetCallbackAvgNs();
+            snap.procChainLatencyNs = snap.enqueueLatencyNs + snap.parseLatencyNs + snap.processLatencyNs + snap.callbackLatencyNs;
             snap.endToEndP99Ns = lt.GetEndToEndP99Ms() * 1'000'000; // ms->ns
             snap.messagesPerSecond = lt.GetMessagesPerSecond();
             snap.droppedMessages = g_Feed->GetDroppedMessages();
@@ -255,7 +262,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                 float y = headerHeight + 20;
                 float x = 20;
                 
-                // Latency/staleness
+                // Latency/staleness in milliseconds
                 std::wstringstream ss;
                 ss << L"Latency: " << metrics.latencyMs << L" ms";
                 g_Graphics->DrawTextPixels(ss.str(), x, y, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
@@ -264,27 +271,19 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                 g_Graphics->DrawTextPixels(ss.str(), x, y + 18, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
 
                 auto toMs = [](long long ns) { return ns / 1'000'000.0; };
-                auto toUs = [](long long ns) { return ns / 1'000.0; };
 
                 float yExt = y + 40;
                 ss.str(L""); ss.clear();
-                ss << L"Exch " << std::fixed << std::setprecision(1) << toMs(ext.exchLatencyNs) << L"ms"
-                   << L" | Net " << toMs(ext.netLatencyNs) << L"ms"
-                   << L" | Eq " << std::setprecision(1) << toUs(ext.enqueueLatencyNs) << L"us";
-                g_Graphics->DrawTextPixels(ss.str(), x, yExt, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
+                ss << L"Net " << std::fixed << std::setprecision(3) << toMs(ext.netLatencyNs) << L" ms"
+                   << L" | Proc " << toMs(ext.procChainLatencyNs) << L" ms";
+                g_Graphics->DrawTextPixels(ss.str(), x, yExt, 400, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
 
                 ss.str(L""); ss.clear();
-                ss << L"Parse " << toUs(ext.parseLatencyNs) << L"us"
-                   << L" | Proc " << toUs(ext.processLatencyNs) << L"us"
-                   << L" | Cb " << toUs(ext.callbackLatencyNs) << L"us";
-                g_Graphics->DrawTextPixels(ss.str(), x, yExt + 18, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
-
-                ss.str(L""); ss.clear();
-                ss << L"E2E P99 " << toMs(ext.endToEndP99Ns) << L"ms"
+                ss << L"E2E P99 " << toMs(ext.endToEndP99Ns) << L" ms"
                    << L" | Drops " << ext.droppedMessages
                    << L" | Qmax " << ext.queueHighWater
                    << L" | " << ext.messagesPerSecond << L" msg/s";
-                g_Graphics->DrawTextPixels(ss.str(), x, yExt + 36, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
+                g_Graphics->DrawTextPixels(ss.str(), x, yExt + 18, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
 
                 // Order Book visualization
                 if (g_OrderBookRenderer) {
