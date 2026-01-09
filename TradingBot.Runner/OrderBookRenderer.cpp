@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
+#include <limits>
+#include <unordered_map>
 
 // ???????????????????????????????????????????????????????????????
 // OrderBookRenderer Implementation
@@ -35,6 +38,8 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
 
     cachedBids_.clear();
     cachedAsks_.clear();
+    filledBids_.clear();
+    filledAsks_.clear();
     
     int bidsToShow = (std::min)((int)snapshot.Bids.size(), visibleLevels_);
     int asksToShow = (std::min)((int)snapshot.Asks.size(), visibleLevels_);
@@ -47,7 +52,22 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
         cachedAsks_.push_back(snapshot.Asks[i]);
     }
 
-    double maxVolume = CalculateMaxVolume(cachedBids_, cachedAsks_);
+    filledBids_ = FillSide(cachedBids_, true);
+    filledAsks_ = FillSide(cachedAsks_, false);
+
+    double stepCommon = DetectCommonStep(cachedBids_, cachedAsks_);
+    if (stepCommon <= 0.0) stepCommon = 0.1;
+
+    double bestBid = filledBids_.empty() ? 0.0 : filledBids_[0].first;
+    double bestAsk = filledAsks_.empty() ? 0.0 : filledAsks_[0].first;
+
+    if (bestAsk <= bestBid) {
+        // realign asks above bids with common step
+        filledAsks_ = FillSide(cachedAsks_, false, bestBid + stepCommon);
+        bestAsk = filledAsks_.empty() ? 0.0 : filledAsks_[0].first;
+    }
+
+    double maxVolume = CalculateMaxVolume(filledBids_, filledAsks_);
     if (maxVolume < 0.001) maxVolume = 1.0;
 
     float halfHeight = height * 0.5f;
@@ -55,15 +75,13 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     float bidsY = y + halfHeight;
 
     // ASKS (top half, best ask adjacent to spread line)
-    RenderAsks(x, asksY, width, halfHeight, cachedAsks_, maxVolume);
+    RenderAsks(x, asksY, width, halfHeight, filledAsks_, maxVolume);
     
     // Spread line between halves
-    double bestBid = cachedBids_.empty() ? 0.0 : cachedBids_[0].first;
-    double bestAsk = cachedAsks_.empty() ? 0.0 : cachedAsks_[0].first;
     RenderSpreadLine(x, y + halfHeight, width, bestBid, bestAsk);
     
     // BIDS (bottom half, best bid adjacent to spread line)
-    RenderBids(x, bidsY, width, halfHeight, cachedBids_, maxVolume);
+    RenderBids(x, bidsY, width, halfHeight, filledBids_, maxVolume);
 }
 
 void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
@@ -180,4 +198,57 @@ double OrderBookRenderer::CalculateMaxVolume(const std::vector<std::pair<double,
     }
     
     return maxVol;
+}
+
+std::vector<std::pair<double, double>> OrderBookRenderer::FillSide(
+    const std::vector<std::pair<double, double>>& src,
+    bool descending,
+    double startPriceOverride) const {
+    std::vector<std::pair<double, double>> out;
+    if (src.empty()) return out;
+
+    double step = DetectPriceStep(src);
+    if (step <= 0.0) step = 0.1; // fallback
+
+    // Map price key to volume using step-based rounding
+    std::unordered_map<long long, double> volumeByKey;
+    auto keyFn = [&](double price) {
+        return static_cast<long long>(std::llround(price / step));
+    };
+
+    for (const auto& p : src) {
+        volumeByKey[keyFn(p.first)] = p.second;
+    }
+
+    double price = std::isnan(startPriceOverride) ? src.front().first : startPriceOverride;
+    for (int i = 0; i < visibleLevels_; ++i) {
+        long long k = keyFn(price);
+        auto it = volumeByKey.find(k);
+        double vol = (it != volumeByKey.end()) ? it->second : 0.0;
+        out.emplace_back(price, vol);
+        price += descending ? -step : step;
+    }
+    return out;
+}
+
+double OrderBookRenderer::DetectPriceStep(const std::vector<std::pair<double, double>>& src) const {
+    if (src.size() < 2) return 0.0;
+    double minDiff = 0.0;
+    for (size_t i = 1; i < src.size(); ++i) {
+        double d = std::fabs(src[i - 1].first - src[i].first);
+        if (d > 1e-9 && (minDiff == 0.0 || d < minDiff)) {
+            minDiff = d;
+        }
+    }
+    return minDiff;
+}
+
+double OrderBookRenderer::DetectCommonStep(const std::vector<std::pair<double, double>>& bids,
+                            const std::vector<std::pair<double, double>>& asks) const {
+    double sb = DetectPriceStep(bids);
+    double sa = DetectPriceStep(asks);
+    if (sb > 0.0 && sa > 0.0) return (sb < sa) ? sb : sa;
+    if (sb > 0.0) return sb;
+    if (sa > 0.0) return sa;
+    return 0.0;
 }

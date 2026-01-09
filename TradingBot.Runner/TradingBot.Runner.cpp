@@ -1,14 +1,20 @@
-﻿#include <atomic>
+﻿#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <WinSock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <shlwapi.h>
+#pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "Shlwapi.lib")
+
+// standard includes
+#include <atomic>
 #include <thread>
 #include <memory>
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
 
 #include "Graphics.h"
 #include "OrderBookRenderer.h"
@@ -165,6 +171,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 // WinMain: Entry Point
 // ═══════════════════════════════════════════════════════════════
 
+HICON LoadTorBotIcon() {
+    wchar_t exePath[MAX_PATH] = {0};
+    if (GetModuleFileNameW(NULL, exePath, MAX_PATH)) {
+        PathRemoveFileSpecW(exePath);
+        wcscat_s(exePath, L"\\TorBot.ico");
+        HICON hIcon = (HICON)LoadImageW(NULL, exePath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        if (hIcon) return hIcon;
+    }
+    // fallback current dir
+    HICON hIcon = (HICON)LoadImageW(NULL, L"TorBot.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+    if (hIcon) return hIcon;
+    return LoadIcon(NULL, IDI_APPLICATION);
+}
+
+
 int APIENTRY WinMain(_In_ HINSTANCE hInstance, 
                      _In_opt_ HINSTANCE hPrevInstance, 
                      _In_ LPSTR lpCmdLine, 
@@ -177,27 +198,36 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     std::thread tradingBotThread(TradingBotThreadFunc);
 
     // Создаём окно для визуализации
-    WNDCLASSEXW wc = {  // Было WNDCLASSEX, теперь WNDCLASSEXW
-        sizeof(WNDCLASSEXW), 
-        CS_CLASSDC, 
-        WndProc, 
-        0L, 0L, 
-        GetModuleHandle(NULL), 
-        NULL, NULL, NULL, NULL, 
-        L"TradingBotWindow", 
-        NULL 
-    };
-    RegisterClassExW(&wc);  // Было RegisterClassEx, теперь RegisterClassExW
+    // Create window class
+    HICON hIcon = LoadTorBotIcon();
 
-    HWND hWnd = CreateWindowW(  // Было CreateWindow, теперь CreateWindowW
-        L"TradingBotWindow", 
-        L"TradingBot HFT v2.0", 
-        WS_OVERLAPPEDWINDOW, 
-        100, 100, 1200, 1200, 
-        NULL, NULL, 
-        wc.hInstance, 
+    WNDCLASSEXW wc = {
+        sizeof(WNDCLASSEXW),
+        CS_CLASSDC,
+        WndProc,
+        0L, 0L,
+        GetModuleHandle(NULL),
+        hIcon,
+        NULL,
+        NULL,
+        NULL,
+        L"TorBotWindow",
+        hIcon
+    };
+    RegisterClassExW(&wc);
+
+    HWND hWnd = CreateWindowW(
+        L"TorBotWindow",
+        L"TorBot HFT v2.0",
+        WS_OVERLAPPEDWINDOW,
+        100, 100, 1200, 1200,
+        NULL, NULL,
+        wc.hInstance,
         NULL
     );
+
+    SendMessageW(hWnd, WM_SETICON, ICON_BIG,   (LPARAM)hIcon);
+    SendMessageW(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
 
     // Инициализируем графику
     g_Graphics = std::make_unique<Graphics>();
@@ -243,7 +273,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
             g_Graphics->DrawRectPixels(0, 0, screenWidth, headerHeight, 0.1f, 0.1f, 0.12f, 1.0f);
             g_Graphics->DrawRectPixels(0, headerHeight - 1.0f, screenWidth, 1.0f, 0.3f, 0.3f, 0.3f, 1.0f);
 
-            g_Graphics->DrawTextPixels(L"TradingBot HFT v2.0", 20, 15, 200, 20, 14, 1.0f, 1.0f, 1.0f, 1.0f);
+            g_Graphics->DrawTextPixels(L"TORBOT", 20, 15, 200, 20, 14, 1.0f, 1.0f, 1.0f, 1.0f);
             g_Graphics->DrawTextPixels(L"BTCUSDT", 250, 15, 100, 20, 14, 0.8f, 0.8f, 1.0f, 1.0f);
 
             // Status
