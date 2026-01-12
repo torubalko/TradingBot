@@ -1,23 +1,55 @@
 #include "BinanceConnection.h"
 #include "JsonParser.h"
 #include "Types.h"
+#include "Logging.h"
 #include <iostream>
 #include <algorithm> 
 #include <cctype>    
 #include <boost/beast/http.hpp>
-// Добавляем для ручного разбора JSON
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ JSON
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+// пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+#include <wincrypt.h>
+#pragma comment(lib, "crypt32.lib")
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
 namespace TradingBot::Core::Network {
 
     BinanceConnection::BinanceConnection(std::shared_ptr<SharedState> state)
         : state_(state) {
-        ctx_.set_verify_mode(boost::asio::ssl::verify_none);
+        ctx_.set_verify_mode(ssl::verify_peer);
+        LoadRootCertificates();
     }
 
     BinanceConnection::~BinanceConnection() {
         Stop();
+    }
+
+    void BinanceConnection::LoadRootCertificates() {
+        HCERTSTORE hStore = CertOpenSystemStore(0, L"ROOT");
+        if (!hStore) {
+            std::cerr << "[BinanceConnection] Failed to open certificate store" << std::endl;
+            return;
+        }
+
+        X509_STORE* store = SSL_CTX_get_cert_store(ctx_.native_handle());
+        PCCERT_CONTEXT pContext = NULL;
+
+        int certCount = 0;
+        while ((pContext = CertEnumCertificatesInStore(hStore, pContext))) {
+            const unsigned char* p = pContext->pbCertEncoded;
+            X509* x509 = d2i_X509(NULL, &p, pContext->cbCertEncoded);
+            if (x509) {
+                X509_STORE_add_cert(store, x509);
+                X509_free(x509);
+                certCount++;
+            }
+        }
+        CertCloseStore(hStore, 0);
+        
+        std::cout << "[BinanceConnection] Loaded " << certCount << " root certificates" << std::endl;
     }
 
     void BinanceConnection::Stop() {
@@ -25,10 +57,15 @@ namespace TradingBot::Core::Network {
         if (!ioc_.stopped()) ioc_.stop();
     }
 
-    void BinanceConnection::DownloadSnapshot(const std::string& symbol, bool useTestnet) {
+    void BinanceConnection::DownloadSnapshot(const std::string& symbol, bool isSpot) {
         try {
-            std::string host = useTestnet ? "testnet.binancefuture.com" : "fapi.binance.com";
-            std::string target = "/fapi/v1/depth?symbol=" + symbol + "&limit=1000";
+            // Spot / Futures use different hosts and paths
+            std::string host = isSpot ? "api.binance.com" : "fapi.binance.com";
+            std::string target = isSpot
+                ? ("/api/v3/depth?symbol=" + symbol + "&limit=1000")
+                : ("/fapi/v1/depth?symbol=" + symbol + "&limit=1000");
+
+            TradingBot::Core::Logging::Info("Snapshot", std::string("GET https://") + host + target);
 
             tcp::resolver resolver(ioc_);
             beast::ssl_stream<beast::tcp_stream> stream(ioc_, ctx_);
@@ -55,6 +92,17 @@ namespace TradingBot::Core::Network {
                 state_->ApplyUpdate(snap.bids, snap.asks);
             }
 
+            if(!snap.asks.empty() && !snap.bids.empty())
+            {
+                TradingBot::Core::Logging::Info(
+                    "Snapshot",
+                    "symbol=" + symbol +
+                    " bestBid=" + std::to_string(snap.bids.front().price) +
+                    " bestAsk=" + std::to_string(snap.asks.front().price) +
+                    " bids=" + std::to_string(snap.bids.size()) +
+                    " asks=" + std::to_string(snap.asks.size()));
+            }
+
             beast::error_code ec;
             stream.shutdown(ec);
         }
@@ -63,19 +111,26 @@ namespace TradingBot::Core::Network {
         }
     }
 
-    void BinanceConnection::Connect(const std::string& symbol, bool useTestnet) {
+    void BinanceConnection::Connect(const std::string& symbol, bool isSpot) {
         std::string upperSymbol = symbol;
         std::string lowerSymbol = symbol;
         std::transform(upperSymbol.begin(), upperSymbol.end(), upperSymbol.begin(), ::toupper);
         std::transform(lowerSymbol.begin(), lowerSymbol.end(), lowerSymbol.begin(), ::tolower);
 
-        DownloadSnapshot(upperSymbol, useTestnet);
+        TradingBot::Core::Logging::Info(
+            "WS",
+            std::string("Connect symbol=") + upperSymbol + (isSpot ? " mode=SPOT" : " mode=FUTURES"));
+
+        DownloadSnapshot(upperSymbol, isSpot);
 
         try {
-            std::string host = useTestnet ? "stream.binancefuture.com" : "fstream.binance.com";
+            // Spot and Futures have different websocket endpoints
+            std::string host = isSpot ? "stream.binance.com" : "fstream.binance.com";
 
-            // ИЗМЕНЕНИЕ: Комбинированный поток (стакан + сделки)
+            // Futures supports @depth@100ms, spot uses @depth@100ms too (Binance supports it for spot as well)
             std::string target = "/stream?streams=" + lowerSymbol + "@depth@100ms/" + lowerSymbol + "@trade";
+
+            TradingBot::Core::Logging::Info("WS", std::string("wss://") + host + target);
 
             tcp::resolver resolver(ioc_);
             auto const results = resolver.resolve(host, "443");
@@ -107,25 +162,30 @@ namespace TradingBot::Core::Network {
                     if (root.count("stream")) {
                         std::string streamName = root.get<std::string>("stream");
 
-                        // 1. ДАННЫЕ СТАКАНА
+                        // 1. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                         if (streamName.find("@depth") != std::string::npos) {
                             auto update = Utils::JsonParser::ParseDepthUpdate(msg);
                             state_->ApplyUpdate(update.bids, update.asks);
                         }
-                        // 2. ДАННЫЕ СДЕЛОК
+                        // 2. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                         else if (streamName.find("@trade") != std::string::npos) {
                             pt::ptree data = root.get_child("data");
                             Trade trade;
                             trade.price = std::stod(data.get<std::string>("p"));
                             trade.quantity = std::stod(data.get<std::string>("q"));
-                            trade.isBuyerMaker = data.get<bool>("m"); // true = продажа
+                            trade.isBuyerMaker = data.get<bool>("m"); // true = пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                             trade.timestamp = data.get<long long>("T");
 
                             state_->AddTrade(trade);
                         }
                     }
                 }
-                catch (...) {}
+                catch (const std::exception& e) {
+                    std::cerr << "[BinanceConnection] Failed to parse message: " << e.what() << std::endl;
+                }
+                catch (...) {
+                    std::cerr << "[BinanceConnection] Unknown error parsing message" << std::endl;
+                }
 
                 buffer.consume(buffer.size());
             }

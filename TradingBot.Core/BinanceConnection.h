@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <memory>
-#include <functional> // Grok просил добавить
+#include <functional> // Grok пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
@@ -22,12 +22,15 @@ namespace TradingBot::Core::Network {
         BinanceConnection(std::shared_ptr<SharedState> state);
         ~BinanceConnection();
 
-        void Connect(const std::string& symbol, bool useTestnet = false);
+        void Connect(const std::string& symbol, bool isSpot = false);
         void Stop();
 
     private:
-        // Теперь это приватный метод класса, а не "висячая" функция
-        void DownloadSnapshot(const std::string& symbol, bool useTestnet);
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ" пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+        void DownloadSnapshot(const std::string& symbol, bool isSpot);
+        
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ SSL
+        void LoadRootCertificates();
 
     private:
         std::shared_ptr<SharedState> state_;

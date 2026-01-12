@@ -33,6 +33,7 @@
     <ClInclude Include="Environment.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
+    <ClInclude Include="Logging.h" />
     <ClInclude Include="MarketDetails.h" />
     <ClInclude Include="OrderBook.h" />
     <ClInclude Include="RestClient.h" />
