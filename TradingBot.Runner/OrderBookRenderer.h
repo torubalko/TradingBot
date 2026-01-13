@@ -36,11 +36,13 @@ private:
     
     void RenderBids(float x, float y, float width, float height, 
                     const std::vector<std::pair<double, double>>& bids,
-                    double maxVolume);
+                    double maxVolume,
+                    double midPrice);
     
     void RenderAsks(float x, float y, float width, float height,
                     const std::vector<std::pair<double, double>>& asks,
-                    double maxVolume);
+                    double maxVolume,
+                    double midPrice);
     
     void RenderSpreadLine(float x, float y, float width, double bidPrice, double askPrice);
     

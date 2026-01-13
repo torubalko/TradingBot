@@ -43,6 +43,14 @@ namespace {
         if (suffix != L'\0') s.push_back(suffix);
         return s.empty() ? L"0" : s;
     }
+
+    std::wstring FormatPercentShort(double pct) {
+        std::wstringstream ss;
+        ss << std::fixed << std::setprecision(4);
+        if (pct > 0) ss << L"+";
+        ss << pct << L"%";
+        return ss.str();
+    }
 }
 
 // ???????????????????????????????????????????????????????????????
@@ -109,20 +117,24 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     float bidsY = y + halfHeight;
 
     // ASKS (top half, best ask adjacent to spread line)
-    RenderAsks(x, asksY, width, halfHeight, cachedAsks_, maxVolume);
-    
-    // Spread line between halves
+    // mid-price for percent labels
     double bestBid = cachedBids_.empty() ? 0.0 : cachedBids_[0].first;
     double bestAsk = cachedAsks_.empty() ? 0.0 : cachedAsks_[0].first;
+    double midPrice = (bestBid > 0.0 && bestAsk > 0.0) ? (bestBid + bestAsk) * 0.5 : (bestBid > 0.0 ? bestBid : bestAsk);
+
+    RenderAsks(x, asksY, width, halfHeight, cachedAsks_, maxVolume, midPrice);
+    
+    // Spread line between halves
     RenderSpreadLine(x, y + halfHeight, width, bestBid, bestAsk);
     
     // BIDS (bottom half, best bid adjacent to spread line)
-    RenderBids(x, bidsY, width, halfHeight, cachedBids_, maxVolume);
+    RenderBids(x, bidsY, width, halfHeight, cachedBids_, maxVolume, midPrice);
 }
 
 void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
                                    const std::vector<std::pair<double, double>>& asks,
-                                   double maxVolume) {
+                                   double maxVolume,
+                                   double midPrice) {
     if (asks.empty()) return;
     
     float levelHeight = height / visibleLevels_;
@@ -144,7 +156,7 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
                                  0.15f, 0.12f, 0.12f, 1.0f);
         
         // Volume bar (красный для asks)
-        float barX = x + width - barWidth - 100; // Справа налево
+        float barX = x + width - barWidth - 180; // Справа налево, больше места справа
         graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
                                  0.8f, 0.2f, 0.2f, 0.3f); // Полупрозрачный красный
         
@@ -155,8 +167,14 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
         
         // Volume text
         std::wstring volumeStr = FormatVolumeDynamic(volume);
-        graphics_->DrawTextPixels(volumeStr, x + width - 90, currentY + 2, 80, levelHeight - 4, 11,
+        graphics_->DrawTextPixels(volumeStr, x + width - 170, currentY + 2, 80, levelHeight - 4, 11,
                                  0.8f, 0.8f, 0.8f, 1.0f);
+ 
+         // Percent text (relative to mid)
+         double pct = (midPrice > 0.0) ? ((price - midPrice) / midPrice) * 100.0 : 0.0;
+         std::wstring pctStr = FormatPercentShort(pct);
+        graphics_->DrawTextPixels(pctStr, x + width - 80, currentY + 2, 70, levelHeight - 4, 11,
+                                 0.8f, 0.9f, 1.0f, 1.0f);
         
         currentY -= levelHeight;
     }
@@ -164,7 +182,8 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
 
 void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
                                    const std::vector<std::pair<double, double>>& bids,
-                                   double maxVolume) {
+                                   double maxVolume,
+                                   double midPrice) {
     if (bids.empty()) return;
     
     float levelHeight = height / visibleLevels_;
@@ -186,7 +205,7 @@ void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
                                  0.12f, 0.15f, 0.12f, 1.0f);
         
         // Volume bar (зелёный для bids)
-        float barX = x + width - barWidth - 100; // Справа налево
+        float barX = x + width - barWidth - 180; // Справа налево, больше места справа
         graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
                                  0.2f, 0.8f, 0.2f, 0.3f); // Полупрозрачный зелёный
         
@@ -197,8 +216,14 @@ void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
         
         // Volume text
         std::wstring volumeStr = FormatVolumeDynamic(volume);
-        graphics_->DrawTextPixels(volumeStr, x + width - 90, currentY + 2, 80, levelHeight - 4, 11,
+        graphics_->DrawTextPixels(volumeStr, x + width - 170, currentY + 2, 80, levelHeight - 4, 11,
                                  0.8f, 0.8f, 0.8f, 1.0f);
+ 
+         // Percent text (relative to mid)
+         double pct = (midPrice > 0.0) ? ((price - midPrice) / midPrice) * 100.0 : 0.0;
+         std::wstring pctStr = FormatPercentShort(pct);
+        graphics_->DrawTextPixels(pctStr, x + width - 80, currentY + 2, 70, levelHeight - 4, 11,
+                                 0.8f, 0.9f, 1.0f, 1.0f);
         
         currentY += levelHeight;
     }
