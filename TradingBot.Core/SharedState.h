@@ -7,10 +7,12 @@
 #include <atomic>
 #include <chrono>
 #include <sstream>
+#include <thread>
+#include <immintrin.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX  // ← КРИТИЧНО! Предотвращает конфликт min/max макросов
+#define NOMINMAX
 #include <windows.h>
 #endif
 
@@ -74,12 +76,12 @@ namespace TradingBot::Core {
         // Symbol Management
         // ═══════════════════════════════════════════════════════════════
         void SetSymbol(const std::string& symbol) {
-            std::lock_guard<std::mutex> lock(symbolMutex_);
+            std::lock_guard<SpinLock> lock(symbolLock_);
             currentSymbol_ = symbol;
         }
 
         std::string GetSymbol() const {
-            std::lock_guard<std::mutex> lock(symbolMutex_);
+            std::lock_guard<SpinLock> lock(symbolLock_);
             return currentSymbol_;
         }
 
@@ -136,7 +138,7 @@ namespace TradingBot::Core {
         // ═══════════════════════════════════════════════════════════
         void ApplySnapshot(const std::vector<OrderBookLevel>& bids,
                           const std::vector<OrderBookLevel>& asks) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<SpinLock> lock(stateLock_);
 
             // Конвертируем OrderBookLevel -> PriceLevel
             std::vector<Models::PriceLevel> bidLevels;
@@ -163,11 +165,10 @@ namespace TradingBot::Core {
         // ═══════════════════════════════════════════════════════════
         // NEW: Применение обновлений к OrderBook (std::vector based)
         // Вызывается из BinanceConnector для DIFF updates
-        // ОПТИМИЗИРОВАНО: Минимальное логирование для низкой latency
         // ═══════════════════════════════════════════════════════════
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
                         const std::vector<OrderBookLevel>& asks) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<SpinLock> lock(stateLock_);
 
             // Конвертируем OrderBookLevel -> PriceLevel
             std::vector<Models::PriceLevel> bidLevels;
@@ -189,40 +190,14 @@ namespace TradingBot::Core {
             
             // Немедленно публикуем snapshot для UI!
             PublishCurrentOrderBook();
-            
-            // DEBUG: Логирование ТОЛЬКО каждые 500 обновлений (было 100)
-            static std::atomic<int> updateCount{0};
-            int count = updateCount.fetch_add(1, std::memory_order_relaxed);
-            
-            if (count % 500 == 0) {
-                const auto& currentBids = orderBook_.GetBids();
-                const auto& currentAsks = orderBook_.GetAsks();
-                
-                std::ostringstream oss;
-                oss << "[SharedState] Update #" << count 
-                    << " | OB: bids=" << currentBids.size() 
-                    << " asks=" << currentAsks.size();
-                
-                if (!currentBids.empty() && !currentAsks.empty()) {
-                    double spread = currentAsks[0].price - currentBids[0].price;
-                    double spreadPct = (spread / currentBids[0].price) * 100.0;
-                    oss << " | Best: " << currentBids[0].price 
-                        << " / " << currentAsks[0].price 
-                        << " (spread: " << spread << " / " << spreadPct << "%)";
-                }
-                
-                OutputDebugStringA(oss.str().c_str());
-                OutputDebugStringA("\n");
-            }
         }
         
         // ═══════════════════════════════════════════════════════════════
         // LEGACY: Поддержка старого UI (std::map interface)
-        // Конвертируем std::vector -> std::map для совместимости
         // ═══════════════════════════════════════════════════════════════
         void CopyOrderBook(std::map<double, double>& bids, 
                           std::map<double, double>& asks) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<SpinLock> lock(stateLock_);
 
             bids.clear();
             asks.clear();
@@ -292,8 +267,22 @@ namespace TradingBot::Core {
         }
 
     private:
-        std::mutex mutex_;
-        mutable std::mutex symbolMutex_;
+        struct SpinLock {
+            std::atomic_flag flag = ATOMIC_FLAG_INIT;
+            void lock() {
+                while (flag.test_and_set(std::memory_order_acquire)) {
+#ifdef _MSC_VER
+                    _mm_pause();
+#else
+                    std::this_thread::yield();
+#endif
+                }
+            }
+            void unlock() { flag.clear(std::memory_order_release); }
+        };
+
+        SpinLock stateLock_;
+        mutable SpinLock symbolLock_;
 
         // Current trading symbol
         std::string currentSymbol_{ "BTCUSDT" };
@@ -329,13 +318,12 @@ namespace TradingBot::Core {
         // Публикация текущего Order Book в double buffer для UI
         // ═══════════════════════════════════════════════════════════
         void PublishCurrentOrderBook() {
-            // Вызывается УЖЕ под mutex_, поэтому безопасно
-            
+            // Вызывается УЖЕ под stateLock_, поэтому безопасно
             RenderSnapshot snapshot;
-            
+
             const auto& bids = orderBook_.GetBids();
             const auto& asks = orderBook_.GetAsks();
-            
+
             constexpr int MAX_LEVELS = 50;
             int bidCount = (std::min)((int)bids.size(), MAX_LEVELS);
             int askCount = (std::min)((int)asks.size(), MAX_LEVELS);

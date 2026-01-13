@@ -6,6 +6,9 @@
 #ifdef _MSC_VER
 #include <immintrin.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace hft {
 
@@ -33,6 +36,18 @@ WebSocketSession::WebSocketSession(
     , highWaterMark_(highWaterMark)
 {
     buffer_.reserve(64 * 1024);
+}
+
+void WebSocketSession::Restart() {
+    connected_.store(false, std::memory_order_relaxed);
+    buffer_.consume(buffer_.size());
+    resolver_ = tcp::resolver(net::make_strand(ioc_));
+    using WsType = websocket::stream<beast::ssl_stream<beast::tcp_stream>>;
+    ws_.~WsType();
+    new (&ws_) WsType(net::make_strand(ioc_), sslCtx_);
+    if (running_.load()) {
+        Start();
+    }
 }
 
 void WebSocketSession::Start() {
@@ -69,6 +84,9 @@ void WebSocketSession::OnConnect(beast::error_code ec, tcp::resolver::results_ty
     if (ec) {
         return Fail(ec, "connect");
     }
+
+    // Disable Nagle to minimize latency
+    beast::get_lowest_layer(ws_).socket().set_option(tcp::no_delay(true));
     
     // Set SNI
     if (!SSL_set_tlsext_host_name(ws_.next_layer().native_handle(), host_.c_str())) {
@@ -143,6 +161,7 @@ void WebSocketSession::OnRead(beast::error_code ec, std::size_t bytesTransferred
             std::cerr << "[WS] read error: " << ec.message() << std::endl;
         }
         std::cerr << "[WS] Connection closed." << std::endl;
+        if (running_.load()) Restart();
         return;
     }
 
@@ -167,11 +186,13 @@ void WebSocketSession::OnClose(beast::error_code ec) {
     if (ec) {
         std::cerr << "[WS] Close error: " << ec.message() << std::endl;
     }
+    if (running_.load()) Restart();
 }
 
 void WebSocketSession::Fail(beast::error_code ec, const char* what) {
     connected_.store(false);
     std::cerr << "[WS] " << what << " error: " << ec.message() << std::endl;
+    if (running_.load()) Restart();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -229,12 +250,10 @@ void BinanceDataFeed::Start() {
     
     CreateSessions();
     
-    int numProcessors = config_.numParserThreads;
-    for (int i = 0; i < numProcessors; ++i) {
-        processorThreads_.emplace_back([this, i] {
-            ProcessorThreadFunc();
-        });
-    }
+    // Processor threads must be single consumer for SPSC queue
+    processorThreads_.emplace_back([this] {
+        ProcessorThreadFunc();
+    });
     
     for (auto& session : sessions_) {
         session->Start();
@@ -304,6 +323,15 @@ void BinanceDataFeed::SyncClockThread() {
             int64_t offset = serverMs - midpoint;
             clockOffsetMs_.store(offset, std::memory_order_relaxed);
             lastTimeSyncRttMs_.store(rtt, std::memory_order_relaxed);
+            timeSyncOk_.store(true, std::memory_order_relaxed);
+        }
+        else {
+            timeSyncOk_.store(false, std::memory_order_relaxed);
+#ifdef _WIN32
+            OutputDebugStringA("[TimeSync] Failed to fetch server time\n");
+#else
+            std::cerr << "[TimeSync] Failed to fetch server time" << std::endl;
+#endif
         }
 
         for (int i = 0; i < 30 && running_.load(); ++i) {
@@ -390,11 +418,13 @@ void BinanceDataFeed::ProcessorThreadFunc() {
             if (++idleSpins >= 1000) {
                 idleSpins = 0;
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                MaybeLogDiagnostics();
             }
             continue;
         }
         idleSpins = 0;
         ProcessMessage(std::move(*msg));
+        MaybeLogDiagnostics();
     }
 }
 
@@ -447,10 +477,16 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
             if (parser.ParseDepthUpdate(jsonData, jsonSize, update)) {
                 int64_t parseTime = HighResTimer::NowNs() - processStartNs;
 
+                int64_t recvMsRaw = HighResTimer::UnixMs();
+                int64_t recvMs = recvMsAdjusted;
+                int64_t netDeltaRaw = recvMsRaw - update.transactionTime;
+                lastRawNetworkDeltaMs_.store(netDeltaRaw, std::memory_order_relaxed);
+
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordParseLatency(parseTime);
                     latencyTracker_.RecordExchangeLatency(update.eventTime, update.transactionTime);
-                    int64_t recvMs = recvMsAdjusted;
+                    int64_t netDeltaMs = recvMs - update.transactionTime;
+                    lastNetworkDeltaMs_.store(netDeltaMs, std::memory_order_relaxed);
                     latencyTracker_.RecordNetworkLatency(update.transactionTime, recvMs);
                 }
 
@@ -492,10 +528,16 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
             if (parser.ParseBookTicker(jsonData, jsonSize, ticker)) {
                 int64_t parseTime = HighResTimer::NowNs() - processStartNs;
 
+                int64_t recvMsRaw = HighResTimer::UnixMs();
+                int64_t recvMs = recvMsAdjusted;
+                int64_t netDeltaRaw = recvMsRaw - ticker.transactionTime;
+                lastRawNetworkDeltaMs_.store(netDeltaRaw, std::memory_order_relaxed);
+
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordParseLatency(parseTime);
                     latencyTracker_.RecordExchangeLatency(ticker.eventTime, ticker.transactionTime);
-                    int64_t recvMs = recvMsAdjusted;
+                    int64_t netDeltaMs = recvMs - ticker.transactionTime;
+                    lastNetworkDeltaMs_.store(netDeltaMs, std::memory_order_relaxed);
                     latencyTracker_.RecordNetworkLatency(ticker.transactionTime, recvMs);
                 }
 
@@ -529,10 +571,16 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
             if (parser.ParseAggTrade(jsonData, jsonSize, trade)) {
                 int64_t parseTime = HighResTimer::NowNs() - processStartNs;
 
+                int64_t recvMsRaw = HighResTimer::UnixMs();
+                int64_t recvMs = recvMsAdjusted;
+                int64_t netDeltaRaw = recvMsRaw - trade.tradeTime;
+                lastRawNetworkDeltaMs_.store(netDeltaRaw, std::memory_order_relaxed);
+
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordParseLatency(parseTime);
                     latencyTracker_.RecordExchangeLatency(trade.eventTime, trade.tradeTime);
-                    int64_t recvMs = recvMsAdjusted;
+                    int64_t netDeltaMs = recvMs - trade.tradeTime;
+                    lastNetworkDeltaMs_.store(netDeltaMs, std::memory_order_relaxed);
                     latencyTracker_.RecordNetworkLatency(trade.tradeTime, recvMs);
                 }
 
@@ -554,6 +602,43 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
         default:
             break;
     }
+}
+
+void BinanceDataFeed::MaybeLogDiagnostics() {
+    const int64_t nowMs = HighResTimer::NowMs();
+    int64_t expected = lastDiagLogMs_.load(std::memory_order_relaxed);
+    if (nowMs - expected < 1000) return;
+    if (!lastDiagLogMs_.compare_exchange_strong(expected, nowMs, std::memory_order_relaxed)) {
+        return;
+    }
+
+    size_t qSize = messageQueue_ ? messageQueue_->Size() : 0;
+    size_t qCap = messageQueue_ ? messageQueue_->Capacity() : 0;
+    int64_t dropped = droppedMessages_.load(std::memory_order_relaxed);
+    size_t qHigh = queueHighWaterMark_.load(std::memory_order_relaxed);
+    int64_t msgs = messagesReceived_.load(std::memory_order_relaxed);
+    int64_t offset = clockOffsetMs_.load(std::memory_order_relaxed);
+    int64_t syncRtt = lastTimeSyncRttMs_.load(std::memory_order_relaxed);
+    int64_t netDelta = lastNetworkDeltaMs_.load(std::memory_order_relaxed);
+    int64_t netDeltaRaw = lastRawNetworkDeltaMs_.load(std::memory_order_relaxed);
+    bool syncOk = timeSyncOk_.load(std::memory_order_relaxed);
+
+    std::stringstream ss;
+    ss << "[FeedDiag] now=" << nowMs
+       << " ms q=" << qSize << "/" << qCap
+       << " qHigh=" << qHigh
+       << " dropped=" << dropped
+       << " msgs=" << msgs
+       << " | offset=" << offset << "ms rtt=" << syncRtt << "ms netDelta=" << netDelta << "ms raw=" << netDeltaRaw << "ms"
+       << " sync=" << (syncOk ? "ok" : "fail")
+       << " | " << latencyTracker_.GetSummaryString();
+
+#ifdef _WIN32
+    OutputDebugStringA(ss.str().c_str());
+    OutputDebugStringA("\n");
+#else
+    std::cout << ss.str() << std::endl;
+#endif
 }
 
 OrderBook& BinanceDataFeed::GetOrderBook(const std::string& symbol) {
@@ -615,48 +700,103 @@ void BinanceDataFeed::PrintStatistics() {
 }
 
 int64_t BinanceDataFeed::FetchServerTimeMs() {
-    try {
-        net::io_context ioc;
-        ssl::context ctx{ssl::context::tlsv12_client};
-        ctx.set_default_verify_paths();
-        ctx.set_verify_mode(ssl::verify_none);
+    auto tryEndpoint = [&](const std::string& host, const std::string& port, const std::string& path) -> int64_t {
+        try {
+            net::io_context ioc;
+            ssl::context ctx{ssl::context::tlsv12_client};
+            ctx.set_default_verify_paths();
+            ctx.set_verify_mode(ssl::verify_none);
 
-        tcp::resolver resolver(ioc);
-        auto const results = resolver.resolve(config_.host, config_.port);
+            tcp::resolver resolver(ioc);
+            auto const results = resolver.resolve(host, port);
 
-        beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
-        beast::get_lowest_layer(stream).connect(results);
-        stream.handshake(ssl::stream_base::client);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+            beast::error_code ec;
 
-        namespace http = beast::http;
-        std::string path = (config_.host.find("fstream") != std::string::npos) ? "/fapi/v1/time" : "/api/v3/time";
-        http::request<http::string_body> req{http::verb::get, path, 11};
-        req.set(http::field::host, config_.host);
-        req.set(http::field::user_agent, "TradingBot/1.0");
-
-        auto start = HighResTimer::NowMs();
-        http::write(stream, req);
-        beast::flat_buffer buffer;
-        http::response<http::string_body> res;
-        http::read(stream, buffer, res);
-        auto end = HighResTimer::NowMs();
-
-        beast::error_code ec;
-        stream.shutdown(ec);
-
-        auto body = res.body();
-        auto pos = body.find("serverTime");
-        if (pos != std::string::npos) {
-            pos = body.find(":", pos);
-            if (pos != std::string::npos) {
-                size_t endNum = body.find_first_not_of("0123456789", pos + 1);
-                std::string num = body.substr(pos + 1, endNum == std::string::npos ? endNum : endNum - (pos + 1));
-                return std::stoll(num);
+            beast::get_lowest_layer(stream).connect(results, ec);
+            if (ec) {
+#ifdef _WIN32
+                OutputDebugStringA((std::string("[TimeSync] connect error (" + host + "): ") + ec.message() + "\n").c_str());
+#endif
+                return -1;
             }
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) {
+#ifdef _WIN32
+                OutputDebugStringA((std::string("[TimeSync] SNI set failed (") + host + ")\n").c_str());
+#endif
+                return -1;
+            }
+
+            stream.handshake(ssl::stream_base::client, ec);
+            if (ec) {
+#ifdef _WIN32
+                OutputDebugStringA((std::string("[TimeSync] handshake error (") + host + "): " + ec.message() + "\n").c_str());
+#endif
+                return -1;
+            }
+
+            namespace http = beast::http;
+            http::request<http::string_body> req{http::verb::get, path, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "TradingBot/1.0");
+
+            http::write(stream, req, ec);
+            if (ec) {
+#ifdef _WIN32
+                OutputDebugStringA((std::string("[TimeSync] write error (") + host + "): " + ec.message() + "\n").c_str());
+#endif
+                return -1;
+            }
+
+            beast::flat_buffer buffer;
+            http::response<http::string_body> res;
+            http::read(stream, buffer, res, ec);
+            if (ec) {
+#ifdef _WIN32
+                OutputDebugStringA((std::string("[TimeSync] read error (") + host + "): " + ec.message() + "\n").c_str());
+#endif
+                return -1;
+            }
+
+            beast::get_lowest_layer(stream).socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            auto body = res.body();
+            auto pos = body.find("serverTime");
+            if (pos != std::string::npos) {
+                pos = body.find(":", pos);
+                if (pos != std::string::npos) {
+                    size_t endNum = body.find_first_not_of("0123456789", pos + 1);
+                    std::string num = body.substr(pos + 1, endNum == std::string::npos ? endNum : endNum - (pos + 1));
+                    return std::stoll(num);
+                }
+            }
+#ifdef _WIN32
+            OutputDebugStringA((std::string("[TimeSync] serverTime missing (") + host + ") status=" + std::to_string(res.result_int()) + " body=\"" + body.substr(0, 256) + "\"\n").c_str());
+#else
+            std::cerr << "[TimeSync] serverTime missing (" << host << ") status=" << res.result_int() << " body=\"" << body.substr(0, 256) << "\"" << std::endl;
+#endif
+        } catch (const std::exception& e) {
+#ifdef _WIN32
+            OutputDebugStringA((std::string("[TimeSync] exception: ") + e.what() + "\n").c_str());
+#endif
+        } catch (...) {
+#ifdef _WIN32
+            OutputDebugStringA("[TimeSync] unknown exception\n");
+#endif
         }
-    } catch (...) {
+        return -1;
+    };
+
+    std::vector<std::tuple<std::string, std::string, std::string>> endpoints;
+    endpoints.emplace_back("fapi.binance.com", "443", "/fapi/v1/time");
+    endpoints.emplace_back("api.binance.com", "443", "/api/v3/time");
+
+    for (const auto& ep : endpoints) {
+        int64_t t = tryEndpoint(std::get<0>(ep), std::get<1>(ep), std::get<2>(ep));
+        if (t > 0) return t;
     }
     return -1;
 }
 
-} // namespace hft
+} // namespace hft} // namespace hft

@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
 #include <vector>
-#include <unordered_map>
 #include "Graphics.h"
 #include "../TradingBot.Core/SharedState.h"
 
@@ -42,14 +41,6 @@ private:
     
     void RenderSpreadLine(float x, float y, float width, double bidPrice, double askPrice);
     
-    std::vector<std::pair<double, double>> FillSide(const std::vector<std::pair<double, double>>& src,
-                                                    bool descending,
-                                                    double startPriceOverride = std::numeric_limits<double>::quiet_NaN()) const;
-    
-    double DetectPriceStep(const std::vector<std::pair<double, double>>& src) const;
-    double DetectCommonStep(const std::vector<std::pair<double, double>>& bids,
-                            const std::vector<std::pair<double, double>>& asks) const;
-    
     // Расчёт максимального объёма для нормализации баров
     double CalculateMaxVolume(const std::vector<std::pair<double, double>>& bids,
                              const std::vector<std::pair<double, double>>& asks);
@@ -69,6 +60,4 @@ private:
     // Pre-allocated буферы (для zero-allocation в render loop)
     std::vector<std::pair<double, double>> cachedBids_;
     std::vector<std::pair<double, double>> cachedAsks_;
-    std::vector<std::pair<double, double>> filledBids_;
-    std::vector<std::pair<double, double>> filledAsks_;
 };

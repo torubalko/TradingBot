@@ -100,6 +100,8 @@ public:
     bool IsConnected() const { return connected_.load(); }
 
 private:
+    void Restart();
+private:
     void OnResolve(beast::error_code ec, tcp::resolver::results_type results);
     void OnConnect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep);
     void OnSslHandshake(beast::error_code ec);
@@ -170,6 +172,7 @@ private:
     void ProcessMessage(RawMessage&& msg);
     void SyncClockThread();
     int64_t FetchServerTimeMs();
+    void MaybeLogDiagnostics();
     
     std::string BuildStreamPath();
     
@@ -215,6 +218,10 @@ private:
     std::atomic<int64_t> clockOffsetMs_{0};
     std::atomic<int64_t> lastTimeSyncRttMs_{0};
     std::thread timeSyncThread_;
+    std::atomic<int64_t> lastDiagLogMs_{0};
+    std::atomic<int64_t> lastNetworkDeltaMs_{0};
+    std::atomic<int64_t> lastRawNetworkDeltaMs_{0};
+    std::atomic<bool> timeSyncOk_{false};
 };
 
 inline std::string upper_symbol(const std::string& s) {
