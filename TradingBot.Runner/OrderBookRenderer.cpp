@@ -23,22 +23,24 @@ namespace {
     }
 
     std::wstring FormatVolumeDynamic(double vol) {
-        std::wstringstream ss;
         double absV = std::fabs(vol);
-        if (absV >= 100000.0) {
-            ss << std::fixed << std::setprecision(0) << vol;
-        } else if (absV >= 1000.0) {
-            ss << std::fixed << std::setprecision(1) << vol;
-        } else if (absV >= 1.0) {
-            ss << std::fixed << std::setprecision(3) << vol;
-        } else {
-            ss << std::fixed << std::setprecision(6) << vol;
-        }
+        wchar_t suffix = L'\0';
+        double scaled = vol;
+        if (absV >= 1'000'000'000.0) { suffix = L'B'; scaled = vol / 1'000'000'000.0; }
+        else if (absV >= 1'000'000.0) { suffix = L'M'; scaled = vol / 1'000'000.0; }
+        else if (absV >= 1'000.0) { suffix = L'K'; scaled = vol / 1'000.0; }
+
+        int prec = 2;
+        if (std::fabs(scaled) >= 100.0) prec = 0;
+        else if (std::fabs(scaled) >= 10.0) prec = 1;
+        std::wstringstream ss;
+        ss << std::fixed << std::setprecision(prec) << scaled;
         auto s = ss.str();
         if (s.find(L'.') != std::wstring::npos) {
             while (!s.empty() && s.back() == L'0') s.pop_back();
             if (!s.empty() && s.back() == L'.') s.pop_back();
         }
+        if (suffix != L'\0') s.push_back(suffix);
         return s.empty() ? L"0" : s;
     }
 }
@@ -63,10 +65,12 @@ OrderBookRenderer::~OrderBookRenderer() {
 
 void OrderBookRenderer::Render(float x, float y, float width, float height) {
     if (!sharedState_) return;
-
+ 
     auto snapshot = sharedState_->GetSnapshotForRender(visibleLevels_, 0.1);
-    
-    if (snapshot.Bids.empty() || snapshot.Asks.empty()) {
+    const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
+    const auto& asksSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.AsksQuote.empty()) ? snapshot.AsksQuote : snapshot.Asks;
+
+    if (bidsSrc.empty() || asksSrc.empty()) {
         graphics_->DrawTextPixels(L"Waiting for Order Book synchronization...", 
                                  x + 10, y + 10, width - 20, 20, 12, 
                                  0.7f, 0.7f, 0.7f, 1.0f);
@@ -76,15 +80,25 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     cachedBids_.clear();
     cachedAsks_.clear();
     
-    int bidsToShow = (std::min)((int)snapshot.Bids.size(), visibleLevels_);
-    int asksToShow = (std::min)((int)snapshot.Asks.size(), visibleLevels_);
+    int bidsToShow = (std::min)((int)bidsSrc.size(), visibleLevels_);
+    int asksToShow = (std::min)((int)asksSrc.size(), visibleLevels_);
     
     for (int i = 0; i < bidsToShow; ++i) {
-        cachedBids_.push_back(snapshot.Bids[i]);
+        cachedBids_.push_back(bidsSrc[i]);
     }
-    
+
     for (int i = 0; i < asksToShow; ++i) {
-        cachedAsks_.push_back(snapshot.Asks[i]);
+        cachedAsks_.push_back(asksSrc[i]);
+    }
+
+    // If quote data is not precomputed, derive from price*base
+    if (volumeMode_ == VolumeMode::Quote) {
+        if (snapshot.BidsQuote.empty()) {
+            for (auto& p : cachedBids_) p.second = p.first * p.second;
+        }
+        if (snapshot.AsksQuote.empty()) {
+            for (auto& p : cachedAsks_) p.second = p.first * p.second;
+        }
     }
 
     double maxVolume = CalculateMaxVolume(cachedBids_, cachedAsks_);
@@ -141,7 +155,7 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
         
         // Volume text
         std::wstring volumeStr = FormatVolumeDynamic(volume);
-        graphics_->DrawTextPixels(volumeStr, x + width - 110, currentY + 2, 100, levelHeight - 4, 11,
+        graphics_->DrawTextPixels(volumeStr, x + width - 90, currentY + 2, 80, levelHeight - 4, 11,
                                  0.8f, 0.8f, 0.8f, 1.0f);
         
         currentY -= levelHeight;
@@ -183,7 +197,7 @@ void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
         
         // Volume text
         std::wstring volumeStr = FormatVolumeDynamic(volume);
-        graphics_->DrawTextPixels(volumeStr, x + width - 110, currentY + 2, 100, levelHeight - 4, 11,
+        graphics_->DrawTextPixels(volumeStr, x + width - 90, currentY + 2, 80, levelHeight - 4, 11,
                                  0.8f, 0.8f, 0.8f, 1.0f);
         
         currentY += levelHeight;

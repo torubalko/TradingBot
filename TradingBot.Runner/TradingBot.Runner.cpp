@@ -43,6 +43,11 @@ std::unique_ptr<BinanceFeedAdapter> g_FeedAdapter;
 std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
 int g_ScaleIndex = 0;
 
+enum class VolumeDisplayMode { Base = 0, Quote = 1 };
+std::atomic<int> g_VolumeMode{ 0 }; // 0-base, 1-quote
+struct VolumeToggleUIState { float x = 0, y = 0, w = 0, h = 0; };
+VolumeToggleUIState g_VolToggleUI;
+
 struct SymbolUIState {
     std::vector<std::string> allSymbols;
     std::vector<std::string> filteredSymbols;
@@ -471,32 +476,82 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                 listOffset = g_SymbolUI.listOffset;
             }
 
-            // Order Book visualization
-            if (g_OrderBookRenderer) {
-                float obX = 20;
-                float obY = HEADER_HEIGHT + 120;
-                float obWidth = screenWidth - 40;
-                float obHeight = screenHeight - HEADER_HEIGHT - 140;
-                g_OrderBookRenderer->Render(obX, obY, obWidth, obHeight);
-            }
+            // Volume toggle in header (iOS-like)
+            float toggleW = 120.0f;
+            float toggleH = 24.0f;
+            g_VolToggleUI.w = toggleW;
+            g_VolToggleUI.h = toggleH;
+            g_VolToggleUI.x = screenWidth - toggleW - 20.0f;
+            g_VolToggleUI.y = (HEADER_HEIGHT - toggleH) * 0.5f;
+ 
+            bool showQuote = g_VolumeMode.load(std::memory_order_relaxed) == 1;
+            float tx = g_VolToggleUI.x;
+            float ty = g_VolToggleUI.y;
+            float knobW = toggleH - 6.0f;
+            float knobH = toggleH - 6.0f;
+            float centerX = tx + toggleW * 0.5f;
+            float knobX = showQuote ? (centerX + 6.0f) : (centerX - knobW - 6.0f);
+             float knobY = ty + 2.0f;
+
+            // Background pill
+            g_Graphics->DrawRectPixels(tx, ty, toggleW, toggleH, showQuote ? 0.22f : 0.16f, showQuote ? 0.35f : 0.22f, 0.32f, 1.0f);
+            // Knob
+            g_Graphics->DrawRectPixels(knobX, knobY, knobW, knobH, 0.9f, 0.9f, 0.95f, 1.0f);
+            // Labels
+            g_Graphics->DrawTextPixels(L"BASE", tx + 8, ty + 4, 50, toggleH - 8, 11, showQuote ? 0.6f : 1.0f, showQuote ? 0.7f : 1.0f, 1.0f, 1.0f);
+            g_Graphics->DrawTextPixels(L"USDT", tx + toggleW - 44, ty + 4, 40, toggleH - 8, 11, showQuote ? 1.0f : 0.7f, showQuote ? 1.0f : 0.8f, 1.0f, 1.0f);
+
+            float obX = 20;
+            float obY = HEADER_HEIGHT + 120;
+            float obWidth = screenWidth - 40;
+            float obHeight = screenHeight - HEADER_HEIGHT - 140;
 
             // Status
             bool runningFeed = (g_Feed != nullptr);
             std::wstring status = runningFeed ? L"RUNNING" : L"STOPPED";
             float statusR = runningFeed ? 0.0f : 1.0f;
             float statusG = runningFeed ? 1.0f : 0.0f;
-            g_Graphics->DrawTextPixels(status, screenWidth - 120, 15, 100, 20, 14, statusR, statusG, 0.0f, 1.0f);
+            g_Graphics->DrawTextPixels(status, screenWidth - 250, 15, 100, 20, 14, statusR, statusG, 0.0f, 1.0f);
+
+            // Symbol button (drawn on header)
+            g_Graphics->DrawRectPixels(g_SymbolUI.buttonX, g_SymbolUI.buttonY, g_SymbolUI.buttonW, g_SymbolUI.buttonH,
+                                       dropdownOpen ? 0.25f : 0.18f, dropdownOpen ? 0.25f : 0.18f, 0.3f, 1.0f);
+            g_Graphics->DrawTextCentered(ToWString(currentSymbol), g_SymbolUI.buttonX + g_SymbolUI.buttonW * 0.5f,
+                                         g_SymbolUI.buttonY + g_SymbolUI.buttonH * 0.5f - 2.0f, 14,
+                                         0.8f, 0.8f, 1.0f, 1.0f);
+
+            // Dropdown with search
+            if (dropdownOpen) {
+                int toShow = std::min<int>(static_cast<int>(filtered.size()) - listOffset, DROPDOWN_MAX_ITEMS);
+                if (toShow < 0) toShow = 0;
+                float listHeight = DROPDOWN_ITEM_H * toShow;
+                g_Graphics->DrawRectPixels(g_SymbolUI.dropdownX, g_SymbolUI.dropdownY, g_SymbolUI.dropdownW,
+                                           DROPDOWN_SEARCH_H + listHeight, 0.08f, 0.08f, 0.1f, 1.0f);
+                g_Graphics->DrawRectPixels(g_SymbolUI.dropdownX + 2, g_SymbolUI.dropdownY + 2, g_SymbolUI.dropdownW - 4,
+                                           DROPDOWN_SEARCH_H - 4, 0.12f, 0.12f, 0.14f, 1.0f);
+                std::wstring searchText = L"Search: " + search;
+                g_Graphics->DrawTextPixels(searchText, g_SymbolUI.dropdownX + 8, g_SymbolUI.dropdownY + 4,
+                                           g_SymbolUI.dropdownW - 16, DROPDOWN_SEARCH_H - 8, 12,
+                                           0.8f, 0.8f, 0.9f, 1.0f);
+
+                for (int i = 0; i < toShow; ++i) {
+                    int idxGlobal = listOffset + i;
+                    float itemY = g_SymbolUI.dropdownY + DROPDOWN_SEARCH_H + i * DROPDOWN_ITEM_H;
+                    bool isSel = (idxGlobal == highlighted);
+                    g_Graphics->DrawRectPixels(g_SymbolUI.dropdownX + 2, itemY, g_SymbolUI.dropdownW - 4, DROPDOWN_ITEM_H,
+                                               isSel ? 0.30f : 0.20f, isSel ? 0.30f : 0.20f, isSel ? 0.40f : 0.25f, 1.0f);
+                    g_Graphics->DrawTextPixels(ToWString(filtered[idxGlobal]), g_SymbolUI.dropdownX + 8, itemY + 2,
+                                               g_SymbolUI.dropdownW - 16, DROPDOWN_ITEM_H - 4, 12,
+                                               1.0f, 1.0f, 1.0f, 1.0f);
+                }
+            }
 
             if (g_SharedState) {
                 auto sharedState = g_SharedState;
-                // Получаем метрики
                 auto metrics = sharedState->GetMetrics();
                 auto ext = sharedState->GetExternalMetrics();
-                
                 float y = HEADER_HEIGHT + 20;
                 float x = 20;
-                
-                // Latency/staleness in milliseconds
                 std::wstringstream ss;
                 ss << L"Latency: " << metrics.latencyMs << L" ms";
                 g_Graphics->DrawTextPixels(ss.str(), x, y, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
@@ -505,7 +560,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                 g_Graphics->DrawTextPixels(ss.str(), x, y + 18, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
 
                 auto toMs = [](long long ns) { return ns / 1'000'000.0; };
-
                 float yExt = y + 40;
                 ss.str(L""); ss.clear();
                 ss << L"Net " << std::fixed << std::setprecision(3) << toMs(ext.netLatencyNs) << L" ms"
@@ -520,36 +574,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                 g_Graphics->DrawTextPixels(ss.str(), x, yExt + 18, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
             }
 
-            // Symbol button (drawn last, on top)
-            g_Graphics->DrawRectPixels(g_SymbolUI.buttonX, g_SymbolUI.buttonY, g_SymbolUI.buttonW, g_SymbolUI.buttonH,
-                                       dropdownOpen ? 0.25f : 0.18f, dropdownOpen ? 0.25f : 0.18f, 0.3f, 1.0f);
-            g_Graphics->DrawTextCentered(ToWString(currentSymbol), g_SymbolUI.buttonX + g_SymbolUI.buttonW * 0.5f,
-                                         g_SymbolUI.buttonY + g_SymbolUI.buttonH * 0.5f - 2.0f, 14,
-                                         0.8f, 0.8f, 1.0f, 1.0f);
-
-            if (dropdownOpen) {
-                int toShow = std::min<int>(static_cast<int>(filtered.size()) - listOffset, DROPDOWN_MAX_ITEMS);
-                if (toShow < 0) toShow = 0;
-                float listHeight = DROPDOWN_ITEM_H * toShow;
-                g_Graphics->DrawRectPixels(g_SymbolUI.dropdownX, g_SymbolUI.dropdownY, g_SymbolUI.dropdownW,
-                                           DROPDOWN_SEARCH_H + listHeight, 0.15f, 0.15f, 0.17f, 1.0f);
-                g_Graphics->DrawRectPixels(g_SymbolUI.dropdownX + 2, g_SymbolUI.dropdownY + 2, g_SymbolUI.dropdownW - 4,
-                                           DROPDOWN_SEARCH_H - 4, 0.08f, 0.08f, 0.1f, 1.0f);
-                std::wstring searchText = L"Search: " + search;
-                g_Graphics->DrawTextPixels(searchText, g_SymbolUI.dropdownX + 8, g_SymbolUI.dropdownY + 4,
-                                           g_SymbolUI.dropdownW - 16, DROPDOWN_SEARCH_H - 8, 12,
-                                           0.9f, 0.9f, 1.0f, 1.0f);
-
-                for (int i = 0; i < toShow; ++i) {
-                    int idxGlobal = listOffset + i;
-                    float itemY = g_SymbolUI.dropdownY + DROPDOWN_SEARCH_H + i * DROPDOWN_ITEM_H;
-                    bool isSel = (idxGlobal == highlighted);
-                    g_Graphics->DrawRectPixels(g_SymbolUI.dropdownX + 2, itemY, g_SymbolUI.dropdownW - 4, DROPDOWN_ITEM_H,
-                                               isSel ? 0.30f : 0.20f, isSel ? 0.30f : 0.20f, isSel ? 0.40f : 0.25f, 1.0f);
-                    g_Graphics->DrawTextPixels(ToWString(filtered[idxGlobal]), g_SymbolUI.dropdownX + 8, itemY + 2,
-                                               g_SymbolUI.dropdownW - 16, DROPDOWN_ITEM_H - 4, 12,
-                                               1.0f, 1.0f, 1.0f, 1.0f);
-                }
+            if (g_OrderBookRenderer) {
+                g_OrderBookRenderer->SetVolumeMode(showQuote ? OrderBookRenderer::VolumeMode::Quote
+                                                            : OrderBookRenderer::VolumeMode::Base);
+                g_OrderBookRenderer->Render(obX, obY, obWidth, obHeight);
             }
 
             g_Graphics->EndFrame();
@@ -664,6 +692,14 @@ void HandleMouseClick(int x, int y) {
         if (fx >= g_SymbolUI.buttonX && fx <= g_SymbolUI.buttonX + g_SymbolUI.buttonW &&
             fy >= g_SymbolUI.buttonY && fy <= g_SymbolUI.buttonY + g_SymbolUI.buttonH) {
             g_SymbolUI.dropdownOpen = !g_SymbolUI.dropdownOpen;
+            return;
+        }
+
+        // Volume mode toggle click
+        if (fx >= g_VolToggleUI.x && fx <= g_VolToggleUI.x + g_VolToggleUI.w &&
+            fy >= g_VolToggleUI.y && fy <= g_VolToggleUI.y + g_VolToggleUI.h) {
+            int mode = g_VolumeMode.load(std::memory_order_relaxed);
+            g_VolumeMode.store(mode == 0 ? 1 : 0, std::memory_order_relaxed);
             return;
         }
 

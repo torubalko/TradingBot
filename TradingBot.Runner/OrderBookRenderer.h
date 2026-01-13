@@ -16,6 +16,8 @@
 
 class OrderBookRenderer {
 public:
+    enum class VolumeMode { Base = 0, Quote = 1 };
+
     OrderBookRenderer(Graphics* graphics, std::shared_ptr<TradingBot::Core::SharedState> sharedState);
     ~OrderBookRenderer();
 
@@ -25,6 +27,7 @@ public:
     // Настройки визуализации
     void SetDepth(int levels) { visibleLevels_ = levels; }
     void SetMaxBarWidth(float width) { maxBarWidth_ = width; }
+    void SetVolumeMode(VolumeMode mode) { volumeMode_ = mode; }
 
 private:
     // ???????????????????????????????????????????????????????????
@@ -51,6 +54,7 @@ private:
     
     Graphics* graphics_;
     std::shared_ptr<TradingBot::Core::SharedState> sharedState_;
+    VolumeMode volumeMode_ = VolumeMode::Base;
     
     // Настройки
     int visibleLevels_ = 20;        // Сколько уровней показывать
