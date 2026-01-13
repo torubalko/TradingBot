@@ -266,6 +266,12 @@ namespace TradingBot::Core {
             return out;
         }
 
+        void ResetOrderBook() {
+            std::lock_guard<SpinLock> lock(stateLock_);
+            orderBook_.ApplySnapshot({}, {});
+            PublishCurrentOrderBook();
+        }
+
     private:
         struct SpinLock {
             std::atomic_flag flag = ATOMIC_FLAG_INIT;
@@ -346,4 +352,4 @@ namespace TradingBot::Core {
         }
     };
 
-} // namespace TradingBot::Core
+} // namespace TradingBot::Core} // namespace TradingBot::Core

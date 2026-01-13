@@ -2,6 +2,46 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
+
+namespace {
+    std::wstring FormatPriceDynamic(double price) {
+        double absP = std::fabs(price);
+        if (absP < 1e-12) return L"0";
+        int exp10 = static_cast<int>(std::floor(std::log10(absP)));
+        int decimals = 6 - exp10 - 1; // keep ~6 significant digits
+        if (decimals < 0) decimals = 0;
+        if (decimals > 8) decimals = 8;
+        std::wstringstream ss;
+        ss << std::fixed << std::setprecision(decimals) << price;
+        auto s = ss.str();
+        if (s.find(L'.') != std::wstring::npos) {
+            while (!s.empty() && s.back() == L'0') s.pop_back();
+            if (!s.empty() && s.back() == L'.') s.pop_back();
+        }
+        return s.empty() ? L"0" : s;
+    }
+
+    std::wstring FormatVolumeDynamic(double vol) {
+        std::wstringstream ss;
+        double absV = std::fabs(vol);
+        if (absV >= 100000.0) {
+            ss << std::fixed << std::setprecision(0) << vol;
+        } else if (absV >= 1000.0) {
+            ss << std::fixed << std::setprecision(1) << vol;
+        } else if (absV >= 1.0) {
+            ss << std::fixed << std::setprecision(3) << vol;
+        } else {
+            ss << std::fixed << std::setprecision(6) << vol;
+        }
+        auto s = ss.str();
+        if (s.find(L'.') != std::wstring::npos) {
+            while (!s.empty() && s.back() == L'0') s.pop_back();
+            if (!s.empty() && s.back() == L'.') s.pop_back();
+        }
+        return s.empty() ? L"0" : s;
+    }
+}
 
 // ???????????????????????????????????????????????????????????????
 // OrderBookRenderer Implementation
@@ -95,19 +135,13 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
                                  0.8f, 0.2f, 0.2f, 0.3f); // Полупрозрачный красный
         
         // Price text
-        std::wstringstream priceStr;
-        priceStr << std::fixed << std::setprecision(1) << price;
-        graphics_->DrawTextPixels(priceStr.str(), x + 10, currentY + 2, 100, levelHeight - 4, 11,
-                                 1.0f, 0.5f, 0.5f, 1.0f); // Светло-красный текст
+        std::wstring priceStr = FormatPriceDynamic(price);
+        graphics_->DrawTextPixels(priceStr, x + 10, currentY + 2, 120, levelHeight - 4, 11,
+                                 1.0f, 0.5f, 0.5f, 1.0f); // красно-розовый текст
         
         // Volume text
-        std::wstringstream volumeStr;
-        if (volume >= 1.0) {
-            volumeStr << std::fixed << std::setprecision(3) << volume;
-        } else {
-            volumeStr << std::fixed << std::setprecision(4) << volume;
-        }
-        graphics_->DrawTextPixels(volumeStr.str(), x + width - 90, currentY + 2, 80, levelHeight - 4, 11,
+        std::wstring volumeStr = FormatVolumeDynamic(volume);
+        graphics_->DrawTextPixels(volumeStr, x + width - 110, currentY + 2, 100, levelHeight - 4, 11,
                                  0.8f, 0.8f, 0.8f, 1.0f);
         
         currentY -= levelHeight;
@@ -143,19 +177,13 @@ void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
                                  0.2f, 0.8f, 0.2f, 0.3f); // Полупрозрачный зелёный
         
         // Price text
-        std::wstringstream priceStr;
-        priceStr << std::fixed << std::setprecision(1) << price;
-        graphics_->DrawTextPixels(priceStr.str(), x + 10, currentY + 2, 100, levelHeight - 4, 11,
-                                 0.5f, 1.0f, 0.5f, 1.0f); // Светло-зелёный текст
+        std::wstring priceStr = FormatPriceDynamic(price);
+        graphics_->DrawTextPixels(priceStr, x + 10, currentY + 2, 120, levelHeight - 4, 11,
+                                 0.5f, 1.0f, 0.5f, 1.0f); // зелено-белый текст
         
         // Volume text
-        std::wstringstream volumeStr;
-        if (volume >= 1.0) {
-            volumeStr << std::fixed << std::setprecision(3) << volume;
-        } else {
-            volumeStr << std::fixed << std::setprecision(4) << volume;
-        }
-        graphics_->DrawTextPixels(volumeStr.str(), x + width - 90, currentY + 2, 80, levelHeight - 4, 11,
+        std::wstring volumeStr = FormatVolumeDynamic(volume);
+        graphics_->DrawTextPixels(volumeStr, x + width - 110, currentY + 2, 100, levelHeight - 4, 11,
                                  0.8f, 0.8f, 0.8f, 1.0f);
         
         currentY += levelHeight;
