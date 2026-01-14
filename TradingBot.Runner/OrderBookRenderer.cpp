@@ -3,6 +3,9 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <map>
+#include <mutex>
+#include <limits>
 
 namespace {
     std::wstring FormatPriceDynamic(double price) {
@@ -74,7 +77,8 @@ OrderBookRenderer::~OrderBookRenderer() {
 void OrderBookRenderer::Render(float x, float y, float width, float height) {
     if (!sharedState_) return;
  
-    auto snapshot = sharedState_->GetSnapshotForRender(visibleLevels_, 0.1);
+    int requestedDepth = visibleLevels_ * (compressionStep_ > 0 ? compressionStep_ : 1);
+    auto snapshot = sharedState_->GetSnapshotForRender(requestedDepth, 0.1);
     const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
     const auto& asksSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.AsksQuote.empty()) ? snapshot.AsksQuote : snapshot.Asks;
 
@@ -87,17 +91,82 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
 
     cachedBids_.clear();
     cachedAsks_.clear();
-    
-    int bidsToShow = (std::min)((int)bidsSrc.size(), visibleLevels_);
-    int asksToShow = (std::min)((int)asksSrc.size(), visibleLevels_);
-    
-    for (int i = 0; i < bidsToShow; ++i) {
-        cachedBids_.push_back(bidsSrc[i]);
-    }
 
-    for (int i = 0; i < asksToShow; ++i) {
-        cachedAsks_.push_back(asksSrc[i]);
-    }
+    // Determine tick size from market metadata; fallback to deduced tick
+    auto getMarketTick = [&]() {
+        double tick = 0.0;
+        std::string symbol = sharedState_->GetSymbol();
+        if (!symbol.empty()) {
+            std::lock_guard<std::mutex> lock(sharedState_->instrumentsMutex);
+            const auto& pairs = sharedState_->marketData.futuresPairs.empty() ? sharedState_->marketData.spotPairs : sharedState_->marketData.futuresPairs;
+            for (const auto& p : pairs) {
+                if (p.symbol == symbol) { tick = p.tickSize; break; }
+            }
+        }
+        if (tick > 0.0) return tick;
+
+        // Fallback: detect minimal price increment from incoming levels
+        auto deduceTick = [&](const std::vector<std::pair<double, double>>& a,
+                             const std::vector<std::pair<double, double>>& b) {
+            double t = 0.0;
+            auto consider = [&](const std::vector<std::pair<double, double>>& src, bool descending) {
+                if (src.size() < 2) return;
+                for (size_t i = 0; i + 1 < src.size(); ++i) {
+                    double diff = descending ? src[i].first - src[i + 1].first : src[i + 1].first - src[i].first;
+                    if (diff > 1e-12) {
+                        t = (t == 0.0) ? diff : (std::min)(t, diff);
+                    }
+                }
+            };
+            consider(a, true);
+            consider(b, false);
+            return t;
+        };
+        tick = deduceTick(bidsSrc, asksSrc);
+        if (tick <= 0.0) tick = 0.1; // fallback
+        return tick;
+    };
+
+    double tickSize = getMarketTick();
+    double bucketWidth = tickSize * (compressionStep_ > 0 ? compressionStep_ : 1);
+    if (bucketWidth <= 0.0) bucketWidth = 0.1;
+
+    double bestBidSrc = bidsSrc.empty() ? 0.0 : bidsSrc[0].first;
+    double bestAskSrc = asksSrc.empty() ? 0.0 : asksSrc[0].first;
+    double midAnchor = 0.0;
+    if (bestBidSrc > 0.0 && bestAskSrc > 0.0) midAnchor = (bestBidSrc + bestAskSrc) * 0.5;
+    else if (bestBidSrc > 0.0) midAnchor = bestBidSrc;
+    else if (bestAskSrc > 0.0) midAnchor = bestAskSrc;
+
+    auto bucketByPrice = [&](const std::vector<std::pair<double, double>>& src,
+                             std::vector<std::pair<double, double>>& dst,
+                             bool descending,
+                             double anchorPrice) {
+        if (src.empty() && anchorPrice <= 0.0) return;
+        std::map<double, double> agg;
+        for (const auto& level : src) {
+            double bucketPrice = std::floor(level.first / bucketWidth) * bucketWidth;
+            agg[bucketPrice] += level.second;
+        }
+
+        size_t desired = static_cast<size_t>(visibleLevels_ > 0 ? visibleLevels_ : 1);
+        double startBucket = descending ? std::floor(anchorPrice / bucketWidth) * bucketWidth
+                                        : std::ceil(anchorPrice / bucketWidth) * bucketWidth;
+        for (size_t i = 0; i < desired; ++i) {
+            double price = descending ? (startBucket - static_cast<double>(i) * bucketWidth)
+                                      : (startBucket + static_cast<double>(i) * bucketWidth);
+            double volume = 0.0;
+            auto it = agg.find(price);
+            if (it != agg.end()) volume = it->second;
+            dst.emplace_back(price, volume);
+        }
+    };
+
+    double bidsAnchor = std::floor(midAnchor / bucketWidth) * bucketWidth;
+    double asksAnchor = std::ceil(midAnchor / bucketWidth) * bucketWidth;
+
+    bucketByPrice(bidsSrc, cachedBids_, true, bidsAnchor);
+    bucketByPrice(asksSrc, cachedAsks_, false, asksAnchor);
 
     // If quote data is not precomputed, derive from price*base
     if (volumeMode_ == VolumeMode::Quote) {
@@ -121,6 +190,13 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     double bestBid = cachedBids_.empty() ? 0.0 : cachedBids_[0].first;
     double bestAsk = cachedAsks_.empty() ? 0.0 : cachedAsks_[0].first;
     double midPrice = (bestBid > 0.0 && bestAsk > 0.0) ? (bestBid + bestAsk) * 0.5 : (bestBid > 0.0 ? bestBid : bestAsk);
+    double midForChart = (midAnchor > 0.0) ? midAnchor : midPrice;
+
+    // Update mid-price history for mini chart (use unbucketed mid)
+    if (midForChart > 0.0 && (midHistory_.empty() || std::fabs(midForChart - lastMid_) > 1e-9)) {
+        midHistory_.push_back(midForChart);
+        lastMid_ = midForChart;
+    }
 
     RenderAsks(x, asksY, width, halfHeight, cachedAsks_, maxVolume, midPrice);
     
@@ -129,6 +205,51 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     
     // BIDS (bottom half, best bid adjacent to spread line)
     RenderBids(x, bidsY, width, halfHeight, cachedBids_, maxVolume, midPrice);
+
+    // Mini mid-price chart across the book width, scaled to current price span
+    if (midHistory_.size() >= 2) {
+        float chartWidth = width * 0.5f;
+        float chartHeight = height;
+        float chartX = x + width * 0.1f;
+        float chartY = y;
+
+        // fixed step for discrete shift
+        float sampleStep = 4.0f;
+        size_t maxSamples = static_cast<size_t>(chartWidth / sampleStep) + 1;
+        while (midHistory_.size() > maxSamples) {
+            midHistory_.pop_front();
+        }
+
+        double priceMin = midForChart - bucketWidth * static_cast<double>(visibleLevels_ - 1);
+        double priceMax = midForChart + bucketWidth * static_cast<double>(visibleLevels_ - 1);
+        double priceSpan = priceMax - priceMin;
+        if (priceSpan < 1e-9) priceSpan = bucketWidth;
+
+        size_t count = midHistory_.size();
+        float startX = chartX + chartWidth - sampleStep * static_cast<float>(count - 1);
+        auto priceToY = [&](double p) -> float {
+            double clamped = (p < priceMin) ? priceMin : (p > priceMax ? priceMax : p);
+            double norm = (clamped - priceMin) / priceSpan;
+            return chartY + chartHeight - static_cast<float>(norm) * chartHeight;
+        };
+        float prevX = startX;
+        float prevY = priceToY(midHistory_[0]);
+
+        for (size_t i = 1; i < count; ++i) {
+            float currX = startX + sampleStep * static_cast<float>(i);
+            float currY = priceToY(midHistory_[i]);
+            // draw thin segment as rect
+            float segX = (prevX < currX) ? prevX : currX;
+            float segY = (prevY < currY) ? prevY : currY;
+            float segW = std::fabs(currX - prevX);
+            float segH = std::fabs(currY - prevY);
+            if (segW < 2.0f) segW = 2.0f;
+            if (segH < 2.0f) segH = 2.0f;
+            graphics_->DrawRectPixels(segX, segY, segW, segH, 0.2f, 0.7f, 1.0f, 1.0f);
+            prevX = currX;
+            prevY = currY;
+        }
+    }
 }
 
 void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
@@ -148,17 +269,22 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
         double price = asks[i].first;
         double volume = asks[i].second;
         
+        bool hasVolume = volume > 1e-12;
         // Нормализованная ширина бара
-        float barWidth = (float)(volume / maxVolume) * maxBarWidth_;
+        float barWidth = hasVolume ? (float)(volume / maxVolume) * maxBarWidth_ : 0.0f;
         
-        // Background
-        graphics_->DrawRectPixels(x, currentY, width, levelHeight, 
-                                 0.15f, 0.12f, 0.12f, 1.0f);
+        // Background only if есть объем
+        if (hasVolume) {
+            graphics_->DrawRectPixels(x, currentY, width, levelHeight, 
+                                     0.15f, 0.12f, 0.12f, 1.0f);
+        }
         
-        // Volume bar (красный для asks)
-        float barX = x + width - barWidth - 180; // Справа налево, больше места справа
-        graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
-                                 0.8f, 0.2f, 0.2f, 0.3f); // Полупрозрачный красный
+        // Volume bar (красный для asks) только при объеме
+        if (hasVolume && barWidth > 0.0f) {
+            float barX = x + width - barWidth - 180; // Справа налево, больше места справа
+            graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
+                                     0.8f, 0.2f, 0.2f, 0.3f); // Полупрозрачный красный
+        }
         
         // Price text
         std::wstring priceStr = FormatPriceDynamic(price);
@@ -197,17 +323,22 @@ void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
         double price = bids[i].first;
         double volume = bids[i].second;
         
+        bool hasVolume = volume > 1e-12;
         // Нормализованная ширина бара
-        float barWidth = (float)(volume / maxVolume) * maxBarWidth_;
+        float barWidth = hasVolume ? (float)(volume / maxVolume) * maxBarWidth_ : 0.0f;
         
-        // Background
-        graphics_->DrawRectPixels(x, currentY, width, levelHeight,
-                                 0.12f, 0.15f, 0.12f, 1.0f);
+        // Background только при объеме
+        if (hasVolume) {
+            graphics_->DrawRectPixels(x, currentY, width, levelHeight,
+                                     0.12f, 0.15f, 0.12f, 1.0f);
+        }
         
-        // Volume bar (зелёный для bids)
-        float barX = x + width - barWidth - 180; // Справа налево, больше места справа
-        graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
-                                 0.2f, 0.8f, 0.2f, 0.3f); // Полупрозрачный зелёный
+        // Volume bar (зелёный для bids) только при объеме
+        if (hasVolume && barWidth > 0.0f) {
+            float barX = x + width - barWidth - 180; // Справа налево, больше места справа
+            graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
+                                     0.2f, 0.8f, 0.2f, 0.3f); // Полупрозрачный зелёный
+        }
         
         // Price text
         std::wstring priceStr = FormatPriceDynamic(price);

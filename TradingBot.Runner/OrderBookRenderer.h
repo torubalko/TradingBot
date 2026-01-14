@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include <deque>
 #include "Graphics.h"
 #include "../TradingBot.Core/SharedState.h"
 
@@ -28,6 +29,12 @@ public:
     void SetDepth(int levels) { visibleLevels_ = levels; }
     void SetMaxBarWidth(float width) { maxBarWidth_ = width; }
     void SetVolumeMode(VolumeMode mode) { volumeMode_ = mode; }
+    void SetCompressionFactor(double factor) {
+        int step = static_cast<int>(factor);
+        if (step < 1) step = 1;
+        if (step > 1000) step = 1000;
+        compressionStep_ = step;
+    }
 
 private:
     // ???????????????????????????????????????????????????????????
@@ -62,8 +69,13 @@ private:
     int visibleLevels_ = 20;        // Сколько уровней показывать
     float maxBarWidth_ = 300.0f;    // Максимальная ширина бара
     float levelHeight_ = 20.0f;     // Высота одного уровня
+    int   compressionStep_ = 1;      // Шаг выборки уровней
     
     // Pre-allocated буферы (для zero-allocation в render loop)
     std::vector<std::pair<double, double>> cachedBids_;
     std::vector<std::pair<double, double>> cachedAsks_;
+
+    // Mini chart history for mid-price
+    std::deque<double> midHistory_;
+    double lastMid_ = 0.0;
 };

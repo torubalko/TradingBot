@@ -330,19 +330,15 @@ namespace TradingBot::Core {
             const auto& bids = orderBook_.GetBids();
             const auto& asks = orderBook_.GetAsks();
 
-            constexpr int MAX_LEVELS = 50;
-            int bidCount = (std::min)((int)bids.size(), MAX_LEVELS);
-            int askCount = (std::min)((int)asks.size(), MAX_LEVELS);
-            
-            snapshot.Bids.reserve(bidCount);
-            snapshot.Asks.reserve(askCount);
-            
-            for (int i = 0; i < bidCount; ++i) {
-                snapshot.Bids.emplace_back(bids[i].price, bids[i].quantity);
+            snapshot.Bids.reserve(bids.size());
+            snapshot.Asks.reserve(asks.size());
+
+            for (const auto& b : bids) {
+                snapshot.Bids.emplace_back(b.price, b.quantity);
             }
-            
-            for (int i = 0; i < askCount; ++i) {
-                snapshot.Asks.emplace_back(asks[i].price, asks[i].quantity);
+
+            for (const auto& a : asks) {
+                snapshot.Asks.emplace_back(a.price, a.quantity);
             }
             
             // Атомарная публикация в double buffer

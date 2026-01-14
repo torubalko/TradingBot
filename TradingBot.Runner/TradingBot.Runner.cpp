@@ -40,8 +40,10 @@ std::atomic<bool> g_Running(true);
 std::unique_ptr<hft::BinanceDataFeed> g_Feed;
 std::unique_ptr<BinanceFeedAdapter> g_FeedAdapter;
 
-std::vector<int> g_Scales = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
-int g_ScaleIndex = 0;
+// Depth is fixed; wheel controls compression factor (step sampling)
+const int g_DefaultDepth = 20;
+std::vector<int> g_CompressFactors = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 };
+int g_CompressIndex = 0; // x1 by default
 
 enum class VolumeDisplayMode { Base = 0, Quote = 1 };
 std::atomic<int> g_VolumeMode{ 0 }; // 0-base, 1-quote
@@ -290,6 +292,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     switch (message) {
     case WM_MOUSEWHEEL: {
         short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+        // текущая позиция курсора в клиентских координатах
+        POINT pt; GetCursorPos(&pt); ScreenToClient(hWnd, &pt);
+        float screenWidth = g_Graphics ? g_Graphics->GetWidth() : 0.0f;
+        float screenHeight = g_Graphics ? g_Graphics->GetHeight() : 0.0f;
+
+        // Границы стакана (должны совпадать с Render)
+        float obX = 20.0f;
+        float obY = HEADER_HEIGHT + 120.0f;
+        float obWidth = screenWidth - 40.0f;
+        float obHeight = screenHeight - HEADER_HEIGHT - 140.0f;
+        bool isMouseOverOrderBook = (pt.x >= obX && pt.x <= obX + obWidth && pt.y >= obY && pt.y <= obY + obHeight);
+
         bool handled = false;
         {
             std::lock_guard<std::mutex> lock(g_SymbolMutex);
@@ -309,9 +324,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 handled = true;
             }
         }
+
         if (!handled) {
-            if (zDelta > 0) { if (g_ScaleIndex < g_Scales.size() - 1) g_ScaleIndex++; }
-            else { if (g_ScaleIndex > 0) g_ScaleIndex--; }
+            if (isMouseOverOrderBook) {
+                // Сжатие стакана: колесо на себя (zDelta<0) увеличивает шаг, от себя (zDelta>0) уменьшает
+                if (zDelta < 0) { if (g_CompressIndex < g_CompressFactors.size() - 1) g_CompressIndex++; }
+                else { if (g_CompressIndex > 0) g_CompressIndex--; }
+                if (g_OrderBookRenderer) {
+                    g_OrderBookRenderer->SetCompressionFactor((double)g_CompressFactors[g_CompressIndex]);
+                }
+            }
+            else {
+                // вне стакана — пока ничего не делаем
+            }
         }
     } return 0;
 
@@ -429,7 +454,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
             g_Graphics.get(),
             g_SharedState
         );
-    }
+        g_OrderBookRenderer->SetDepth(g_DefaultDepth);
+        g_OrderBookRenderer->SetCompressionFactor((double)g_CompressFactors[g_CompressIndex]);
+     }
 
     // ═══════════════════════════════════════════════════════════════
     // Main Render Loop
@@ -452,6 +479,11 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
             g_Graphics->DrawRectPixels(0, HEADER_HEIGHT - 1.0f, screenWidth, 1.0f, 0.3f, 0.3f, 0.3f, 1.0f);
 
             g_Graphics->DrawTextPixels(L"TORBOT", 20, 15, 200, 20, 14, 1.0f, 1.0f, 1.0f, 1.0f);
+
+            // Compression indicator
+            std::wstringstream compSs;
+            compSs << L"x" << g_CompressFactors[g_CompressIndex];
+            g_Graphics->DrawTextPixels(compSs.str(), screenWidth - 120, HEADER_HEIGHT + 5, 100, 20, 13, 0.8f, 0.8f, 0.8f, 1.0f);
 
             std::string currentSymbol;
             std::vector<std::string> filtered;
@@ -511,7 +543,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
             std::wstring status = runningFeed ? L"RUNNING" : L"STOPPED";
             float statusR = runningFeed ? 0.0f : 1.0f;
             float statusG = runningFeed ? 1.0f : 0.0f;
-            g_Graphics->DrawTextPixels(status, screenWidth - 250, 15, 100, 20, 14, statusR, statusG, 0.0f, 1.0f);
+            g_Graphics->DrawTextPixels(status, screenWidth - 220, 15, 100, 20, 14, statusR, statusG, 0.0f, 1.0f);
 
             // Symbol button (drawn on header)
             g_Graphics->DrawRectPixels(g_SymbolUI.buttonX, g_SymbolUI.buttonY, g_SymbolUI.buttonW, g_SymbolUI.buttonH,
