@@ -30,6 +30,8 @@ namespace TradingBot::Core {
         // price -> aggregated quote quantity (USDT)
         std::vector<std::pair<double, double>> BidsQuote;
         std::vector<std::pair<double, double>> AsksQuote;
+
+        int64_t Version{ -1 };
     };
 
     struct MetricsSnapshot {
@@ -52,7 +54,7 @@ namespace TradingBot::Core {
     };
 
     // ═══════════════════════════════════════════════════════════════
-    // SharedState: Bridge mellan новом OrderBook и старом UI
+    // SharedState: decoupled push/pull bridge between OrderBook and UI
     // ═══════════════════════════════════════════════════════════════
     class SharedState {
     public:
@@ -60,16 +62,13 @@ namespace TradingBot::Core {
         std::mutex instrumentsMutex;
 
         SharedState() {
-            // PRE-ALLOCATION для rendering snapshots
-            published_[0].Bids.reserve(200);
-            published_[0].Asks.reserve(200);
-            published_[0].BidsQuote.reserve(200);
-            published_[0].AsksQuote.reserve(200);
+            renderCache_.Bids.reserve(200);
+            renderCache_.Asks.reserve(200);
+            renderCache_.BidsQuote.reserve(200);
+            renderCache_.AsksQuote.reserve(200);
 
-            published_[1].Bids.reserve(200);
-            published_[1].Asks.reserve(200);
-            published_[1].BidsQuote.reserve(200);
-            published_[1].AsksQuote.reserve(200);
+            tempBids_.reserve(200);
+            tempAsks_.reserve(200);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -133,76 +132,57 @@ namespace TradingBot::Core {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // NEW: Применение снэпшота (snapshot from REST API)
-        // ОТЛИЧАЕТСЯ от ApplyUpdate - заменяет ВЕСЬ Order Book
-        // ═══════════════════════════════════════════════════════════
+        // Apply snapshot (REST) - replaces entire book
+        // ═══════════════════════════════════════════════════════════════
         void ApplySnapshot(const std::vector<OrderBookLevel>& bids,
-                          const std::vector<OrderBookLevel>& asks) {
-            std::lock_guard<SpinLock> lock(stateLock_);
+                           const std::vector<OrderBookLevel>& asks) {
+            tempBids_.clear();
+            tempAsks_.clear();
+            tempBids_.reserve(bids.size());
+            tempAsks_.reserve(asks.size());
 
-            // Конвертируем OrderBookLevel -> PriceLevel
-            std::vector<Models::PriceLevel> bidLevels;
-            std::vector<Models::PriceLevel> askLevels;
+            for (const auto& level : bids) tempBids_.push_back({ level.price, level.quantity });
+            for (const auto& level : asks) tempAsks_.push_back({ level.price, level.quantity });
 
-            bidLevels.reserve(bids.size());
-            askLevels.reserve(asks.size());
-
-            for (const auto& level : bids) {
-                bidLevels.push_back({ level.price, level.quantity });
+            {
+                std::lock_guard<SpinLock> lock(stateLock_);
+                orderBook_.ApplySnapshot(tempBids_, tempAsks_);
+                version_.fetch_add(1, std::memory_order_release);
             }
-
-            for (const auto& level : asks) {
-                askLevels.push_back({ level.price, level.quantity });
-            }
-
-            // Применяем snapshot (заменяет ВСЁ + сортирует)
-            orderBook_.ApplySnapshot(bidLevels, askLevels);
-            
-            // Немедленно публикуем
-            PublishCurrentOrderBook();
+            SetAppliedNow();
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // NEW: Применение обновлений к OrderBook (std::vector based)
-        // Вызывается из BinanceConnector для DIFF updates
-        // ═══════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════
+        // Apply incremental update (WebSocket diff)
+        // ═══════════════════════════════════════════════════════════════
         void ApplyUpdate(const std::vector<OrderBookLevel>& bids,
-                        const std::vector<OrderBookLevel>& asks) {
-            std::lock_guard<SpinLock> lock(stateLock_);
+                         const std::vector<OrderBookLevel>& asks) {
+            tempBids_.clear();
+            tempAsks_.clear();
+            tempBids_.reserve(bids.size());
+            tempAsks_.reserve(asks.size());
 
-            // Конвертируем OrderBookLevel -> PriceLevel
-            std::vector<Models::PriceLevel> bidLevels;
-            std::vector<Models::PriceLevel> askLevels;
+            for (const auto& level : bids) tempBids_.push_back({ level.price, level.quantity });
+            for (const auto& level : asks) tempAsks_.push_back({ level.price, level.quantity });
 
-            bidLevels.reserve(bids.size());
-            askLevels.reserve(asks.size());
-
-            for (const auto& level : bids) {
-                bidLevels.push_back({ level.price, level.quantity });
+            {
+                std::lock_guard<SpinLock> lock(stateLock_);
+                orderBook_.ApplyUpdate(tempBids_, tempAsks_);
+                version_.fetch_add(1, std::memory_order_release);
             }
-
-            for (const auto& level : asks) {
-                askLevels.push_back({ level.price, level.quantity });
-            }
-
-            // Применяем к новому OrderBook (std::vector)
-            orderBook_.ApplyUpdate(bidLevels, askLevels);
-            
-            // Немедленно публикуем snapshot для UI!
-            PublishCurrentOrderBook();
+            SetAppliedNow();
         }
-        
+
         // ═══════════════════════════════════════════════════════════════
-        // LEGACY: Поддержка старого UI (std::map interface)
+        // LEGACY map copy for old UI
         // ═══════════════════════════════════════════════════════════════
-        void CopyOrderBook(std::map<double, double>& bids, 
-                          std::map<double, double>& asks) {
+        void CopyOrderBook(std::map<double, double>& bids,
+                           std::map<double, double>& asks) {
             std::lock_guard<SpinLock> lock(stateLock_);
 
             bids.clear();
             asks.clear();
 
-            // Конвертация: std::vector -> std::map
             const auto& bidLevels = orderBook_.GetBids();
             const auto& askLevels = orderBook_.GetAsks();
 
@@ -216,22 +196,45 @@ namespace TradingBot::Core {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Rendering Snapshot Management (Lock-free double buffering)
+        // Pull-based rendering snapshot with versioning
         // ═══════════════════════════════════════════════════════════════
-        void PublishRenderSnapshot(RenderSnapshot snap) {
-            int next = 1 - publishedIndex_.load(std::memory_order_relaxed);
-            published_[next] = std::move(snap);
-            publishedIndex_.store(next, std::memory_order_release);
+        const RenderSnapshot& GetSnapshotForRender(int /*depth*/, double /*priceStep*/) {
+            const int64_t curVer = version_.load(std::memory_order_acquire);
+            if (renderCache_.Version == curVer) {
+                return renderCache_; // cached, no copy from book
+            }
+
+            std::lock_guard<SpinLock> lock(stateLock_);
+            const int64_t freshVer = version_.load(std::memory_order_relaxed);
+            if (renderCache_.Version != freshVer) {
+                const auto& bids = orderBook_.GetBids();
+                const auto& asks = orderBook_.GetAsks();
+
+                renderCache_.Bids.clear();
+                renderCache_.Asks.clear();
+                renderCache_.BidsQuote.clear();
+                renderCache_.AsksQuote.clear();
+
+                renderCache_.Bids.reserve(bids.size());
+                renderCache_.Asks.reserve(asks.size());
+                renderCache_.BidsQuote.reserve(bids.size());
+                renderCache_.AsksQuote.reserve(asks.size());
+
+                for (const auto& b : bids) {
+                    renderCache_.Bids.emplace_back(b.price, b.quantity);
+                    renderCache_.BidsQuote.emplace_back(b.price, b.price * b.quantity);
+                }
+                for (const auto& a : asks) {
+                    renderCache_.Asks.emplace_back(a.price, a.quantity);
+                    renderCache_.AsksQuote.emplace_back(a.price, a.price * a.quantity);
+                }
+
+                renderCache_.Version = freshVer;
+            }
+            return renderCache_;
         }
 
-        RenderSnapshot GetSnapshotForRender(int /*depth*/, double /*priceStep*/) {
-            int idx = publishedIndex_.load(std::memory_order_acquire);
-            return published_[idx];
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // NEW: Direct access to OrderBook (для будущей оптимизации UI)
-        // ═══════════════════════════════════════════════════════════════
+        // Direct access to OrderBook (read-only)
         const Models::OrderBook& GetOrderBookDirect() const {
             return orderBook_;
         }
@@ -267,9 +270,13 @@ namespace TradingBot::Core {
         }
 
         void ResetOrderBook() {
-            std::lock_guard<SpinLock> lock(stateLock_);
-            orderBook_.ApplySnapshot({}, {});
-            PublishCurrentOrderBook();
+            tempBids_.clear();
+            tempAsks_.clear();
+            {
+                std::lock_guard<SpinLock> lock(stateLock_);
+                orderBook_.ApplySnapshot(tempBids_, tempAsks_);
+                version_.fetch_add(1, std::memory_order_release);
+            }
         }
 
     private:
@@ -293,7 +300,7 @@ namespace TradingBot::Core {
         // Current trading symbol
         std::string currentSymbol_{ "BTCUSDT" };
 
-        // NEW: Оптимизированный OrderBook (std::vector)
+        // Optimized OrderBook (vector-based)
         Models::OrderBook orderBook_;
 
         // Metrics
@@ -302,10 +309,6 @@ namespace TradingBot::Core {
         std::atomic<long long> lastAppliedMs_{ 0 };
         std::atomic<long long> lastAppliedSteadyNs_{ 0 };
         std::atomic<long long> stalenessAvgMs_{ 0 };
-
-        // Double buffering for rendering
-        RenderSnapshot published_[2];
-        std::atomic<int> publishedIndex_{ 0 };
 
         // External latency/queue metrics (atomic, no locks)
         std::atomic<long long> exchLatencyNs_{0};
@@ -320,32 +323,11 @@ namespace TradingBot::Core {
         std::atomic<long long> droppedMessages_{0};
         std::atomic<size_t> queueHighWater_{0};
 
-        // ═══════════════════════════════════════════════════════════
-        // Публикация текущего Order Book в double buffer для UI
-        // ═══════════════════════════════════════════════════════════
-        void PublishCurrentOrderBook() {
-            // Вызывается УЖЕ под stateLock_, поэтому безопасно
-            RenderSnapshot snapshot;
-
-            const auto& bids = orderBook_.GetBids();
-            const auto& asks = orderBook_.GetAsks();
-
-            snapshot.Bids.reserve(bids.size());
-            snapshot.Asks.reserve(asks.size());
-
-            for (const auto& b : bids) {
-                snapshot.Bids.emplace_back(b.price, b.quantity);
-            }
-
-            for (const auto& a : asks) {
-                snapshot.Asks.emplace_back(a.price, a.quantity);
-            }
-            
-            // Атомарная публикация в double buffer
-            int next = 1 - publishedIndex_.load(std::memory_order_relaxed);
-            published_[next] = std::move(snapshot);
-            publishedIndex_.store(next, std::memory_order_release);
-        }
+        // Pull-model versioning
+        std::atomic<int64_t> version_{0};
+        RenderSnapshot renderCache_;
+        std::vector<Models::PriceLevel> tempBids_;
+        std::vector<Models::PriceLevel> tempAsks_;
     };
 
-} // namespace TradingBot::Core} // namespace TradingBot::Core
+} // namespace TradingBot::Core
