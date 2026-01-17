@@ -31,6 +31,7 @@
     <ClInclude Include="Environment.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="JsonParser.h" />
+    <ClInclude Include="LockFreeQueue.h" />
     <ClInclude Include="OrderBook.h" />
     <ClInclude Include="SharedState.h" />
     <ClInclude Include="Types.h" />
