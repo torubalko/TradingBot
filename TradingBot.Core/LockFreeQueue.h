@@ -5,6 +5,7 @@
 #include <new>
 #include <thread>
 #include <optional>
+#include <type_traits>
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <immintrin.h>
@@ -43,11 +44,11 @@ private:
         alignas(T) std::byte storage[sizeof(T)];
         
         T* ptr() noexcept {
-            return std::launder(reinterpret_cast<T*>(storage));
+            return reinterpret_cast<T*>(storage);
         }
         
         const T* ptr() const noexcept {
-            return std::launder(reinterpret_cast<const T*>(storage));
+            return reinterpret_cast<const T*>(storage);
         }
     };
 
