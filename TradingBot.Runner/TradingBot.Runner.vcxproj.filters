@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{b4f3c5a2-7a41-4e28-8c6b-3a0b0d5e8e8f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TradingBot.Runner.cpp">
@@ -22,6 +25,12 @@
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="OrderBookRenderer.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="..\BinanceDataFeed\HighSpeedDataFeed.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -39,6 +48,9 @@
     </ClInclude>
     <ClInclude Include="BinanceFeedAdapter.h">
       <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="..\simdjson\simdjson-master\singleheader\simdjson.h">
+      <Filter>External</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -30,9 +30,6 @@
     <ClCompile Include="BinanceConnector.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp">
-      <Filter>External</Filter>
-    </ClCompile>
     <ClCompile Include="Network\WebSocketSession.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>

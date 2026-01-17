@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <atomic>
 #include <array>
@@ -6,8 +6,8 @@
 #include <new>
 #include <optional>
 #include <type_traits>
-#include <vector>
 #include <memory>
+#include <cstring>
 
 namespace hft {
 
@@ -186,34 +186,36 @@ private:
 // Message wrapper for the queue
 // ???????????????????????????????????????????????????????????????????????????????
 struct RawMessage {
-    std::vector<char> data;
-    int64_t receiveTimestampNs;
+    static constexpr size_t kMaxPayload = 8192; // adjust if needed
+    std::array<char, kMaxPayload + 64> buf{};   // +padding for simdjson
+    size_t size{0};
+    int64_t receiveTimestampNs{0};
 
-    RawMessage() : receiveTimestampNs(0) {}
+    RawMessage() = default;
 
-    RawMessage(const char* ptr, size_t len, int64_t ts)
-        : data(ptr, ptr + len)
-        , receiveTimestampNs(ts)
-    {
-        data.resize(len + 64, '\0'); // simdjson padding
+    RawMessage(const char* ptr, size_t len, int64_t ts) {
+        Set(ptr, len, ts);
     }
 
-    RawMessage(RawMessage&& other) noexcept
-        : data(std::move(other.data))
-        , receiveTimestampNs(other.receiveTimestampNs)
-    {}
-
-    RawMessage& operator=(RawMessage&& other) noexcept {
-        data = std::move(other.data);
-        receiveTimestampNs = other.receiveTimestampNs;
-        return *this;
-    }
+    RawMessage(RawMessage&& other) noexcept = default;
+    RawMessage& operator=(RawMessage&& other) noexcept = default;
 
     RawMessage(const RawMessage&) = delete;
     RawMessage& operator=(const RawMessage&) = delete;
 
-    const char* Data() const { return data.data(); }
-    size_t Size() const { return data.empty() ? 0 : data.size() - 64; }  // exclude padding
+    bool Set(const char* ptr, size_t len, int64_t ts) {
+        if (len > kMaxPayload) return false;
+        std::memcpy(buf.data(), ptr, len);
+        std::fill(buf.begin() + len, buf.begin() + len + 64, '\0');
+        size = len;
+        receiveTimestampNs = ts;
+        return true;
+    }
+
+    bool IsValid() const { return size > 0 && size <= kMaxPayload; }
+
+    const char* Data() const { return buf.data(); }
+    size_t Size() const { return size; }
     int64_t ReceiveTimestampNs() const { return receiveTimestampNs; }
 };
 
@@ -266,7 +268,8 @@ inline size_t NextPowerOfTwo(size_t v) {
 
 // Factory choosing nearest power-of-two up to a sane cap
 inline std::unique_ptr<IMessageQueue> CreateMessageQueue(size_t desiredCapacity) {
-    const size_t capped = std::min<size_t>(desiredCapacity == 0 ? DefaultQueueCapacity::value : desiredCapacity, 1u << 20); // cap at ~1M
+    // Cap to avoid giant static arrays when RawMessage is large
+    const size_t capped = std::min<size_t>(desiredCapacity == 0 ? DefaultQueueCapacity::value : desiredCapacity, 65536u);
     const size_t pow2 = std::max<size_t>(NextPowerOfTwo(capped), 1024);
 
     switch (pow2) {
@@ -276,11 +279,8 @@ inline std::unique_ptr<IMessageQueue> CreateMessageQueue(size_t desiredCapacity)
     case 8192: return std::make_unique<LockFreeQueueAdapter<8192>>();
     case 16384: return std::make_unique<LockFreeQueueAdapter<16384>>();
     case 32768: return std::make_unique<LockFreeQueueAdapter<32768>>();
-    case 65536: return std::make_unique<LockFreeQueueAdapter<65536>>();
     default:
-        if (pow2 <= 131072) return std::make_unique<LockFreeQueueAdapter<131072>>();
-        if (pow2 <= 262144) return std::make_unique<LockFreeQueueAdapter<262144>>();
-        return std::make_unique<LockFreeQueueAdapter<524288>>();
+        return std::make_unique<LockFreeQueueAdapter<65536>>();
     }
 }
 

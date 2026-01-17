@@ -578,33 +578,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                 }
             }
 
-            if (g_SharedState) {
-                auto sharedState = g_SharedState;
-                auto metrics = sharedState->GetMetrics();
-                auto ext = sharedState->GetExternalMetrics();
-                float y = HEADER_HEIGHT + 20;
-                float x = 20;
-                std::wstringstream ss;
-                ss << L"Latency: " << metrics.latencyMs << L" ms";
-                g_Graphics->DrawTextPixels(ss.str(), x, y, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
-                ss.str(L""); ss.clear();
-                ss << L"Staleness: " << metrics.stalenessMs << L" ms";
-                g_Graphics->DrawTextPixels(ss.str(), x, y + 18, 250, 18, 12, 0.8f, 1.0f, 0.8f, 1.0f);
-
-                auto toMs = [](long long ns) { return ns / 1'000'000.0; };
-                float yExt = y + 40;
-                ss.str(L""); ss.clear();
-                ss << L"Net " << std::fixed << std::setprecision(3) << toMs(ext.netLatencyNs) << L" ms"
-                   << L" | Proc " << toMs(ext.procChainLatencyNs) << L" ms";
-                g_Graphics->DrawTextPixels(ss.str(), x, yExt, 400, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
-
-                ss.str(L""); ss.clear();
-                ss << L"E2E P99 " << toMs(ext.endToEndP99Ns) << L" ms"
-                   << L" | Drops " << ext.droppedMessages
-                   << L" | Qmax " << ext.queueHighWater
-                   << L" | " << ext.messagesPerSecond << L" msg/s";
-                g_Graphics->DrawTextPixels(ss.str(), x, yExt + 18, 520, 18, 12, 0.8f, 0.9f, 1.0f, 1.0f);
-            }
+            // metrics rendering removed to reduce overhead
 
             if (g_OrderBookRenderer) {
                 g_OrderBookRenderer->SetVolumeMode(showQuote ? OrderBookRenderer::VolumeMode::Quote

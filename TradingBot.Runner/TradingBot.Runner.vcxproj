@@ -80,7 +80,7 @@
       <AdditionalIncludeDirectories>C:\BOT\TradingBot\TradingBot.Core;C:\BOT\TradingBot\BinanceDataFeed;C:\BOT\TradingBot\simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>simdjson.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -97,7 +97,7 @@
       <AdditionalIncludeDirectories>C:\BOT\TradingBot\TradingBot.Core;C:\BOT\TradingBot\BinanceDataFeed;C:\BOT\TradingBot\simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>simdjson.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -111,6 +111,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>C:\BOT\TradingBot\TradingBot.Core;C:\BOT\TradingBot\BinanceDataFeed;C:\BOT\TradingBot\simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -129,6 +130,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>C:\BOT\TradingBot\TradingBot.Core;C:\BOT\TradingBot\BinanceDataFeed;C:\BOT\TradingBot\simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -137,8 +139,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-	<ClCompile Include="..\BinanceDataFeed\HighSpeedDataFeed.cpp" />
-    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp" />
+    <ClCompile Include="..\BinanceDataFeed\HighSpeedDataFeed.cpp" />
+    <ClCompile Include="..\simdjson\simdjson-master\singleheader\simdjson.cpp">
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="OrderBookRenderer.cpp" />
     <ClCompile Include="TradingBot.Runner.cpp" />
@@ -157,6 +161,7 @@
     <ClInclude Include="BinanceFeedAdapter.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="OrderBookRenderer.h" />
+    <ClInclude Include="..\simdjson\simdjson-master\singleheader\simdjson.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
@@ -173,4 +178,3 @@
     <Error Condition="!Exists('..\packages\boost.1.87.0\build\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost.1.87.0\build\boost.targets'))" />
   </Target>
 </Project>
-

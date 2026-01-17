@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 #include <deque>
+#include <chrono>
 #include "Graphics.h"
 #include "../TradingBot.Core/SharedState.h"
 
@@ -78,4 +79,5 @@ private:
     // Mini chart history for mid-price
     std::deque<double> midHistory_;
     double lastMid_ = 0.0;
+    std::chrono::steady_clock::time_point flashUntil_{};
 };

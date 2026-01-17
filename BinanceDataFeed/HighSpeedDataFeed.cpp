@@ -168,9 +168,10 @@ void WebSocketSession::OnRead(beast::error_code ec, std::size_t bytesTransferred
     const char* data = static_cast<const char*>(buffer_.data().data());
     int64_t recvNs = HighResTimer::NowNs();
 
-    RawMessage msg(data, bytesTransferred, recvNs);
-
-    if (!messageQueue_.TryPush(std::move(msg))) {
+    RawMessage msg;
+    if (!msg.Set(data, bytesTransferred, recvNs)) {
+        droppedCounter_.fetch_add(1, std::memory_order_relaxed);
+    } else if (!messageQueue_.TryPush(std::move(msg))) {
         droppedCounter_.fetch_add(1, std::memory_order_relaxed);
     } else {
         size_t sz = messageQueue_.Size();
@@ -799,4 +800,4 @@ int64_t BinanceDataFeed::FetchServerTimeMs() {
     return -1;
 }
 
-} // namespace hft} // namespace hft
+} // namespace hft

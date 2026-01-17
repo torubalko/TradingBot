@@ -192,10 +192,12 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     double midPrice = (bestBid > 0.0 && bestAsk > 0.0) ? (bestBid + bestAsk) * 0.5 : (bestBid > 0.0 ? bestBid : bestAsk);
     double midForChart = (midAnchor > 0.0) ? midAnchor : midPrice;
 
+    auto now = std::chrono::steady_clock::now();
     // Update mid-price history for mini chart (use unbucketed mid)
     if (midForChart > 0.0 && (midHistory_.empty() || std::fabs(midForChart - lastMid_) > 1e-9)) {
         midHistory_.push_back(midForChart);
         lastMid_ = midForChart;
+        flashUntil_ = now + std::chrono::milliseconds(5);
     }
 
     RenderAsks(x, asksY, width, halfHeight, cachedAsks_, maxVolume, midPrice);
@@ -249,6 +251,12 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
             prevX = currX;
             prevY = currY;
         }
+    }
+
+    // Price-change flash indicator (top-left corner of book)
+    if (flashUntil_.time_since_epoch().count() > 0 && now < flashUntil_) {
+        float flashSize = 14.0f;
+        graphics_->DrawRectPixels(x + 6.0f, y + 6.0f, flashSize, flashSize, 0.2f, 0.8f, 1.0f, 1.0f);
     }
 }
 
