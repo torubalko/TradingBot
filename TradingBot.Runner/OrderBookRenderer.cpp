@@ -75,10 +75,32 @@ OrderBookRenderer::~OrderBookRenderer() {
 }
 
 void OrderBookRenderer::Render(float x, float y, float width, float height) {
+    auto renderStart = std::chrono::steady_clock::now();
     if (!sharedState_) return;
- 
-    int requestedDepth = visibleLevels_ * (compressionStep_ > 0 ? compressionStep_ : 1);
-    auto snapshot = sharedState_->GetSnapshotForRender(requestedDepth, 0.1);
+    const auto now = std::chrono::steady_clock::now();
+    const auto throttle = std::chrono::milliseconds(16); // ~60 FPS
+
+    const TradingBot::Core::RenderSnapshot* snapshotPtr = nullptr;
+    if (cachedSnapshot_.Version >= 0 && (now - lastSnapshotFetch_) < throttle) {
+        snapshotPtr = &cachedSnapshot_;
+    } else {
+        int requestedDepth = visibleLevels_ * (compressionStep_ > 0 ? compressionStep_ : 1);
+        auto snap = sharedState_->GetSnapshotForRender(requestedDepth, 0.1);
+        if (snap.Version >= 0) {
+            cachedSnapshot_ = std::move(snap);
+            lastSnapshotFetch_ = now;
+            snapshotPtr = &cachedSnapshot_;
+        }
+    }
+
+    if (!snapshotPtr) {
+        graphics_->DrawTextPixels(L"Waiting for Order Book synchronization...",
+                                 x + 10, y + 10, width - 20, 20, 12,
+                                 0.7f, 0.7f, 0.7f, 1.0f);
+        return;
+    }
+
+    const auto& snapshot = *snapshotPtr;
     const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
     const auto& asksSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.AsksQuote.empty()) ? snapshot.AsksQuote : snapshot.Asks;
 
@@ -192,7 +214,6 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     double midPrice = (bestBid > 0.0 && bestAsk > 0.0) ? (bestBid + bestAsk) * 0.5 : (bestBid > 0.0 ? bestBid : bestAsk);
     double midForChart = (midAnchor > 0.0) ? midAnchor : midPrice;
 
-    auto now = std::chrono::steady_clock::now();
     // Update mid-price history for mini chart (use unbucketed mid)
     if (midForChart > 0.0 && (midHistory_.empty() || std::fabs(midForChart - lastMid_) > 1e-9)) {
         midHistory_.push_back(midForChart);
@@ -257,6 +278,14 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     if (flashUntil_.time_since_epoch().count() > 0 && now < flashUntil_) {
         float flashSize = 14.0f;
         graphics_->DrawRectPixels(x + 6.0f, y + 6.0f, flashSize, flashSize, 0.2f, 0.8f, 1.0f, 1.0f);
+    }
+
+    auto renderEnd = std::chrono::steady_clock::now();
+    auto renderMs = std::chrono::duration_cast<std::chrono::milliseconds>(renderEnd - renderStart).count();
+    if (renderMs > 10) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "[RenderProfile] OrderBookRenderer::Render took %lld ms\n", static_cast<long long>(renderMs));
+        OutputDebugStringA(buf);
     }
 }
 

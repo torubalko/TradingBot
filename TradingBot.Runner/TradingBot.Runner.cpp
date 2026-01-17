@@ -462,7 +462,12 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     // Main Render Loop
     // ═══════════════════════════════════════════════════════════════
     MSG msg = { 0 };
+    auto lastTitleUpdate = std::chrono::steady_clock::now();
+    uint64_t frameCount = 0;
+    const int targetFrameMs = 16; // ~60 FPS
+
     while (msg.message != WM_QUIT && g_Running) {
+        auto frameStart = std::chrono::steady_clock::now();
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);

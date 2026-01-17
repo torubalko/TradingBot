@@ -166,7 +166,8 @@ void WebSocketSession::OnRead(beast::error_code ec, std::size_t bytesTransferred
     }
 
     const char* data = static_cast<const char*>(buffer_.data().data());
-    int64_t recvNs = HighResTimer::NowNs();
+    // Cheap timestamp for metrics (monotonic ms -> ns)
+    int64_t recvNs = HighResTimer::UnixMs() * 1'000'000;
 
     RawMessage msg;
     if (!msg.Set(data, bytesTransferred, recvNs)) {

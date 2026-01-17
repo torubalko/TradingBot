@@ -76,6 +76,10 @@ private:
     std::vector<std::pair<double, double>> cachedBids_;
     std::vector<std::pair<double, double>> cachedAsks_;
 
+    // Cached snapshot and throttling control
+    TradingBot::Core::RenderSnapshot cachedSnapshot_{};
+    std::chrono::steady_clock::time_point lastSnapshotFetch_{};
+
     // Mini chart history for mid-price
     std::deque<double> midHistory_;
     double lastMid_ = 0.0;

@@ -32,6 +32,7 @@ namespace TradingBot::Core {
         std::vector<std::pair<double, double>> AsksQuote;
 
         int64_t Version{ -1 };
+        int64_t TimestampNs{ 0 };
     };
 
     struct MetricsSnapshot {
@@ -148,6 +149,7 @@ namespace TradingBot::Core {
                 std::lock_guard<SpinLock> lock(stateLock_);
                 orderBook_.ApplySnapshot(tempBids_, tempAsks_);
                 version_.fetch_add(1, std::memory_order_release);
+                lastUpdateNs_.store(HighResNowNs(), std::memory_order_release);
             }
             SetAppliedNow();
         }
@@ -169,6 +171,7 @@ namespace TradingBot::Core {
                 std::lock_guard<SpinLock> lock(stateLock_);
                 orderBook_.ApplyUpdate(tempBids_, tempAsks_);
                 version_.fetch_add(1, std::memory_order_release);
+                lastUpdateNs_.store(HighResNowNs(), std::memory_order_release);
             }
             SetAppliedNow();
         }
@@ -204,6 +207,11 @@ namespace TradingBot::Core {
                 return renderCache_; // cached, no copy from book
             }
 
+            const int64_t curStamp = lastUpdateNs_.load(std::memory_order_acquire);
+            if (renderCache_.TimestampNs == curStamp) {
+                return renderCache_;
+            }
+
             std::lock_guard<SpinLock> lock(stateLock_);
             const int64_t freshVer = version_.load(std::memory_order_relaxed);
             if (renderCache_.Version != freshVer) {
@@ -230,6 +238,7 @@ namespace TradingBot::Core {
                 }
 
                 renderCache_.Version = freshVer;
+                renderCache_.TimestampNs = curStamp;
             }
             return renderCache_;
         }
@@ -328,6 +337,12 @@ namespace TradingBot::Core {
         RenderSnapshot renderCache_;
         std::vector<Models::PriceLevel> tempBids_;
         std::vector<Models::PriceLevel> tempAsks_;
+        std::atomic<int64_t> lastUpdateNs_{0};
+
+        static int64_t HighResNowNs() {
+            return std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count();
+        }
     };
 
 } // namespace TradingBot::Core

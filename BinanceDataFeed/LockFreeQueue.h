@@ -31,6 +31,8 @@ public:
     LockFreeQueue() : head_(0), tail_(0) {
         for (size_t i = 0; i < QueueCapacity; ++i) {
             slots_[i].sequence.store(i, std::memory_order_relaxed);
+            // Touch memory to fault in pages early (warm-up)
+            std::memset(&slots_[i].storage, 0, sizeof(slots_[i].storage));
         }
     }
     
