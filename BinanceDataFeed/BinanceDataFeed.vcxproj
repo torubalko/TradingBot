@@ -53,6 +53,7 @@
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(SolutionDir)simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat> <!-- /Zi -->
       <Optimization>Disabled</Optimization>
       <!-- /Od -->
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>

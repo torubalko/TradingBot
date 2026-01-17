@@ -474,7 +474,15 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
 
     switch (msgType) {
         case SimdJsonParser::MessageType::DepthUpdate: {
-            ParsedDepthUpdate update;
+            static constexpr size_t kDepthReserve = 256;
+            thread_local ParsedDepthUpdate update;
+
+            update.isValid = false;
+            if (update.bids.capacity() < kDepthReserve) update.bids.reserve(kDepthReserve);
+            if (update.asks.capacity() < kDepthReserve) update.asks.reserve(kDepthReserve);
+            update.bids.clear();
+            update.asks.clear();
+
             if (parser.ParseDepthUpdate(jsonData, jsonSize, update)) {
                 int64_t parseTime = HighResTimer::NowNs() - processStartNs;
 
