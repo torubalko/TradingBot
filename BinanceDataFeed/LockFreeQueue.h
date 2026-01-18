@@ -13,63 +13,73 @@ namespace hft {
 
 constexpr size_t CACHE_LINE_SIZE = 64;
 
-// ???????????????????????????????????????????????????????????????????????????????
-// LOCK-FREE SPSC QUEUE FOR HFT
-// ???????????????????????????????????????????????????????????????????????????????
-// Single Producer Single Consumer (SPSC) ring buffer
-// - No locks, no syscalls
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRUE SPSC RING BUFFER (Tiger Architecture)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Single Producer Single Consumer - ZERO CAS operations
+// - Producer: load tail (relaxed), store tail (release)
+// - Consumer: load head (relaxed), store head (release)
 // - Cache-line aligned to prevent false sharing
-// - Suitable for inter-thread communication
-// ???????????????????????????????????????????????????????????????????????????????
+// - Zero-copy: memcpy into pre-allocated slots
+// ═══════════════════════════════════════════════════════════════════════════════
 
 template<typename T, size_t QueueCapacity>
 class alignas(CACHE_LINE_SIZE) LockFreeQueue {
     static_assert((QueueCapacity & (QueueCapacity - 1)) == 0, "Capacity must be power of 2");
     static_assert(QueueCapacity >= 2, "Capacity must be at least 2");
+    static_assert(std::is_trivially_copyable_v<T> || std::is_move_constructible_v<T>, 
+                  "T must be trivially copyable or move constructible");
+    
+private:
+    static constexpr size_t MASK = QueueCapacity - 1;
+    
+    // Slot with explicit padding for cache-line separation
+    struct alignas(CACHE_LINE_SIZE) Slot {
+        alignas(T) std::byte storage[sizeof(T)];
+    };
     
 public:
     LockFreeQueue() : head_(0), tail_(0) {
+        // Warm up pages (fault in memory early)
         for (size_t i = 0; i < QueueCapacity; ++i) {
-            slots_[i].sequence.store(i, std::memory_order_relaxed);
-            // Touch memory to fault in pages early (warm-up)
             std::memset(&slots_[i].storage, 0, sizeof(slots_[i].storage));
         }
     }
     
     ~LockFreeQueue() {
         // Destroy any remaining items
-        while (TryPop()) {}
+        if constexpr (!std::is_trivially_destructible_v<T>) {
+            while (TryPop()) {}
+        }
     }
     
-    // ???????????????????????????????????????????????????????????????????????????
-    // Push (Producer side)
-    // ???????????????????????????????????????????????????????????????????????????
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Push (Producer side) - NO CAS!
+    // ═══════════════════════════════════════════════════════════════════════════
     
     template<typename... Args>
     bool TryEmplace(Args&&... args) {
+        // Load current tail (relaxed - only producer writes)
         size_t tail = tail_.load(std::memory_order_relaxed);
+        size_t nextTail = tail + 1;
         
-        for (;;) {
-            Slot& slot = slots_[tail & MASK];
-            size_t seq = slot.sequence.load(std::memory_order_acquire);
-            intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(tail);
-            
-            if (diff == 0) {
-                // Slot is ready for writing
-                if (tail_.compare_exchange_weak(tail, tail + 1, std::memory_order_relaxed)) {
-                    // We got the slot
-                    new (&slot.storage) T(std::forward<Args>(args)...);
-                    slot.sequence.store(tail + 1, std::memory_order_release);
-                    return true;
-                }
-            } else if (diff < 0) {
-                // Queue is full
-                return false;
-            } else {
-                // Another producer got here first (shouldn't happen in SPSC)
-                tail = tail_.load(std::memory_order_relaxed);
-            }
+        // Check if queue is full
+        // Read head with acquire to see consumer's progress
+        size_t head = head_.load(std::memory_order_acquire);
+        if (nextTail - head > QueueCapacity) {
+            return false; // Queue full
         }
+        
+        // Get slot
+        Slot& slot = slots_[tail & MASK];
+        
+        // Construct item in-place (zero-copy)
+        T* ptr = reinterpret_cast<T*>(&slot.storage);
+        new (ptr) T(std::forward<Args>(args)...);
+        
+        // Commit: store tail with release (makes item visible to consumer)
+        tail_.store(nextTail, std::memory_order_release);
+        return true;
     }
     
     bool TryPush(const T& item) {
@@ -84,8 +94,14 @@ public:
     template<typename... Args>
     void Emplace(Args&&... args) {
         while (!TryEmplace(std::forward<Args>(args)...)) {
-            // Spin - could add backoff or yield here
-            std::atomic_thread_fence(std::memory_order_seq_cst);
+            // Spin with pause instruction (x86 hint for hyper-threading)
+#ifdef _MSC_VER
+            _mm_pause();
+#elif defined(__x86_64__) || defined(__i386__)
+            __builtin_ia32_pause();
+#else
+            std::this_thread::yield();
+#endif
         }
     }
     
@@ -97,36 +113,36 @@ public:
         Emplace(std::move(item));
     }
     
-    // ???????????????????????????????????????????????????????????????????????????
-    // Pop (Consumer side)
-    // ???????????????????????????????????????????????????????????????????????????
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Pop (Consumer side) - NO CAS!
+    // ═══════════════════════════════════════════════════════════════════════════
     
     std::optional<T> TryPop() {
+        // Load current head (relaxed - only consumer writes)
         size_t head = head_.load(std::memory_order_relaxed);
         
-        for (;;) {
-            Slot& slot = slots_[head & MASK];
-            size_t seq = slot.sequence.load(std::memory_order_acquire);
-            intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(head + 1);
-            
-            if (diff == 0) {
-                // Slot has data
-                if (head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)) {
-                    // We got the slot
-                    T* ptr = reinterpret_cast<T*>(&slot.storage);
-                    T item = std::move(*ptr);
-                    ptr->~T();
-                    slot.sequence.store(head + QueueCapacity, std::memory_order_release);
-                    return item;
-                }
-            } else if (diff < 0) {
-                // Queue is empty
-                return std::nullopt;
-            } else {
-                // Another consumer got here first (shouldn't happen in SPSC)
-                head = head_.load(std::memory_order_relaxed);
-            }
+        // Check if queue is empty
+        // Read tail with acquire to see producer's progress
+        size_t tail = tail_.load(std::memory_order_acquire);
+        if (head == tail) {
+            return std::nullopt; // Queue empty
         }
+        
+        // Get slot
+        Slot& slot = slots_[head & MASK];
+        T* ptr = reinterpret_cast<T*>(&slot.storage);
+        
+        // Move/copy item out
+        T item = std::move(*ptr);
+        
+        // Destroy object
+        if constexpr (!std::is_trivially_destructible_v<T>) {
+            ptr->~T();
+        }
+        
+        // Commit: store head with release (makes slot available to producer)
+        head_.store(head + 1, std::memory_order_release);
+        return item;
     }
     
     bool TryPop(T& item) {
@@ -142,15 +158,22 @@ public:
     T Pop() {
         std::optional<T> result;
         while (!(result = TryPop())) {
-            // Spin
-            std::atomic_thread_fence(std::memory_order_seq_cst);
+            // Spin with pause
+#ifdef _MSC_VER
+            _mm_pause();
+#elif defined(__x86_64__) || defined(__i386__)
+            __builtin_ia32_pause();
+#else
+            std::this_thread::yield();
+#endif
         }
         return std::move(*result);
     }
     
-    // ???????????????????????????????????????????????????????????????????????????
-    // Utility
-    // ???????????????????????????????????????????????????????????????????????????
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Utility (non-blocking diagnostics)
+    // ═══════════════════════════════════════════════════════════════════════════
     
     bool Empty() const {
         size_t head = head_.load(std::memory_order_acquire);
@@ -167,21 +190,32 @@ public:
     static constexpr size_t GetCapacity() { return QueueCapacity; }
     
     bool Full() const {
-        return Size() >= QueueCapacity;
+        size_t head = head_.load(std::memory_order_acquire);
+        size_t tail = tail_.load(std::memory_order_acquire);
+        return (tail - head) >= QueueCapacity;
     }
 
 private:
-    static constexpr size_t MASK = QueueCapacity - 1;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Data Members - Cache-line separated for false sharing prevention
+    // ═══════════════════════════════════════════════════════════════════════════
     
-    struct alignas(CACHE_LINE_SIZE) Slot {
-        std::atomic<size_t> sequence;
-        typename std::aligned_storage<sizeof(T), alignof(T)>::type storage;
-    };
-    
-    // Separate cache lines for head and tail to prevent false sharing
-    alignas(CACHE_LINE_SIZE) std::atomic<size_t> head_;
+    // Producer cache-line (written by producer only)
     alignas(CACHE_LINE_SIZE) std::atomic<size_t> tail_;
+    char padding1_[CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)];
+    
+    // Consumer cache-line (written by consumer only)
+    alignas(CACHE_LINE_SIZE) std::atomic<size_t> head_;
+    char padding2_[CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)];
+    
+    // Shared cache-line (slots array)
     alignas(CACHE_LINE_SIZE) std::array<Slot, QueueCapacity> slots_;
+    
+    // No copy/move
+    LockFreeQueue(const LockFreeQueue&) = delete;
+    LockFreeQueue& operator=(const LockFreeQueue&) = delete;
+    LockFreeQueue(LockFreeQueue&&) = delete;
+    LockFreeQueue& operator=(LockFreeQueue&&) = delete;
 };
 
 // ???????????????????????????????????????????????????????????????????????????????

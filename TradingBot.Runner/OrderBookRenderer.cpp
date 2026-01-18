@@ -3,9 +3,10 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
-#include <map>
+#include <unordered_map>
 #include <mutex>
 #include <limits>
+#include <iostream>
 
 namespace {
     std::wstring FormatPriceDynamic(double price) {
@@ -75,34 +76,54 @@ OrderBookRenderer::~OrderBookRenderer() {
 }
 
 void OrderBookRenderer::Render(float x, float y, float width, float height) {
-    auto renderStart = std::chrono::steady_clock::now();
-    if (!sharedState_) return;
-    const auto now = std::chrono::steady_clock::now();
-    const auto throttle = std::chrono::milliseconds(16); // ~60 FPS
+auto renderStart = std::chrono::steady_clock::now();
+if (!sharedState_) return;
+const auto now = std::chrono::steady_clock::now();
+    
+// REDUCED THROTTLE: 8ms (~120 FPS) for faster price updates
+// Real-time trading needs faster refresh than typical UI
+const auto throttle = std::chrono::milliseconds(8);
 
-    const TradingBot::Core::RenderSnapshot* snapshotPtr = nullptr;
-    if (cachedSnapshot_.Version >= 0 && (now - lastSnapshotFetch_) < throttle) {
-        snapshotPtr = &cachedSnapshot_;
-    } else {
-        int requestedDepth = visibleLevels_ * (compressionStep_ > 0 ? compressionStep_ : 1);
-        auto snap = sharedState_->GetSnapshotForRender(requestedDepth, 0.1);
-        if (snap.Version >= 0) {
-            cachedSnapshot_ = std::move(snap);
-            lastSnapshotFetch_ = now;
-            snapshotPtr = &cachedSnapshot_;
-        }
-    }
+const TradingBot::Core::RenderSnapshot* snapshotPtr = nullptr;
+    
+// Always fetch fresh snapshot - price accuracy is critical
+// The GetSnapshotForRender already has version check optimization
+int requestedDepth = visibleLevels_ * (compressionStep_ > 0 ? compressionStep_ : 1);
+auto snap = sharedState_->GetSnapshotForRender(requestedDepth, 0.1);
+if (snap.Version >= 0) {
+    cachedSnapshot_ = std::move(snap);
+    lastSnapshotFetch_ = now;
+    snapshotPtr = &cachedSnapshot_;
+} else if (cachedSnapshot_.Version >= 0) {
+    // Fallback to cached if new fetch failed
+    snapshotPtr = &cachedSnapshot_;
+}
 
-    if (!snapshotPtr) {
-        graphics_->DrawTextPixels(L"Waiting for Order Book synchronization...",
-                                 x + 10, y + 10, width - 20, 20, 12,
-                                 0.7f, 0.7f, 0.7f, 1.0f);
-        return;
-    }
+if (!snapshotPtr) {
+    graphics_->DrawTextPixels(L"Waiting for Order Book synchronization...",
+                             x + 10, y + 10, width - 20, 20, 12,
+                             0.7f, 0.7f, 0.7f, 1.0f);
+    return;
+}
 
-    const auto& snapshot = *snapshotPtr;
-    const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
+const auto& snapshot = *snapshotPtr;
+const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
     const auto& asksSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.AsksQuote.empty()) ? snapshot.AsksQuote : snapshot.Asks;
+
+#ifdef _WIN32
+    // Debug: Log level counts periodically
+    static auto lastLog = std::chrono::steady_clock::now();
+    auto logNow = std::chrono::steady_clock::now();
+    if (std::chrono::duration_cast<std::chrono::seconds>(logNow - lastLog).count() >= 5) {
+        std::wstringstream dbg;
+        dbg << L"[OrderBook] Snapshot levels: bids=" << bidsSrc.size() 
+            << L" asks=" << asksSrc.size()
+            << L" compression=" << compressionStep_
+            << L" visible=" << visibleLevels_ << L"\n";
+        OutputDebugStringW(dbg.str().c_str());
+        lastLog = logNow;
+    }
+#endif
 
     if (bidsSrc.empty() || asksSrc.empty()) {
         graphics_->DrawTextPixels(L"Waiting for Order Book synchronization...", 
@@ -153,33 +174,51 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
     double bucketWidth = tickSize * (compressionStep_ > 0 ? compressionStep_ : 1);
     if (bucketWidth <= 0.0) bucketWidth = 0.1;
 
-    double bestBidSrc = bidsSrc.empty() ? 0.0 : bidsSrc[0].first;
-    double bestAskSrc = asksSrc.empty() ? 0.0 : asksSrc[0].first;
+    // CRITICAL: Use bookTicker prices for mid-anchor (REAL-TIME!)
+    // BookTicker updates instantly when best price changes
+    // Depth snapshot is delayed by 100ms
+    double tickerBid = sharedState_->GetTickerBestBid();
+    double tickerAsk = sharedState_->GetTickerBestAsk();
+    
+    // Fallback to depth snapshot if bookTicker not available yet
+    double bestBidSrc = (tickerBid > 0.0) ? tickerBid : (bidsSrc.empty() ? 0.0 : bidsSrc[0].first);
+    double bestAskSrc = (tickerAsk > 0.0) ? tickerAsk : (asksSrc.empty() ? 0.0 : asksSrc[0].first);
+    
     double midAnchor = 0.0;
     if (bestBidSrc > 0.0 && bestAskSrc > 0.0) midAnchor = (bestBidSrc + bestAskSrc) * 0.5;
     else if (bestBidSrc > 0.0) midAnchor = bestBidSrc;
     else if (bestAskSrc > 0.0) midAnchor = bestAskSrc;
 
+    // HFT OPTIMIZED: Pre-allocated hash map for O(1) lookup
+    static thread_local std::unordered_map<double, double> aggCache;
+    
     auto bucketByPrice = [&](const std::vector<std::pair<double, double>>& src,
                              std::vector<std::pair<double, double>>& dst,
                              bool descending,
                              double anchorPrice) {
         if (src.empty() && anchorPrice <= 0.0) return;
-        std::map<double, double> agg;
+        
+        // Step 1: Aggregate into hash map O(N)
+        aggCache.clear();
+        aggCache.reserve(src.size());
         for (const auto& level : src) {
             double bucketPrice = std::floor(level.first / bucketWidth) * bucketWidth;
-            agg[bucketPrice] += level.second;
+            aggCache[bucketPrice] += level.second;
         }
-
+        
+        // Step 2: Extract visible levels O(M)
+        dst.clear();
+        dst.reserve(visibleLevels_ > 0 ? visibleLevels_ : 1);
+        
         size_t desired = static_cast<size_t>(visibleLevels_ > 0 ? visibleLevels_ : 1);
         double startBucket = descending ? std::floor(anchorPrice / bucketWidth) * bucketWidth
                                         : std::ceil(anchorPrice / bucketWidth) * bucketWidth;
+        
         for (size_t i = 0; i < desired; ++i) {
             double price = descending ? (startBucket - static_cast<double>(i) * bucketWidth)
                                       : (startBucket + static_cast<double>(i) * bucketWidth);
-            double volume = 0.0;
-            auto it = agg.find(price);
-            if (it != agg.end()) volume = it->second;
+            auto it = aggCache.find(price);
+            double volume = (it != aggCache.end()) ? it->second : 0.0;
             dst.emplace_back(price, volume);
         }
     };
@@ -280,13 +319,13 @@ void OrderBookRenderer::Render(float x, float y, float width, float height) {
         graphics_->DrawRectPixels(x + 6.0f, y + 6.0f, flashSize, flashSize, 0.2f, 0.8f, 1.0f, 1.0f);
     }
 
+#ifdef _DEBUG
     auto renderEnd = std::chrono::steady_clock::now();
-    auto renderMs = std::chrono::duration_cast<std::chrono::milliseconds>(renderEnd - renderStart).count();
-    if (renderMs > 10) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "[RenderProfile] OrderBookRenderer::Render took %lld ms\n", static_cast<long long>(renderMs));
-        OutputDebugStringA(buf);
+    auto durMs = std::chrono::duration_cast<std::chrono::milliseconds>(renderEnd - renderStart).count();
+    if (durMs > 10) {
+        std::cout << "[RenderProfile] OrderBookRenderer::Render took " << durMs << " ms\n";
     }
+#endif
 }
 
 void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
@@ -416,3 +455,5 @@ double OrderBookRenderer::CalculateMaxVolume(const std::vector<std::pair<double,
     
     return maxVol;
 }
+
+

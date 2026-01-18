@@ -53,7 +53,8 @@
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(SolutionDir)simdjson\simdjson-master\singleheader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat> <!-- /Zi -->
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <!-- /Zi -->
       <Optimization>Disabled</Optimization>
       <!-- /Od -->
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
@@ -114,6 +115,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HighSpeedDataFeed.h" />
+    <ClInclude Include="HttpClient.h" />
     <ClInclude Include="LatencyTracker.h" />
     <ClInclude Include="LockFreeQueue.h" />
     <ClInclude Include="OrderBook.h" />

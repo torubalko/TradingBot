@@ -1,24 +1,46 @@
 #pragma once
 #include <memory>
+#include <sstream>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include "../BinanceDataFeed/HighSpeedDataFeed.h"
 #include "../TradingBot.Core/SharedState.h"
 
-// Lightweight adapter: pushes depth/book/trade into SharedState without locks on hot path
+// ???????????????????????????????????????????????????????????????????????????????
+// ULTRA LOW LATENCY ADAPTER - Zero-Copy Design
+// ???????????????????????????????????????????????????????????????????????????????
 class BinanceFeedAdapter {
 public:
     BinanceFeedAdapter(std::shared_ptr<TradingBot::Core::SharedState> state)
-        : state_(std::move(state)) {}
+        : state_(std::move(state)) {
+        // Pre-allocate conversion buffers
+        bidBuffer_.reserve(256);
+        askBuffer_.reserve(256);
+    }
 
+    // ???????????????????????????????????????????????????????????????????????????????
+    // CRITICAL HOT PATH - Every microsecond counts!
+    // ???????????????????????????????????????????????????????????????????????????????
     void OnDepth(const std::string& symbol, const hft::ParsedDepthUpdate& upd) {
-        if (!state_) return;
-        std::vector<TradingBot::Core::OrderBookLevel> bids;
-        std::vector<TradingBot::Core::OrderBookLevel> asks;
-        bids.reserve(upd.bids.size());
-        asks.reserve(upd.asks.size());
-        for (auto& b : upd.bids) bids.push_back({ b.first, b.second });
-        for (auto& a : upd.asks) asks.push_back({ a.first, a.second });
-        state_->ApplyUpdate(bids, asks);
+        if (!state_) [[unlikely]] return;
+        
+        // REUSE pre-allocated buffers (no allocation!)
+        bidBuffer_.clear();
+        askBuffer_.clear();
+        
+        // Direct conversion without intermediate allocations
+        for (const auto& [price, qty] : upd.bids) {
+            bidBuffer_.push_back({price, qty});
+        }
+        for (const auto& [price, qty] : upd.asks) {
+            askBuffer_.push_back({price, qty});
+        }
+        
+        // DIRECT UPDATE - No batching, no sorting (data is already sorted from Binance!)
+        state_->ApplyUpdateDirect(bidBuffer_, askBuffer_);
 
+        // Latency calculation (cheap)
         int64_t nowMs = hft::HighResTimer::UnixMs();
         int64_t latMs = nowMs - upd.transactionTime;
         if (latMs < 0) latMs = -latMs;
@@ -26,8 +48,11 @@ public:
     }
 
     void OnBookTicker(const std::string& symbol, const hft::ParsedBookTicker& bt) {
-        if (!state_) return;
-        state_->SetAppliedNow();
+        if (!state_) [[unlikely]] return;
+        
+        // CRITICAL: Update best prices immediately - this is the fastest price source!
+        state_->UpdateBestPrices(bt.bestBidPrice, bt.bestBidQty, bt.bestAskPrice, bt.bestAskQty);
+        
         int64_t nowMs = hft::HighResTimer::UnixMs();
         int64_t latMs = nowMs - bt.transactionTime;
         if (latMs < 0) latMs = -latMs;
@@ -36,15 +61,49 @@ public:
 
     void OnAggTrade(const std::string& symbol, const hft::ParsedAggTrade& trade) {
         (void)symbol; (void)trade;
-        if (!state_) return;
+        if (!state_) [[unlikely]] return;
         int64_t nowMs = hft::HighResTimer::UnixMs();
         int64_t latMs = nowMs - static_cast<int64_t>(trade.tradeTime);
         if (latMs < 0) latMs = -latMs;
         state_->UpdateLatency(latMs);
     }
 
+    // ???????????????????????????????????????????????????????????????????????????????
+    // Snapshot handler (not hot path)
+    // ???????????????????????????????????????????????????????????????????????????????
+    void OnSnapshot(const std::string& symbol, 
+                    const std::vector<std::pair<double, double>>& bids,
+                    const std::vector<std::pair<double, double>>& asks) {
+        if (!state_) return;
+        
+        std::vector<TradingBot::Core::OrderBookLevel> bidLevels;
+        std::vector<TradingBot::Core::OrderBookLevel> askLevels;
+        bidLevels.reserve(bids.size());
+        askLevels.reserve(asks.size());
+        
+        for (const auto& [price, qty] : bids) {
+            bidLevels.push_back({price, qty});
+        }
+        for (const auto& [price, qty] : asks) {
+            askLevels.push_back({price, qty});
+        }
+        
+        state_->ApplySnapshot(bidLevels, askLevels);
+        
+#ifdef _WIN32
+        std::ostringstream oss;
+        oss << "[Adapter] Snapshot applied: " << symbol 
+            << " bids=" << bids.size() << " asks=" << asks.size() << "\n";
+        OutputDebugStringA(oss.str().c_str());
+#endif
+    }
+
     std::shared_ptr<TradingBot::Core::SharedState> GetState() const { return state_; }
 
 private:
     std::shared_ptr<TradingBot::Core::SharedState> state_;
+    
+    // PRE-ALLOCATED buffers for zero-allocation in hot path
+    std::vector<TradingBot::Core::OrderBookLevel> bidBuffer_;
+    std::vector<TradingBot::Core::OrderBookLevel> askBuffer_;
 };

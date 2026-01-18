@@ -9,11 +9,14 @@
 #include <sstream>
 #include <thread>
 #include <immintrin.h>
+#include <deque>
+#include <array>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <processthreadsapi.h>
 #endif
 
 #include "Types.h"
@@ -55,6 +58,36 @@ namespace TradingBot::Core {
     };
 
     // ═══════════════════════════════════════════════════════════════
+    // Batch Update System - Tiger Architecture Enhancement
+    // ═══════════════════════════════════════════════════════════════
+    struct BatchUpdate {
+        std::vector<Models::PriceLevel> bids;
+        std::vector<Models::PriceLevel> asks;
+        int64_t timestampNs{0};
+        
+        BatchUpdate() {
+            bids.reserve(50);
+            asks.reserve(50);
+        }
+    };
+
+    struct BatchMetrics {
+        std::atomic<int64_t> totalBatches{0};
+        std::atomic<int64_t> messageFlushCount{0};
+        std::atomic<int64_t> timeFlushCount{0};
+        std::atomic<int64_t> priceFlushCount{0};
+        std::atomic<int64_t> avgBatchSize{0};
+        std::atomic<int64_t> maxBatchSize{0};
+        std::atomic<int64_t> batchLatencyNs{0};
+    };
+
+    enum class FlushReason {
+        MessageCount,
+        TimeElapsed,
+        BestPriceChange
+    };
+
+    // ═══════════════════════════════════════════════════════════════
     // SharedState: decoupled push/pull bridge between OrderBook and UI
     // ═══════════════════════════════════════════════════════════════
     class SharedState {
@@ -63,13 +96,34 @@ namespace TradingBot::Core {
         std::mutex instrumentsMutex;
 
         SharedState() {
-            renderCache_.Bids.reserve(200);
-            renderCache_.Asks.reserve(200);
-            renderCache_.BidsQuote.reserve(200);
-            renderCache_.AsksQuote.reserve(200);
+            // Initialize double buffers for lock-free UI reads
+            renderStateA_ = std::make_shared<RenderSnapshot>();
+            renderStateB_ = std::make_shared<RenderSnapshot>();
+            
+            renderStateA_->Bids.reserve(200);
+            renderStateA_->Asks.reserve(200);
+            renderStateA_->BidsQuote.reserve(200);
+            renderStateA_->AsksQuote.reserve(200);
 
+            renderStateB_->Bids.reserve(200);
+            renderStateB_->Asks.reserve(200);
+            renderStateB_->BidsQuote.reserve(200);
+            renderStateB_->AsksQuote.reserve(200);
+
+            // Set initial active buffer
+            activeSnapshot_.store(renderStateA_, std::memory_order_release);
+            
             tempBids_.reserve(200);
             tempAsks_.reserve(200);
+            
+            // Initialize batch system
+            batchBuffer_.bids.reserve(500);
+            batchBuffer_.asks.reserve(500);
+            lastBatchFlushNs_.store(HighResNowNs(), std::memory_order_relaxed);
+            
+            // Initialize best prices
+            lastBestBid_.store(0.0, std::memory_order_relaxed);
+            lastBestAsk_.store(0.0, std::memory_order_relaxed);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -133,8 +187,78 @@ namespace TradingBot::Core {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Apply snapshot (REST) - replaces entire book
+        // BATCH UPDATE SYSTEM - High-Performance Batching
         // ═══════════════════════════════════════════════════════════════
+
+        void BatchUpdate(const std::vector<OrderBookLevel>& bids,
+                        const std::vector<OrderBookLevel>& asks) {
+            std::lock_guard<SpinLock> lock(batchLock_);
+            
+            // Add to batch buffer
+            for (const auto& level : bids) {
+                batchBuffer_.bids.push_back({level.price, level.quantity});
+            }
+            for (const auto& level : asks) {
+                batchBuffer_.asks.push_back({level.price, level.quantity});
+            }
+            
+            batchMessageCount_.fetch_add(1, std::memory_order_relaxed);
+            
+            // Check flush conditions
+            bool shouldFlush = false;
+            FlushReason reason = FlushReason::MessageCount;
+            
+            // 1. Message count trigger (10 messages)
+            if (batchMessageCount_.load(std::memory_order_relaxed) >= kBatchMessageThreshold) {
+                shouldFlush = true;
+                reason = FlushReason::MessageCount;
+            }
+            
+            // 2. Time-based trigger (5ms)
+            int64_t nowNs = HighResNowNs();
+            int64_t lastFlush = lastBatchFlushNs_.load(std::memory_order_relaxed);
+            if ((nowNs - lastFlush) >= kBatchTimeThresholdNs) {
+                shouldFlush = true;
+                reason = FlushReason::TimeElapsed;
+            }
+            
+            // 3. Best price change trigger (priority flush)
+            if (!bids.empty() || !asks.empty()) {
+                double newBestBid = bids.empty() ? lastBestBid_.load(std::memory_order_relaxed) : bids[0].price;
+                double newBestAsk = asks.empty() ? lastBestAsk_.load(std::memory_order_relaxed) : asks[0].price;
+                
+                double oldBestBid = lastBestBid_.load(std::memory_order_relaxed);
+                double oldBestAsk = lastBestAsk_.load(std::memory_order_relaxed);
+                
+                if (std::abs(newBestBid - oldBestBid) > 1e-9 || 
+                    std::abs(newBestAsk - oldBestAsk) > 1e-9) {
+                    shouldFlush = true;
+                    reason = FlushReason::BestPriceChange;
+                    
+                    lastBestBid_.store(newBestBid, std::memory_order_relaxed);
+                    lastBestAsk_.store(newBestAsk, std::memory_order_relaxed);
+                }
+            }
+            
+            if (shouldFlush) {
+                FlushBatchLocked(reason);
+            }
+        }
+
+        void ForceFlushBatch() {
+            std::lock_guard<SpinLock> lock(batchLock_);
+            FlushBatchLocked(FlushReason::MessageCount);
+        }
+
+        void GetBatchMetrics(TradingBot::Core::BatchMetrics& out) const {
+            out.totalBatches.store(batchMetrics_.totalBatches.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            out.messageFlushCount.store(batchMetrics_.messageFlushCount.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            out.timeFlushCount.store(batchMetrics_.timeFlushCount.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            out.priceFlushCount.store(batchMetrics_.priceFlushCount.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            out.avgBatchSize.store(batchMetrics_.avgBatchSize.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            out.maxBatchSize.store(batchMetrics_.maxBatchSize.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            out.batchLatencyNs.store(batchMetrics_.batchLatencyNs.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
         void ApplySnapshot(const std::vector<OrderBookLevel>& bids,
                            const std::vector<OrderBookLevel>& asks) {
             tempBids_.clear();
@@ -145,12 +269,14 @@ namespace TradingBot::Core {
             for (const auto& level : bids) tempBids_.push_back({ level.price, level.quantity });
             for (const auto& level : asks) tempAsks_.push_back({ level.price, level.quantity });
 
+            // Update OrderBook - NO render snapshot copy!
             {
                 std::lock_guard<SpinLock> lock(stateLock_);
                 orderBook_.ApplySnapshot(tempBids_, tempAsks_);
                 version_.fetch_add(1, std::memory_order_release);
                 lastUpdateNs_.store(HighResNowNs(), std::memory_order_release);
             }
+            
             SetAppliedNow();
         }
 
@@ -167,12 +293,49 @@ namespace TradingBot::Core {
             for (const auto& level : bids) tempBids_.push_back({ level.price, level.quantity });
             for (const auto& level : asks) tempAsks_.push_back({ level.price, level.quantity });
 
+            // Update OrderBook - NO render snapshot copy!
             {
                 std::lock_guard<SpinLock> lock(stateLock_);
                 orderBook_.ApplyUpdate(tempBids_, tempAsks_);
                 version_.fetch_add(1, std::memory_order_release);
                 lastUpdateNs_.store(HighResNowNs(), std::memory_order_release);
             }
+            
+            SetAppliedNow();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ULTRA LOW LATENCY: Direct Update Path - ZERO COPY
+        // Data from Binance is ALREADY SORTED - no need to sort again!
+        // ═══════════════════════════════════════════════════════════════
+        void ApplyUpdateDirect(const std::vector<OrderBookLevel>& bids,
+                               const std::vector<OrderBookLevel>& asks) {
+            // CRITICAL: Minimal lock scope for maximum throughput
+            {
+                std::lock_guard<SpinLock> lock(stateLock_);
+                
+                // Direct application - data is pre-sorted from Binance
+                // Use fast incremental update (no sorting, no copying)
+                for (const auto& level : bids) {
+                    if (level.quantity < 1e-8) {
+                        orderBook_.RemoveBidDirect(level.price);
+                    } else {
+                        orderBook_.UpsertBidDirect(level.price, level.quantity);
+                    }
+                }
+                
+                for (const auto& level : asks) {
+                    if (level.quantity < 1e-8) {
+                        orderBook_.RemoveAskDirect(level.price);
+                    } else {
+                        orderBook_.UpsertAskDirect(level.price, level.quantity);
+                    }
+                }
+                
+                version_.fetch_add(1, std::memory_order_release);
+                lastUpdateNs_.store(HighResNowNs(), std::memory_order_release);
+            }
+            
             SetAppliedNow();
         }
 
@@ -199,54 +362,80 @@ namespace TradingBot::Core {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Pull-based rendering snapshot with versioning
+        // Pull-based rendering snapshot - UI pulls when needed (PULL MODEL)
+        // Throttling happens in OrderBookRenderer, not here!
         // ═══════════════════════════════════════════════════════════════
-        const RenderSnapshot& GetSnapshotForRender(int /*depth*/, double /*priceStep*/) {
-            const int64_t curVer = version_.load(std::memory_order_acquire);
-            if (renderCache_.Version == curVer) {
-                return renderCache_; // cached, no copy from book
+        RenderSnapshot GetSnapshotForRender(int /*depth*/, double /*priceStep*/) {
+            // Check version first (lock-free)
+            const int64_t currentVersion = version_.load(std::memory_order_acquire);
+            auto currentActive = activeSnapshot_.load(std::memory_order_acquire);
+            
+            // If already up-to-date, return cached snapshot (NO LOCK!)
+            if (currentActive && currentActive->Version == currentVersion) {
+                return *currentActive;
             }
-
-            const int64_t curStamp = lastUpdateNs_.load(std::memory_order_acquire);
-            if (renderCache_.TimestampNs == curStamp) {
-                return renderCache_;
-            }
-
-            std::lock_guard<SpinLock> lock(stateLock_);
-            const int64_t freshVer = version_.load(std::memory_order_relaxed);
-            if (renderCache_.Version != freshVer) {
+            
+            // Need fresh snapshot - copy ALL levels from OrderBook
+            auto backBuffer = (currentActive == renderStateA_) ? renderStateB_ : renderStateA_;
+            
+            {
+                std::lock_guard<SpinLock> lock(stateLock_);
                 const auto& bids = orderBook_.GetBids();
                 const auto& asks = orderBook_.GetAsks();
 
-                renderCache_.Bids.clear();
-                renderCache_.Asks.clear();
-                renderCache_.BidsQuote.clear();
-                renderCache_.AsksQuote.clear();
+                backBuffer->Bids.clear();
+                backBuffer->Asks.clear();
+                backBuffer->BidsQuote.clear();
+                backBuffer->AsksQuote.clear();
 
-                renderCache_.Bids.reserve(bids.size());
-                renderCache_.Asks.reserve(asks.size());
-                renderCache_.BidsQuote.reserve(bids.size());
-                renderCache_.AsksQuote.reserve(asks.size());
+                backBuffer->Bids.reserve(bids.size());
+                backBuffer->Asks.reserve(asks.size());
+                backBuffer->BidsQuote.reserve(bids.size());
+                backBuffer->AsksQuote.reserve(asks.size());
 
+                // Copy ALL levels - no compromises!
                 for (const auto& b : bids) {
-                    renderCache_.Bids.emplace_back(b.price, b.quantity);
-                    renderCache_.BidsQuote.emplace_back(b.price, b.price * b.quantity);
+                    backBuffer->Bids.emplace_back(b.price, b.quantity);
+                    backBuffer->BidsQuote.emplace_back(b.price, b.price * b.quantity);
                 }
                 for (const auto& a : asks) {
-                    renderCache_.Asks.emplace_back(a.price, a.quantity);
-                    renderCache_.AsksQuote.emplace_back(a.price, a.price * a.quantity);
+                    backBuffer->Asks.emplace_back(a.price, a.quantity);
+                    backBuffer->AsksQuote.emplace_back(a.price, a.price * a.quantity);
                 }
 
-                renderCache_.Version = freshVer;
-                renderCache_.TimestampNs = curStamp;
+                backBuffer->Version = currentVersion;
+                backBuffer->TimestampNs = lastUpdateNs_.load(std::memory_order_relaxed);
             }
-            return renderCache_;
+            
+            // Atomic swap
+            activeSnapshot_.store(backBuffer, std::memory_order_release);
+            return *backBuffer;
         }
 
         // Direct access to OrderBook (read-only)
         const Models::OrderBook& GetOrderBookDirect() const {
             return orderBook_;
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FAST PATH: BookTicker updates (fastest price source!)
+        // These come from @bookTicker stream - instant updates on best price change
+        // ═══════════════════════════════════════════════════════════════
+        void UpdateBestPrices(double bidPrice, double bidQty, double askPrice, double askQty) {
+            tickerBestBid_.store(bidPrice, std::memory_order_release);
+            tickerBestBidQty_.store(bidQty, std::memory_order_relaxed);
+            tickerBestAsk_.store(askPrice, std::memory_order_release);
+            tickerBestAskQty_.store(askQty, std::memory_order_relaxed);
+            tickerVersion_.fetch_add(1, std::memory_order_release);
+            SetAppliedNow();
+        }
+        
+        // Get best prices from bookTicker (faster than orderbook)
+        double GetTickerBestBid() const { return tickerBestBid_.load(std::memory_order_acquire); }
+        double GetTickerBestAsk() const { return tickerBestAsk_.load(std::memory_order_acquire); }
+        double GetTickerBestBidQty() const { return tickerBestBidQty_.load(std::memory_order_relaxed); }
+        double GetTickerBestAskQty() const { return tickerBestAskQty_.load(std::memory_order_relaxed); }
+        int64_t GetTickerVersion() const { return tickerVersion_.load(std::memory_order_acquire); }
 
         void UpdateExternalMetrics(const ExternalMetricsSnapshot& snap) {
             exchLatencyNs_.store(snap.exchLatencyNs, std::memory_order_relaxed);
@@ -286,6 +475,7 @@ namespace TradingBot::Core {
                 orderBook_.ApplySnapshot(tempBids_, tempAsks_);
                 version_.fetch_add(1, std::memory_order_release);
             }
+            // No render snapshot update - UI will pull when needed
         }
 
     private:
@@ -303,14 +493,128 @@ namespace TradingBot::Core {
             void unlock() { flag.clear(std::memory_order_release); }
         };
 
+        // ═══════════════════════════════════════════════════════════════
+        // Batch Processing - Private Implementation
+        // ═══════════════════════════════════════════════════════════════
+        void FlushBatchLocked(FlushReason reason) {
+            // Must be called with batchLock_ held!
+            if (batchBuffer_.bids.empty() && batchBuffer_.asks.empty()) {
+                return;
+            }
+            
+            const auto flushStart = HighResNowNs();
+            const size_t batchSize = batchBuffer_.bids.size() + batchBuffer_.asks.size();
+            
+            // Apply merged updates using optimized sorted merge
+            {
+                std::lock_guard<SpinLock> lock(stateLock_);
+                
+                // Use sorted merge instead of incremental binary search + insert
+                ApplyBatchOptimized(batchBuffer_.bids, batchBuffer_.asks);
+                
+                version_.fetch_add(1, std::memory_order_release);
+                lastUpdateNs_.store(HighResNowNs(), std::memory_order_release);
+            }
+            
+            // Clear batch
+            batchBuffer_.bids.clear();
+            batchBuffer_.asks.clear();
+            batchMessageCount_.store(0, std::memory_order_relaxed);
+            lastBatchFlushNs_.store(HighResNowNs(), std::memory_order_relaxed);
+            
+            // Update metrics
+            batchMetrics_.totalBatches.fetch_add(1, std::memory_order_relaxed);
+            
+            switch (reason) {
+                case FlushReason::MessageCount:
+                    batchMetrics_.messageFlushCount.fetch_add(1, std::memory_order_relaxed);
+                    break;
+                case FlushReason::TimeElapsed:
+                    batchMetrics_.timeFlushCount.fetch_add(1, std::memory_order_relaxed);
+                    break;
+                case FlushReason::BestPriceChange:
+                    batchMetrics_.priceFlushCount.fetch_add(1, std::memory_order_relaxed);
+                    break;
+            }
+            
+            // Update batch size stats
+            int64_t oldMax = batchMetrics_.maxBatchSize.load(std::memory_order_relaxed);
+            if (static_cast<int64_t>(batchSize) > oldMax) {
+                batchMetrics_.maxBatchSize.store(batchSize, std::memory_order_relaxed);
+            }
+            
+            int64_t oldAvg = batchMetrics_.avgBatchSize.load(std::memory_order_relaxed);
+            int64_t newAvg = oldAvg + ((static_cast<int64_t>(batchSize) - oldAvg) / 8);
+            batchMetrics_.avgBatchSize.store(newAvg, std::memory_order_relaxed);
+            
+            const auto flushEnd = HighResNowNs();
+            batchMetrics_.batchLatencyNs.store(flushEnd - flushStart, std::memory_order_relaxed);
+            
+            SetAppliedNow();
+        }
+
+        // Optimized batch application using sorted merge
+        void ApplyBatchOptimized(const std::vector<Models::PriceLevel>& bids,
+                                const std::vector<Models::PriceLevel>& asks) {
+            // Pre-sort batch updates by price
+            auto sortedBids = bids;
+            auto sortedAsks = asks;
+            
+            // Sort bids descending (highest price first)
+            std::sort(sortedBids.begin(), sortedBids.end(),
+                [](const auto& a, const auto& b) { return a.price > b.price; });
+            
+            // Sort asks ascending (lowest price first)
+            std::sort(sortedAsks.begin(), sortedAsks.end(),
+                [](const auto& a, const auto& b) { return a.price < b.price; });
+            
+            // Merge updates efficiently
+            orderBook_.ApplyBatchUpdate(sortedBids, sortedAsks);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Data Members
+        // ═══════════════════════════════════════════════════════════════
+
         SpinLock stateLock_;
         mutable SpinLock symbolLock_;
+        SpinLock batchLock_;  // Separate lock for batch buffer
 
         // Current trading symbol
         std::string currentSymbol_{ "BTCUSDT" };
 
-        // Optimized OrderBook (vector-based)
+        // Core OrderBook (protected by stateLock_)
         Models::OrderBook orderBook_;
+
+        // ═══════════════════════════════════════════════════════════════
+        // DOUBLE BUFFERING for ZERO-LOCK UI reads
+        // ═══════════════════════════════════════════════════════════════
+        std::shared_ptr<RenderSnapshot> renderStateA_;
+        std::shared_ptr<RenderSnapshot> renderStateB_;
+        std::atomic<std::shared_ptr<const RenderSnapshot>> activeSnapshot_;
+
+        // ═══════════════════════════════════════════════════════════════
+        // BATCH PROCESSING STATE
+        // ═══════════════════════════════════════════════════════════════
+        TradingBot::Core::BatchUpdate batchBuffer_;
+        std::atomic<int> batchMessageCount_{0};
+        std::atomic<int64_t> lastBatchFlushNs_{0};
+        std::atomic<double> lastBestBid_{0.0};
+        std::atomic<double> lastBestAsk_{0.0};
+        TradingBot::Core::BatchMetrics batchMetrics_;
+        
+        // Batch configuration
+        static constexpr int kBatchMessageThreshold = 10;
+        static constexpr int64_t kBatchTimeThresholdNs = 5'000'000; // 5ms
+
+        // ═══════════════════════════════════════════════════════════════
+        // BOOK TICKER - Fastest price source (real-time best bid/ask)
+        // ═══════════════════════════════════════════════════════════════
+        std::atomic<double> tickerBestBid_{0.0};
+        std::atomic<double> tickerBestBidQty_{0.0};
+        std::atomic<double> tickerBestAsk_{0.0};
+        std::atomic<double> tickerBestAskQty_{0.0};
+        std::atomic<int64_t> tickerVersion_{0};
 
         // Metrics
         std::atomic<long long> lastLatencyMs_{ 0 };
@@ -334,7 +638,6 @@ namespace TradingBot::Core {
 
         // Pull-model versioning
         std::atomic<int64_t> version_{0};
-        RenderSnapshot renderCache_;
         std::vector<Models::PriceLevel> tempBids_;
         std::vector<Models::PriceLevel> tempAsks_;
         std::atomic<int64_t> lastUpdateNs_{0};

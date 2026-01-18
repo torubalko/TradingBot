@@ -46,11 +46,11 @@
     <ClInclude Include="OrderBookRenderer.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="BinanceFeedAdapter.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="..\simdjson\simdjson-master\singleheader\simdjson.h">
       <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="BinanceFeedAdapter.h">
+      <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,4 +1,5 @@
 ﻿#include "HighSpeedDataFeed.h"
+#include "HttpClient.h"  // ← ADD HTTP CLIENT
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -9,6 +10,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#include "../TradingBot.Core/ThreadPriority.h"
 
 namespace hft {
 
@@ -250,6 +252,28 @@ void BinanceDataFeed::Start() {
     std::cout << "║ Parser threads: " << std::setw(45) << config_.numParserThreads << "║\n";
     std::cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
     
+    // ✅ FETCH REST SNAPSHOT FIRST!
+#ifdef _WIN32
+    OutputDebugStringA("[Snapshot] Fetching initial order book snapshots...\n");
+#endif
+    std::cout << "[Snapshot] Fetching initial order book snapshots...\n";
+    
+    for (const auto& symbol : config_.symbols) {
+        if (!FetchInitialSnapshot(symbol)) {
+            std::cerr << "[ERROR] Failed to fetch snapshot for " << symbol << "\n";
+#ifdef _WIN32
+            std::string msg = "[ERROR] Failed to fetch snapshot for " + symbol + "\n";
+            OutputDebugStringA(msg.c_str());
+#endif
+        }
+    }
+    
+#ifdef _WIN32
+    OutputDebugStringA("[Snapshot] All snapshots loaded. Starting WebSocket...\n\n");
+#endif
+    std::cout << "[Snapshot] All snapshots loaded. Starting WebSocket...\n\n";
+    
+    // Then start WebSocket
     CreateSessions();
     
     // Processor threads must be single consumer for SPSC queue
@@ -400,33 +424,59 @@ std::string BinanceDataFeed::BuildStreamPath() {
     return combined;
 }
 
+void BinanceDataFeed::ProcessorThreadFunc() {
+    // BOOST PRIORITY
+    TradingBot::Core::ThreadPriorityManager::SetCurrentThreadPriority(
+        TradingBot::Core::ThreadPriority::TimeCritical
+    );
+    
+    int idleSpins = 0;
+    while (running_.load(std::memory_order_relaxed)) {
+        auto msg = messageQueue_->TryPop();
+
+        if (!msg) {
+            // Aggressive spinning for low latency
+            for (int spin = 0; spin < 100; ++spin) {
+#ifdef _MSC_VER
+                _mm_pause();
+#endif
+                msg = messageQueue_->TryPop();
+                if (msg) break;
+            }
+            
+            if (!msg) {
+                if (++idleSpins >= 5000) {
+                    idleSpins = 0;
+                    std::this_thread::sleep_for(std::chrono::microseconds(100));
+                    MaybeLogDiagnostics();
+                }
+                continue;
+            }
+        }
+        idleSpins = 0;
+        ProcessMessage(std::move(*msg));
+        
+        // Process additional messages in burst (batch processing)
+        for (int batch = 0; batch < 16; ++batch) {
+            auto nextMsg = messageQueue_->TryPop();
+            if (!nextMsg) break;
+            ProcessMessage(std::move(*nextMsg));
+        }
+        
+        MaybeLogDiagnostics();
+    }
+}
+
 void BinanceDataFeed::IoThreadFunc() {
+    // BOOST PRIORITY
+    TradingBot::Core::ThreadPriorityManager::SetCurrentThreadPriority(
+        TradingBot::Core::ThreadPriority::TimeCritical
+    );
+    
     try {
         ioc_.run();
     } catch (const std::exception& e) {
         std::cerr << "[IO] Exception: " << e.what() << std::endl;
-    }
-}
-
-void BinanceDataFeed::ProcessorThreadFunc() {
-    int idleSpins = 0;
-    while (running_.load()) {
-        auto msg = messageQueue_->TryPop();
-
-        if (!msg) {
-#ifdef _MSC_VER
-            _mm_pause();
-#endif
-            if (++idleSpins >= 1000) {
-                idleSpins = 0;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                MaybeLogDiagnostics();
-            }
-            continue;
-        }
-        idleSpins = 0;
-        ProcessMessage(std::move(*msg));
-        MaybeLogDiagnostics();
     }
 }
 
@@ -464,11 +514,9 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
     }
 
     const int64_t processStartNs = HighResTimer::NowNs();
-    int64_t recvMsAdjusted = HighResTimer::UnixMs() + clockOffsetMs_.load(std::memory_order_relaxed);
-    int64_t rttHalf = lastTimeSyncRttMs_.load(std::memory_order_relaxed) / 2;
-    if (rttHalf > 0 && rttHalf < 5000) {
-        recvMsAdjusted -= rttHalf; // remove half RTT to approximate one-way
-    }
+    // Cache adjusted time once for this message
+    const int64_t recvMsAdjusted = HighResTimer::UnixMs() + clockOffsetMs_.load(std::memory_order_relaxed);
+    
     if (config_.enableLatencyTracking) {
         latencyTracker_.RecordEnqueueLatencyNs(processStartNs - msg.ReceiveTimestampNs());
     }
@@ -485,26 +533,25 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
             update.asks.clear();
 
             if (parser.ParseDepthUpdate(jsonData, jsonSize, update)) {
-                int64_t parseTime = HighResTimer::NowNs() - processStartNs;
-
-                int64_t recvMsRaw = HighResTimer::UnixMs();
-                int64_t recvMs = recvMsAdjusted;
-                int64_t netDeltaRaw = recvMsRaw - update.transactionTime;
-                lastRawNetworkDeltaMs_.store(netDeltaRaw, std::memory_order_relaxed);
+                const int64_t afterParseNs = config_.enableLatencyTracking ? HighResTimer::NowNs() : 0;
 
                 if (config_.enableLatencyTracking) {
-                    latencyTracker_.RecordParseLatency(parseTime);
+                    latencyTracker_.RecordParseLatency(afterParseNs - processStartNs);
                     latencyTracker_.RecordExchangeLatency(update.eventTime, update.transactionTime);
-                    int64_t netDeltaMs = recvMs - update.transactionTime;
+                    int64_t netDeltaMs = recvMsAdjusted - update.transactionTime;
                     lastNetworkDeltaMs_.store(netDeltaMs, std::memory_order_relaxed);
-                    latencyTracker_.RecordNetworkLatency(update.transactionTime, recvMs);
+                    latencyTracker_.RecordNetworkLatency(update.transactionTime, recvMsAdjusted);
                 }
+                
+                // Raw network delta (always update for diagnostics)
+                lastRawNetworkDeltaMs_.store(HighResTimer::UnixMs() - update.transactionTime, std::memory_order_relaxed);
 
-                int64_t processApplyStart = HighResTimer::NowNs();
-
+                // VALIDATE SYNC FIRST - Only process if internal orderbook accepts it
                 auto it = orderBooks_.find(update.symbol);
+                bool shouldCallback = false;
+                
                 if (it != orderBooks_.end()) {
-                    it->second->ApplyDepthUpdate(
+                    auto result = it->second->ApplyDepthUpdate(
                         update.eventTime,
                         update.transactionTime,
                         update.firstUpdateId,
@@ -512,14 +559,22 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                         update.bids,
                         update.asks
                     );
+                    
+                    // Only callback if update was actually applied
+                    shouldCallback = (result == OrderBook::UpdateResult::Applied);
+                    
+                    // Handle out-of-sync - trigger resync
+                    if (result == OrderBook::UpdateResult::OutOfSync) {
+#ifdef _WIN32
+                        OutputDebugStringA("[DataFeed] OUT OF SYNC - Need to refetch snapshot!\n");
+#endif
+                        // TODO: Trigger automatic resync here
+                    }
                 }
 
-                if (config_.enableLatencyTracking) {
-                    latencyTracker_.RecordProcessLatency(HighResTimer::NowNs() - processApplyStart);
-                }
-
-                if (depthCallback_) {
-                    int64_t cbStart = HighResTimer::NowNs();
+                // FAST PATH: Direct callback ONLY if update was validated
+                if (shouldCallback && depthCallback_) [[likely]] {
+                    const int64_t cbStart = config_.enableLatencyTracking ? HighResTimer::NowNs() : 0;
                     depthCallback_(update.symbol, update);
                     if (config_.enableLatencyTracking) {
                         latencyTracker_.RecordCallbackLatency(HighResTimer::NowNs() - cbStart);
@@ -527,6 +582,7 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                 }
 
                 if (config_.enableLatencyTracking) {
+                    latencyTracker_.RecordProcessLatency(HighResTimer::NowNs() - afterParseNs);
                     latencyTracker_.RecordEndToEndNs(HighResTimer::NowNs() - msg.ReceiveTimestampNs());
                 }
             }
@@ -633,6 +689,16 @@ void BinanceDataFeed::MaybeLogDiagnostics() {
     int64_t netDeltaRaw = lastRawNetworkDeltaMs_.load(std::memory_order_relaxed);
     bool syncOk = timeSyncOk_.load(std::memory_order_relaxed);
 
+    // Get orderbook sync stats
+    int64_t obDropped = 0, obOOS = 0, obApplied = 0;
+    bool obSynced = false;
+    for (const auto& [sym, ob] : orderBooks_) {
+        obDropped += ob->GetDroppedUpdates();
+        obOOS += ob->GetOutOfSyncCount();
+        obApplied += ob->GetAppliedUpdates();
+        obSynced = ob->IsSynced();  // Use last one for single-symbol case
+    }
+
     std::stringstream ss;
     ss << "[FeedDiag] now=" << nowMs
        << " ms q=" << qSize << "/" << qCap
@@ -641,6 +707,8 @@ void BinanceDataFeed::MaybeLogDiagnostics() {
        << " msgs=" << msgs
        << " | offset=" << offset << "ms rtt=" << syncRtt << "ms netDelta=" << netDelta << "ms raw=" << netDeltaRaw << "ms"
        << " sync=" << (syncOk ? "ok" : "fail")
+       << " | OB: " << (obSynced ? "SYNCED" : "WAITING") 
+       << " applied=" << obApplied << " skip=" << obDropped << " oos=" << obOOS
        << " | " << latencyTracker_.GetSummaryString();
 
 #ifdef _WIN32
@@ -807,6 +875,167 @@ int64_t BinanceDataFeed::FetchServerTimeMs() {
         if (t > 0) return t;
     }
     return -1;
+}
+
+bool BinanceDataFeed::FetchInitialSnapshot(const std::string& symbol) {
+    std::string upperSymbol = symbol;
+    std::transform(upperSymbol.begin(), upperSymbol.end(), upperSymbol.begin(), ::toupper);
+    
+#ifdef _WIN32
+    std::string dbgMsg = "[Snapshot] Fetching " + upperSymbol + "...\n";
+    OutputDebugStringA(dbgMsg.c_str());
+#endif
+    
+    // REST API: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000
+    std::string url = "https://fapi.binance.com/fapi/v1/depth?symbol=" + upperSymbol + "&limit=1000";
+    
+    // Fetch HTTP using WinHTTP
+    std::string response = SimpleHttpClient::HttpGet(url);
+    if (response.empty()) {
+        std::cerr << "[Snapshot] HTTP GET failed for " << upperSymbol << "\n";
+#ifdef _WIN32
+        std::string errMsg = "[Snapshot] HTTP GET failed for " + upperSymbol + "\n";
+        OutputDebugStringA(errMsg.c_str());
+#endif
+        return false;
+    }
+    
+#ifdef _WIN32
+    std::string okMsg = "[Snapshot] Got " + std::to_string(response.size()) + " bytes for " + upperSymbol + "\n";
+    OutputDebugStringA(okMsg.c_str());
+    
+    // DEBUG: Show first 500 chars of response
+    std::string preview = response.substr(0, std::min<size_t>(500, response.size()));
+    OutputDebugStringA(("[Snapshot] JSON preview: " + preview + "\n").c_str());
+#endif
+    
+    // Parse JSON snapshot - Add simdjson padding
+    size_t originalSize = response.size();
+    response.resize(response.size() + simdjson::SIMDJSON_PADDING, '\0');
+    
+    try {
+        simdjson::ondemand::parser parser;
+        // IMPORTANT: use originalSize for json_len, full buffer size for capacity
+        auto doc = parser.iterate(response.data(), originalSize, response.size());
+        
+        // Get lastUpdateId
+        int64_t lastUpdateId = 0;
+        auto idResult = doc["lastUpdateId"].get_int64();
+        if (!idResult.error()) {
+            lastUpdateId = idResult.value();
+        }
+#ifdef _WIN32
+        else {
+            OutputDebugStringA(("[Snapshot] Failed to get lastUpdateId: " + std::to_string(static_cast<int>(idResult.error())) + "\n").c_str());
+        }
+#endif
+        
+        // Parse bids
+        std::vector<std::pair<double, double>> bids;
+        auto bidsResult = doc["bids"];
+        if (bidsResult.error()) {
+#ifdef _WIN32
+            OutputDebugStringA(("[Snapshot] Failed to get bids array: " + std::to_string(static_cast<int>(bidsResult.error())) + "\n").c_str());
+#endif
+        } else {
+            auto bidsArray = bidsResult.value();
+            for (auto bid : bidsArray) {
+                auto arr = bid.get_array();
+                std::string_view priceStr, qtyStr;
+                
+                size_t idx = 0;
+                for (auto val : arr) {
+                    if (idx == 0) {
+                        auto ps = val.get_string();
+                        if (!ps.error()) priceStr = ps.value();
+                    } else if (idx == 1) {
+                        auto qs = val.get_string();
+                        if (!qs.error()) qtyStr = qs.value();
+                        break;
+                    }
+                    idx++;
+                }
+                
+                double price = FastStringToDouble(priceStr);
+                double qty = FastStringToDouble(qtyStr);
+                
+                if (price > 0.0 && qty > 0.0) {
+                    bids.emplace_back(price, qty);
+                }
+            }
+        }
+        
+        // Parse asks
+        std::vector<std::pair<double, double>> asks;
+        auto asksResult = doc["asks"];
+        if (asksResult.error()) {
+#ifdef _WIN32
+            OutputDebugStringA(("[Snapshot] Failed to get asks array: " + std::to_string(static_cast<int>(asksResult.error())) + "\n").c_str());
+#endif
+        } else {
+            auto asksArray = asksResult.value();
+            for (auto ask : asksArray) {
+                auto arr = ask.get_array();
+                std::string_view priceStr, qtyStr;
+                
+                size_t idx = 0;
+                for (auto val : arr) {
+                    if (idx == 0) {
+                        auto ps = val.get_string();
+                        if (!ps.error()) priceStr = ps.value();
+                    } else if (idx == 1) {
+                        auto qs = val.get_string();
+                        if (!qs.error()) qtyStr = qs.value();
+                        break;
+                    }
+                    idx++;
+                }
+                
+                double price = FastStringToDouble(priceStr);
+                double qty = FastStringToDouble(qtyStr);
+                
+                if (price > 0.0 && qty > 0.0) {
+                    asks.emplace_back(price, qty);
+                }
+            }
+        }
+        
+        // Apply snapshot to OrderBook
+        auto it = orderBooks_.find(upperSymbol);
+        if (it != orderBooks_.end()) {
+            it->second->ApplySnapshot(lastUpdateId, bids, asks);
+            
+            std::cout << "[Snapshot] " << upperSymbol << " initialized with " 
+                      << bids.size() << " bids, " 
+                      << asks.size() << " asks, lastUpdateId=" << lastUpdateId << "\n";
+                      
+#ifdef _WIN32
+            std::ostringstream oss;
+            oss << "[Snapshot] " << upperSymbol << " initialized with " 
+                << bids.size() << " bids, " 
+                << asks.size() << " asks, lastUpdateId=" << lastUpdateId << "\n";
+            OutputDebugStringA(oss.str().c_str());
+#endif
+        }
+        
+        // ✅ CRITICAL: Propagate snapshot to SharedState via callback
+        if (snapshotCallback_) {
+            snapshotCallback_(upperSymbol, bids, asks);
+#ifdef _WIN32
+            OutputDebugStringA("[Snapshot] Callback fired - SharedState should now have snapshot\n");
+#endif
+        }
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "[Snapshot] Parse error: " << e.what() << "\n";
+#ifdef _WIN32
+        std::string errMsg = "[Snapshot] Parse error: " + std::string(e.what()) + "\n";
+        OutputDebugStringA(errMsg.c_str());
+#endif
+        return false;
+    }
 }
 
 } // namespace hft

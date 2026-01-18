@@ -76,6 +76,24 @@ namespace TradingBot::Core::Models {
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // Batch Update with Sorted Merge - ULTRA LOW LATENCY
+        // Pre-sorted updates are merged in O(n) instead of O(n log n)
+        // ═══════════════════════════════════════════════════════════════
+        void ApplyBatchUpdate(const std::vector<PriceLevel>& bidUpdates,
+                             const std::vector<PriceLevel>& askUpdates) {
+            // Batch updates are already sorted by caller
+            // Use sorted merge for O(n) complexity instead of O(n log n)
+            
+            if (!bidUpdates.empty()) {
+                MergeBidsOptimized(bidUpdates);
+            }
+            
+            if (!askUpdates.empty()) {
+                MergeAsksOptimized(askUpdates);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // Доступ к данным (Read-only, lock-free для читателей)
         // ═══════════════════════════════════════════════════════════════
         const std::vector<PriceLevel>& GetBids() const { return bids_; }
@@ -90,28 +108,26 @@ namespace TradingBot::Core::Models {
             return asks_.empty() ? 0.0 : asks_.front().price;
         }
 
-    private:
         // ═══════════════════════════════════════════════════════════════
-        // Internal Helpers: Binary Search + In-place Modification
+        // ULTRA LOW LATENCY: Direct access methods (PUBLIC for SharedState)
+        // These use binary search O(log n) - very fast for incremental updates
         // ═══════════════════════════════════════════════════════════════
-
-        void UpsertBid(const PriceLevel& level) {
+        
+        void UpsertBidDirect(double price, double quantity) {
             // Binary search (DESC sorted)
-            auto it = std::lower_bound(bids_.begin(), bids_.end(), level,
-                [](const PriceLevel& a, const PriceLevel& b) {
-                    return a.price > b.price; // DESC
+            auto it = std::lower_bound(bids_.begin(), bids_.end(), price,
+                [](const PriceLevel& a, double p) {
+                    return a.price > p; // DESC
                 });
 
-            if (it != bids_.end() && std::abs(it->price - level.price) < 1e-8) {
-                // Обновление существующего уровня
-                it->quantity = level.quantity;
+            if (it != bids_.end() && std::abs(it->price - price) < 1e-8) {
+                it->quantity = quantity;  // Update in place - NO ALLOCATION
             } else {
-                // Вставка нового уровня (может вызвать reallocation, но редко)
-                bids_.insert(it, level);
+                bids_.insert(it, PriceLevel{price, quantity});
             }
         }
-
-        void RemoveBid(double price) {
+        
+        void RemoveBidDirect(double price) {
             auto it = std::lower_bound(bids_.begin(), bids_.end(), price,
                 [](const PriceLevel& a, double p) {
                     return a.price > p;
@@ -121,25 +137,134 @@ namespace TradingBot::Core::Models {
                 bids_.erase(it);
             }
         }
+        
+        void UpsertAskDirect(double price, double quantity) {
+            PriceLevel temp{price, 0.0};
+            auto it = std::lower_bound(asks_.begin(), asks_.end(), temp);
 
-        void UpsertAsk(const PriceLevel& level) {
-            // Binary search (ASC sorted)
-            auto it = std::lower_bound(asks_.begin(), asks_.end(), level);
-
-            if (it != asks_.end() && std::abs(it->price - level.price) < 1e-8) {
-                it->quantity = level.quantity;
+            if (it != asks_.end() && std::abs(it->price - price) < 1e-8) {
+                it->quantity = quantity;  // Update in place - NO ALLOCATION
             } else {
-                asks_.insert(it, level);
+                asks_.insert(it, PriceLevel{price, quantity});
             }
         }
-
-        void RemoveAsk(double price) {
-            PriceLevel temp{ price, 0.0 };
+        
+        void RemoveAskDirect(double price) {
+            PriceLevel temp{price, 0.0};
             auto it = std::lower_bound(asks_.begin(), asks_.end(), temp);
 
             if (it != asks_.end() && std::abs(it->price - price) < 1e-8) {
                 asks_.erase(it);
             }
+        }
+
+    private:
+        // ═══════════════════════════════════════════════════════════════
+        // Internal Helpers: Binary Search + In-place Modification
+        // ═══════════════════════════════════════════════════════════════
+
+        void UpsertBid(const PriceLevel& level) {
+            UpsertBidDirect(level.price, level.quantity);
+        }
+
+        void RemoveBid(double price) {
+            RemoveBidDirect(price);
+        }
+
+        void UpsertAsk(const PriceLevel& level) {
+            UpsertAskDirect(level.price, level.quantity);
+        }
+
+        void RemoveAsk(double price) {
+            RemoveAskDirect(price);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Optimized Sorted Merge for Batch Processing - O(n) complexity
+        // ═══════════════════════════════════════════════════════════════
+        
+        void MergeBidsOptimized(const std::vector<PriceLevel>& updates) {
+            // Pre-condition: updates are sorted DESC
+            std::vector<PriceLevel> merged;
+            merged.reserve(bids_.size() + updates.size());
+            
+            auto it1 = bids_.begin();
+            auto it2 = updates.begin();
+            
+            // Two-pointer merge (DESC order)
+            while (it1 != bids_.end() && it2 != updates.end()) {
+                if (it1->price > it2->price) {
+                    merged.push_back(*it1++);
+                } else if (std::abs(it1->price - it2->price) < 1e-8) {
+                    // Update existing level or remove if qty is 0
+                    if (it2->quantity > 1e-8) {
+                        merged.push_back(*it2);
+                    }
+                    ++it1;
+                    ++it2;
+                } else {
+                    // New level from updates
+                    if (it2->quantity > 1e-8) {
+                        merged.push_back(*it2);
+                    }
+                    ++it2;
+                }
+            }
+            
+            // Append remaining elements
+            while (it1 != bids_.end()) {
+                merged.push_back(*it1++);
+            }
+            while (it2 != updates.end()) {
+                if (it2->quantity > 1e-8) {
+                    merged.push_back(*it2);
+                }
+                ++it2;
+            }
+            
+            bids_ = std::move(merged);
+        }
+        
+        void MergeAsksOptimized(const std::vector<PriceLevel>& updates) {
+            // Pre-condition: updates are sorted ASC
+            std::vector<PriceLevel> merged;
+            merged.reserve(asks_.size() + updates.size());
+            
+            auto it1 = asks_.begin();
+            auto it2 = updates.begin();
+            
+            // Two-pointer merge (ASC order)
+            while (it1 != asks_.end() && it2 != updates.end()) {
+                if (it1->price < it2->price) {
+                    merged.push_back(*it1++);
+                } else if (std::abs(it1->price - it2->price) < 1e-8) {
+                    // Update existing level or remove if qty is 0
+                    if (it2->quantity > 1e-8) {
+                        merged.push_back(*it2);
+                    }
+                    ++it1;
+                    ++it2;
+                } else {
+                    // New level from updates
+                    if (it2->quantity > 1e-8) {
+                        merged.push_back(*it2);
+                    }
+                    ++it2;
+                }
+            }
+            
+            // Append remaining elements
+            while (it1 != asks_.end()) {
+                merged.push_back(*it1++);
+            }
+            while (it2 != updates.end()) {
+                if (it2->quantity > 1e-8) {
+                    merged.push_back(*it2);
+                }
+                ++it2;
+            }
+            
+            asks_ = std::move(merged);
         }
 
         // ═══════════════════════════════════════════════════════════════

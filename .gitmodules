@@ -1,0 +1,13 @@
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "vendor/implot"]
+	path = vendor/implot
+	url = https://github.com/epezent/implot.git
+[submodule "vendor/date"]
+	path = vendor/date
+	url = https://github.com/HowardHinnant/date.git
+[submodule "vendor/concurrentqueue"]
+	path = vendor/concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue.git

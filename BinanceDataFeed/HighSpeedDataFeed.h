@@ -47,15 +47,23 @@ struct DataFeedConfig {
     std::vector<std::string> symbols = {"btcusdt"};
     
     // Streams to subscribe (per symbol)
-    bool subscribeDepth = true;           // @depth@100ms - Full order book diff
-    bool subscribeBookTicker = true;      // @bookTicker - Best bid/ask (fastest)
-    bool subscribeAggTrade = false;       // @aggTrade - Aggregated trades
+    // Binance FUTURES WebSocket streams:
+    // - @depth@100ms - Diff depth every 100ms (fastest for full book)
+    // - @bookTicker  - Real-time best bid/ask (FASTEST for prices!)
+    // - @aggTrade    - Aggregated trades
+    bool subscribeDepth = true;
+    bool subscribeBookTicker = true;     // CRITICAL: Real-time best prices!
+    bool subscribeAggTrade = false;
     
-    // Depth stream settings
-    std::string depthSpeed = "@100ms";    // @100ms or @500ms
+    // Depth stream speed for Binance FUTURES:
+    // "@100ms" - fastest available (100ms batches)
+    // "@250ms" - medium
+    // "@500ms" - slowest
+    // NOTE: Futures does NOT support real-time @depth like Spot!
+    std::string depthSpeed = "@100ms";
     
     // Performance settings
-    int numParserThreads = static_cast<int>(std::max(4u, std::thread::hardware_concurrency()));             // Threads for JSON parsing
+    int numParserThreads = 2;
     bool enableLatencyTracking = true;
     bool enableDetailedLogging = false;
     
@@ -65,7 +73,7 @@ struct DataFeedConfig {
     
     // Buffer sizes
     size_t readBufferSize = 64 * 1024;    // 64KB
-    size_t messageQueueSize = 32768;
+    size_t messageQueueSize = 65536;      // Larger queue for bursts
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -77,6 +85,11 @@ using AggTradeCallback = std::function<void(const std::string& symbol, const Par
 using ErrorCallback = std::function<void(const std::string& error)>;
 using ConnectedCallback = std::function<void()>;
 using DisconnectedCallback = std::function<void()>;
+
+// Snapshot callback: (symbol, bids[price,qty], asks[price,qty])
+using SnapshotCallback = std::function<void(const std::string& symbol, 
+    const std::vector<std::pair<double, double>>& bids, 
+    const std::vector<std::pair<double, double>>& asks)>;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WebSocket Session (one per stream)
@@ -148,6 +161,7 @@ public:
     void SetErrorCallback(ErrorCallback cb) { errorCallback_ = std::move(cb); }
     void SetConnectedCallback(ConnectedCallback cb) { connectedCallback_ = std::move(cb); }
     void SetDisconnectedCallback(DisconnectedCallback cb) { disconnectedCallback_ = std::move(cb); }
+    void SetSnapshotCallback(SnapshotCallback cb) { snapshotCallback_ = std::move(cb); }
     
     // Order Book Access
     OrderBook& GetOrderBook(const std::string& symbol);
@@ -164,6 +178,7 @@ public:
     size_t GetQueueHighWaterMark() const { return queueHighWaterMark_.load(); }
 
     void PrintStatistics();
+    bool FetchInitialSnapshot(const std::string& symbol);
 
 private:
     void CreateSessions();
@@ -212,6 +227,7 @@ private:
     ErrorCallback errorCallback_;
     ConnectedCallback connectedCallback_;
     DisconnectedCallback disconnectedCallback_;
+    SnapshotCallback snapshotCallback_;
     
     // Latency tracking
     LatencyTracker latencyTracker_;

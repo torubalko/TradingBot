@@ -659,6 +659,14 @@ void StartFeedForSymbol(const std::string& sym) {
     g_Feed->SetAggTradeCallback([adapter = g_FeedAdapter.get()](const std::string& symbol, const hft::ParsedAggTrade& tr) {
         if (adapter) adapter->OnAggTrade(symbol, tr);
     });
+    
+    // ✅ CRITICAL: Set snapshot callback to propagate REST snapshot to SharedState
+    g_Feed->SetSnapshotCallback([adapter = g_FeedAdapter.get()](
+            const std::string& symbol, 
+            const std::vector<std::pair<double, double>>& bids,
+            const std::vector<std::pair<double, double>>& asks) {
+        if (adapter) adapter->OnSnapshot(symbol, bids, asks);
+    });
 
     if (g_SharedState) {
         g_SharedState->ResetOrderBook();

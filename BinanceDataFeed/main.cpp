@@ -11,16 +11,20 @@ extern "C" __declspec(dllimport) int __stdcall FreeConsole(void);
 #endif
 
 #include "HighSpeedDataFeed.h"
+#include "../TradingBot.Core/SharedState.h"  // ← CRITICAL INCLUDE!
 
 using namespace hft;
 
-static constexpr bool kShowConsole = false;
+static constexpr bool kShowConsole = true;  // ← ENABLE FOR DEBUG!
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Global state
 // ═══════════════════════════════════════════════════════════════════════════════
 std::atomic<bool> g_Running{true};
 std::unique_ptr<BinanceDataFeed> g_DataFeed;
+
+// Global SharedState
+std::shared_ptr<TradingBot::Core::SharedState> g_SharedState;
 
 // Atomic counters for stats (lock-free)
 std::atomic<int64_t> g_DepthUpdates{0};
@@ -39,15 +43,78 @@ void SignalHandler(int signal) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Callbacks - just update atomic counters (no console output!)
+// Callbacks - ULTRA LOW LATENCY with pre-allocated buffers
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Thread-local buffers for zero allocation in hot path
+static thread_local std::vector<TradingBot::Core::OrderBookLevel> tl_bids;
+static thread_local std::vector<TradingBot::Core::OrderBookLevel> tl_asks;
+static thread_local bool tl_initialized = false;
 
 void OnDepthUpdate(const std::string& symbol, const ParsedDepthUpdate& update) {
     g_DepthUpdates.fetch_add(1, std::memory_order_relaxed);
+
+    if (!g_SharedState) [[unlikely]] return;
+    
+    // Initialize thread-local buffers once
+    if (!tl_initialized) [[unlikely]] {
+        tl_bids.reserve(256);
+        tl_asks.reserve(256);
+        tl_initialized = true;
+    }
+    
+    // Reuse buffers - NO ALLOCATION
+    tl_bids.clear();
+    tl_asks.clear();
+    
+    for (const auto& [price, qty] : update.bids) {
+        tl_bids.push_back({price, qty});
+    }
+    for (const auto& [price, qty] : update.asks) {
+        tl_asks.push_back({price, qty});
+    }
+    
+    // DIRECT UPDATE - Zero copy, no batching
+    g_SharedState->ApplyUpdateDirect(tl_bids, tl_asks);
+    
+    // Verify prices match (debug only)
+    if (g_DataFeed && g_DataFeed->HasOrderBook(symbol)) [[likely]] {
+        const auto& ob = g_DataFeed->GetOrderBook(symbol);
+        (void)ob; // Suppress unused warning
+    }
 }
 
 void OnBookTicker(const std::string& symbol, const ParsedBookTicker& ticker) {
     g_BookTickerUpdates.fetch_add(1, std::memory_order_relaxed);
+}
+
+// ✅ Handle REST snapshot - apply to SharedState
+void OnSnapshot(const std::string& symbol, 
+                const std::vector<std::pair<double, double>>& bids,
+                const std::vector<std::pair<double, double>>& asks) {
+    if (!g_SharedState) return;
+    
+    std::vector<TradingBot::Core::OrderBookLevel> bidLevels, askLevels;
+    bidLevels.reserve(bids.size());
+    askLevels.reserve(asks.size());
+    
+    for (const auto& [price, qty] : bids) {
+        bidLevels.push_back({price, qty});
+    }
+    for (const auto& [price, qty] : asks) {
+        askLevels.push_back({price, qty});
+    }
+    
+    g_SharedState->ApplySnapshot(bidLevels, askLevels);
+    
+#ifdef _WIN32
+    std::ostringstream oss;
+    oss << "[main.cpp] Snapshot applied to SharedState: " << symbol 
+        << " bids=" << bids.size() << " asks=" << asks.size() << "\n";
+    OutputDebugStringA(oss.str().c_str());
+#endif
+    std::cout << "[Snapshot] SharedState initialized with " << bids.size() 
+              << " bids, " << asks.size() << " asks" << std::endl;
 }
 
 void OnAggTrade(const std::string& symbol, const ParsedAggTrade& trade) {
@@ -88,6 +155,12 @@ void DisplayThread(const std::string& symbol) {
             tradeVol = oldVol;
 
             auto& lt = g_DataFeed->GetLatencyTracker();
+            
+            // ✅ Get Batch Metrics
+            TradingBot::Core::BatchMetrics batchMetrics;
+            if (g_SharedState) {
+                g_SharedState->GetBatchMetrics(batchMetrics);
+            }
 
             std::ostringstream line;
             line << std::fixed << std::setprecision(2)
@@ -99,8 +172,16 @@ void DisplayThread(const std::string& symbol) {
                  << " | Trades: " << trades << " ($" << std::setprecision(0) << tradeVol << ")"
                  << " | Levels: " << ob.BidLevels() << "/" << ob.AskLevels()
                  << " | Drops: " << g_DataFeed->GetDroppedMessages()
-                 << " | Qmax: " << g_DataFeed->GetQueueHighWaterMark()
-                 << " | Total: " << lt.GetEndToEndP99Ms() << "ms"
+                 << " | Qmax: " << g_DataFeed->GetQueueHighWaterMark();
+            
+            // ✅ Add Batch Statistics
+            if (g_SharedState) {
+                line << " | Batches: " << batchMetrics.totalBatches.load(std::memory_order_relaxed)
+                     << " | PFlush: " << batchMetrics.priceFlushCount.load(std::memory_order_relaxed)
+                     << " | BLat: " << (batchMetrics.batchLatencyNs.load(std::memory_order_relaxed) / 1000) << "µs";
+            }
+            
+            line << " | Total: " << lt.GetEndToEndP99Ms() << "ms"
                  << " | " << lt.GetMessagesPerSecond() << " msg/s";
 
             std::string out = line.str();
@@ -118,6 +199,12 @@ void DisplayThread(const std::string& symbol) {
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 int main(int argc, char* argv[]) {
+    std::ios::sync_with_stdio(false);  // +30% скорость std::cout
+    std::cin.tie(nullptr);
+
+    // ✅ CRITICAL: Initialize SharedState FIRST!
+    g_SharedState = std::make_shared<TradingBot::Core::SharedState>();
+
     if (!kShowConsole) {
 #ifdef _WIN32
         FreeConsole();
@@ -173,6 +260,7 @@ int main(int argc, char* argv[]) {
         g_DataFeed->SetDepthUpdateCallback(OnDepthUpdate);
         g_DataFeed->SetBookTickerCallback(OnBookTicker);
         g_DataFeed->SetAggTradeCallback(OnAggTrade);
+        g_DataFeed->SetSnapshotCallback(OnSnapshot);  // ✅ Propagate snapshot to SharedState
         
         g_DataFeed->Start();
         
