@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="TradingBot.Core.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

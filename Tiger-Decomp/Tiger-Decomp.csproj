@@ -5,44 +5,6 @@
     <RootNamespace>Tiger_Decomp</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="obj\Debug\net10.0\.NETCoreApp,Version=v10.0.AssemblyAttributes.cs" />
-    <Compile Include="obj\Debug\net10.0\Tiger-Decomp.AssemblyInfo.cs" />
-    <Compile Include="obj\Debug\net10.0\Tiger-Decomp.GlobalUsings.g.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="obj\Debug\net10.0\Tiger-Decomp.csproj.FileListAbsolute.txt" />
-    <Content Include="obj\project.assets.json" />
-    <Content Include="obj\Tiger-Decomp.csproj.nuget.dgspec.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="4-main\4-main\SharpDX\bin\Debug\net45\" />
-    <Folder Include="4-main\4-main\SharpDX\bin\Release\net45\" />
-    <Folder Include="bin\Debug\net10.0\" />
-    <Folder Include="obj\Debug\net10.0\refint\" />
-    <Folder Include="obj\Debug\net10.0\ref\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="obj\Debug\net10.0\Tiger-Decomp.AssemblyInfoInputs.cache" />
-    <None Include="obj\Debug\net10.0\Tiger-Decomp.assets.cache" />
-    <None Include="obj\Debug\net10.0\Tiger-Decomp.csproj.GenerateResource.cache" />
-    <None Include="obj\Debug\net10.0\Tiger-Decomp.GeneratedMSBuildEditorConfig.editorconfig" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp.decompil1_main.decompil1_main.ActiproSoftware.Docking.Wpf.ActiproSoftware.Products.Docking.Resources.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp.decompil1_main.decompil1_main.ActiproSoftware.Editors.Wpf.ActiproSoftware.Products.Editors.Resources.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp.decompil1_main.decompil1_main.ActiproSoftware.Grids.Wpf.ActiproSoftware.Products.Grids.Resources.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp.decompil1_main.decompil1_main.ActiproSoftware.Shared.Wpf.ActiproSoftware.Products.Shared.Resources.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp.decompil1_main.decompil1_main.ActiproSoftware.SyntaxEditor.Wpf.ActiproSoftware.Products.SyntaxEditor.Resources.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp.decompil1_main.decompil1_main.ActiproSoftware.Text.Wpf.ActiproSoftware.Products.Text.Resources.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp._4_main._4_main.System.Buffers.FxResources.System.Buffers.SR.resources" />
-    <None Include="obj\Debug\net10.0\Tiger_Decomp._4_main._4_main.System.Diagnostics.DiagnosticSource.FxResources.System.Diagnostics.DiagnosticSource.SR.resources" />
-    <None Include="obj\project.nuget.cache" />
-    <None Include="obj\Tiger-Decomp.csproj.nuget.g.props" />
-    <None Include="obj\Tiger-Decomp.csproj.nuget.g.targets" />
-  </ItemGroup>
-
 </Project>

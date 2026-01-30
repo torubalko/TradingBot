@@ -30,6 +30,7 @@ public:
     void SetDepth(int levels) { visibleLevels_ = levels; }
     void SetMaxBarWidth(float width) { maxBarWidth_ = width; }
     void SetVolumeMode(VolumeMode mode) { volumeMode_ = mode; }
+    void SetDomQuoteMaxSize(double maxSize) { domQuoteMaxSize_ = maxSize; }
     void SetCompressionFactor(double factor) {
         int step = static_cast<int>(factor);
         if (step < 1) step = 1;
@@ -67,11 +68,12 @@ private:
     VolumeMode volumeMode_ = VolumeMode::Base;
     
     // Настройки
-    int visibleLevels_ = 20;        // Сколько уровней показывать
-    float maxBarWidth_ = 300.0f;    // Максимальная ширина бара
-    float levelHeight_ = 20.0f;     // Высота одного уровня
-    int   compressionStep_ = 1;      // Шаг выборки уровней
-    
+    int visibleLevels_ = 20;        // ??????? ??????? ??????????
+    float maxBarWidth_ = 300.0f;    // ???????????? ?????? ????
+    float levelHeight_ = 20.0f;     // ?????? ?????? ??????
+    int   compressionStep_ = 1;      // ??? ??????? ???????
+    double domQuoteMaxSize_ = 100000.0; // Tiger DOM scale max
+
     // Pre-allocated буферы (для zero-allocation в render loop)
     std::vector<std::pair<double, double>> cachedBids_;
     std::vector<std::pair<double, double>> cachedAsks_;

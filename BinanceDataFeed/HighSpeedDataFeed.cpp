@@ -119,6 +119,15 @@ void WebSocketSession::OnSslHandshake(beast::error_code ec) {
         true                         // enable automatic pings
     };
     ws_.set_option(opt);
+
+    ws_.control_callback([self = shared_from_this()](websocket::frame_type kind, beast::string_view payload) {
+        if (kind == websocket::frame_type::ping) {
+            websocket::ping_data data;
+            data.assign(payload.data(), payload.size());
+            beast::error_code pongEc;
+            self->ws_.pong(data, pongEc);
+        }
+    });
     
     // Set a decorator to change the User-Agent
     ws_.set_option(websocket::stream_base::decorator([](websocket::request_type& req) {

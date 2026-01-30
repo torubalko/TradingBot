@@ -3,6 +3,7 @@
 ## General Guidelines
 - First general instruction
 - Second general instruction
+- Use the cloned official Binance docs in `C:\BOT\TradingBot\binance_docs` as the source of truth; no external knowledge.
 
 ## Debug Configuration for TradingBot
 - For projects like TradingBot (especially BinanceDataFeed), ensure the following settings in Debug configuration:

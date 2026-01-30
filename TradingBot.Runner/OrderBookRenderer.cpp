@@ -388,20 +388,31 @@ void OrderBookRenderer::RenderAsks(float x, float y, float width, float height,
         double volume = asks[i].second;
         
         bool hasVolume = volume > 1e-12;
-        // Нормализованная ширина бара
-        float barWidth = hasVolume ? (float)(volume / maxVolume) * maxBarWidth_ : 0.0f;
-        
-        // Background only if есть объем
+        float ratio = hasVolume && domQuoteMaxSize_ > 0.0
+            ? static_cast<float>(volume / domQuoteMaxSize_)
+            : 0.0f;
+        ratio = std::clamp(ratio, 0.0f, 1.0f);
+
+        const bool isBest = (i == 0);
+
+        // Density background (full width)
         if (hasVolume) {
-            graphics_->DrawRectPixels(x, currentY, width, levelHeight, 
-                                     0.15f, 0.12f, 0.12f, 1.0f);
+            const float baseR = isBest ? 0.65f : 0.45f;
+            const float baseG = 0.10f;
+            const float baseB = 0.10f;
+            const float alpha = isBest ? 0.50f : 0.35f;
+            graphics_->DrawRectPixels(x, currentY, width, levelHeight,
+                                     baseR, baseG, baseB, alpha);
         }
-        
-        // Volume bar (красный для asks) только при объеме
+
+        // Volume bar (asks)
+        float availableWidth = width - 180.0f;
+        if (availableWidth < 1.0f) availableWidth = 0.0f;
+        float barWidth = hasVolume ? (std::min)(availableWidth, (std::max)(availableWidth * ratio, 1.0f)) : 0.0f;
         if (hasVolume && barWidth > 0.0f) {
-            float barX = x + width - barWidth - 180; // Справа налево, больше места справа
-            graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
-                                     0.8f, 0.2f, 0.2f, 0.3f); // Полупрозрачный красный
+            float barX = x + availableWidth - barWidth;
+            graphics_->DrawRectPixels(barX, currentY + 1, barWidth, levelHeight - 2,
+                                     0.95f, 0.12f, 0.12f, 0.80f);
         }
         
         // Price text
@@ -442,22 +453,33 @@ void OrderBookRenderer::RenderBids(float x, float y, float width, float height,
         double volume = bids[i].second;
         
         bool hasVolume = volume > 1e-12;
-        // Нормализованная ширина бара
-        float barWidth = hasVolume ? (float)(volume / maxVolume) * maxBarWidth_ : 0.0f;
-        
-        // Background только при объеме
+        float ratio = hasVolume && domQuoteMaxSize_ > 0.0
+            ? static_cast<float>(volume / domQuoteMaxSize_)
+            : 0.0f;
+        ratio = std::clamp(ratio, 0.0f, 1.0f);
+
+        const bool isBest = (i == 0);
+
+        // Density background (full width)
         if (hasVolume) {
+            const float baseR = 0.10f;
+            const float baseG = isBest ? 0.65f : 0.45f;
+            const float baseB = 0.10f;
+            const float alpha = isBest ? 0.50f : 0.35f;
             graphics_->DrawRectPixels(x, currentY, width, levelHeight,
-                                     0.12f, 0.15f, 0.12f, 1.0f);
+                                     baseR, baseG, baseB, alpha);
         }
-        
-        // Volume bar (зелёный для bids) только при объеме
+
+        // Volume bar (bids)
+        float availableWidth = width - 180.0f;
+        if (availableWidth < 1.0f) availableWidth = 0.0f;
+        float barWidth = hasVolume ? (std::min)(availableWidth, (std::max)(availableWidth * ratio, 1.0f)) : 0.0f;
         if (hasVolume && barWidth > 0.0f) {
-            float barX = x + width - barWidth - 180; // Справа налево, больше места справа
-            graphics_->DrawRectPixels(barX, currentY + 2, barWidth, levelHeight - 4,
-                                     0.2f, 0.8f, 0.2f, 0.3f); // Полупрозрачный зелёный
+            float barX = x + availableWidth - barWidth;
+            graphics_->DrawRectPixels(barX, currentY + 1, barWidth, levelHeight - 2,
+                                     0.12f, 0.95f, 0.12f, 0.80f);
         }
-        
+
         // Price text
         std::wstring priceStr = FormatPriceDynamic(price);
         graphics_->DrawTextPixels(priceStr, x + 10, currentY + 2, 120, levelHeight - 4, 11,

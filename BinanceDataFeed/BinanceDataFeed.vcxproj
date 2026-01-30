@@ -121,11 +121,15 @@
     <ClInclude Include="LockFreeQueue.h" />
     <ClInclude Include="OrderBook.h" />
     <ClInclude Include="PerformanceMonitor.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="SimdJsonParser.h" />
     <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="BinanceDataFeed.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

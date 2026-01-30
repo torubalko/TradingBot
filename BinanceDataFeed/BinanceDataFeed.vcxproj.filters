@@ -15,8 +15,12 @@
     <ClInclude Include="PerformanceMonitor.h" />
     <ClInclude Include="SimdJsonParser.h" />
     <ClInclude Include="ThreadPool.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="BinanceDataFeed.rc" />
   </ItemGroup>
 </Project>
