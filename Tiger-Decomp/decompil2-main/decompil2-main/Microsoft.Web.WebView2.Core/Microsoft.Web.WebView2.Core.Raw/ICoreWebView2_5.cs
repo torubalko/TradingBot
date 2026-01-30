@@ -1,0 +1,20 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+namespace Microsoft.Web.WebView2.Core.Raw;
+
+[ComImport]
+[CompilerGenerated]
+[Guid("BEDB11B8-D63C-11EB-B8BC-0242AC130003")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[TypeIdentifier]
+public interface ICoreWebView2_5 : ICoreWebView2_4
+{
+	void _VtblGap1_74();
+
+	[MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
+	void add_ClientCertificateRequested([In][MarshalAs(UnmanagedType.Interface)] ICoreWebView2ClientCertificateRequestedEventHandler eventHandler, out EventRegistrationToken token);
+
+	[MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
+	void remove_ClientCertificateRequested([In] EventRegistrationToken token);
+}

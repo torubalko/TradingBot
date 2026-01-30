@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>TigerTrade.Core</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net472</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="MWyekFNh3sMOi6SgUYvd.hAGA88NhpcnRjOexpNFY" />
+    <None Remove="w81tPqNhA3P8WUQI8V56.sE3AHDNhPGqgkKVNrPZr" />
+    <None Remove="4WsGZoNh7jlsJEm8ZjMK.6yCjNcNh8nhOafgAMWRe" />
+    <None Remove="12LNRpNhh1u8pNHfcTDB.PL4uF5NhwoOVlHQ4yZlM" />
+    <EmbeddedResource Include="MWyekFNh3sMOi6SgUYvd.hAGA88NhpcnRjOexpNFY" LogicalName="MWyekFNh3sMOi6SgUYvd.hAGA88NhpcnRjOexpNFY" />
+    <EmbeddedResource Include="w81tPqNhA3P8WUQI8V56.sE3AHDNhPGqgkKVNrPZr" LogicalName="w81tPqNhA3P8WUQI8V56.sE3AHDNhPGqgkKVNrPZr" />
+    <EmbeddedResource Include="4WsGZoNh7jlsJEm8ZjMK.6yCjNcNh8nhOafgAMWRe" LogicalName="4WsGZoNh7jlsJEm8ZjMK.6yCjNcNh8nhOafgAMWRe" />
+    <EmbeddedResource Include="12LNRpNhh1u8pNHfcTDB.PL4uF5NhwoOVlHQ4yZlM" LogicalName="12LNRpNhh1u8pNHfcTDB.PL4uF5NhwoOVlHQ4yZlM" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="WindowsBase" />
+    <Reference Include="ActiproSoftware.Grids.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Grids.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="ActiproSoftware.Shared.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Shared.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Xml" />
+    <Reference Include="PresentationCore" />
+  </ItemGroup>
+</Project>

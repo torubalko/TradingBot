@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>ActiproSoftware.Shared.Wpf</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net452</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="products\shared\images\productwizard48.png" />
+    <None Remove="products\shared\images\themeslogo.xaml" />
+    <None Remove="products\shared\images\productviews48.png" />
+    <None Remove="products\shared\images\productwpfstudio48.png" />
+    <None Remove="products\shared\images\actiproicon.ico" />
+    <None Remove="products\shared\images\productsyntaxeditoraddon48.png" />
+    <None Remove="products\shared\images\sharedlogo.xaml" />
+    <None Remove="products\shared\images\productgrids48.png" />
+    <None Remove="products\shared\images\productthemes48.png" />
+    <None Remove="products\shared\images\productcharts48.png" />
+    <None Remove="products\shared\images\productdocking48.png" />
+    <None Remove="products\shared\images\producteditors48.png" />
+    <None Remove="products\shared\images\productdatagrid48.png" />
+    <None Remove="products\shared\images\productgauge48.png" />
+    <None Remove="products\shared\images\productribbon48.png" />
+    <None Remove="products\shared\images\productshared48.png" />
+    <None Remove="products\shared\images\productbarcode48.png" />
+    <None Remove="products\shared\images\productnavigation48.png" />
+    <None Remove="products\shared\images\productmicrocharts48.png" />
+    <None Remove="products\shared\images\productsyntaxeditor48.png" />
+    <None Remove="products\shared\images\productshell48.png" />
+    <None Remove="FJqiAXJwYKB5Xggukb.IfYOf54PqvhCLfOd3k" />
+    <EmbeddedResource Include="products\shared\images\productwizard48.png" LogicalName="products/shared/images/productwizard48.png" />
+    <EmbeddedResource Include="products\shared\images\themeslogo.xaml" LogicalName="products/shared/images/themeslogo.xaml" />
+    <EmbeddedResource Include="products\shared\images\productviews48.png" LogicalName="products/shared/images/productviews48.png" />
+    <EmbeddedResource Include="products\shared\images\productwpfstudio48.png" LogicalName="products/shared/images/productwpfstudio48.png" />
+    <EmbeddedResource Include="products\shared\images\actiproicon.ico" LogicalName="products/shared/images/actiproicon.ico" />
+    <EmbeddedResource Include="products\shared\images\productsyntaxeditoraddon48.png" LogicalName="products/shared/images/productsyntaxeditoraddon48.png" />
+    <EmbeddedResource Include="products\shared\images\sharedlogo.xaml" LogicalName="products/shared/images/sharedlogo.xaml" />
+    <EmbeddedResource Include="products\shared\images\productgrids48.png" LogicalName="products/shared/images/productgrids48.png" />
+    <EmbeddedResource Include="products\shared\images\productthemes48.png" LogicalName="products/shared/images/productthemes48.png" />
+    <EmbeddedResource Include="products\shared\images\productcharts48.png" LogicalName="products/shared/images/productcharts48.png" />
+    <EmbeddedResource Include="products\shared\images\productdocking48.png" LogicalName="products/shared/images/productdocking48.png" />
+    <EmbeddedResource Include="products\shared\images\producteditors48.png" LogicalName="products/shared/images/producteditors48.png" />
+    <EmbeddedResource Include="products\shared\images\productdatagrid48.png" LogicalName="products/shared/images/productdatagrid48.png" />
+    <EmbeddedResource Include="products\shared\images\productgauge48.png" LogicalName="products/shared/images/productgauge48.png" />
+    <EmbeddedResource Include="products\shared\images\productribbon48.png" LogicalName="products/shared/images/productribbon48.png" />
+    <EmbeddedResource Include="products\shared\images\productshared48.png" LogicalName="products/shared/images/productshared48.png" />
+    <EmbeddedResource Include="products\shared\images\productbarcode48.png" LogicalName="products/shared/images/productbarcode48.png" />
+    <EmbeddedResource Include="products\shared\images\productnavigation48.png" LogicalName="products/shared/images/productnavigation48.png" />
+    <EmbeddedResource Include="products\shared\images\productmicrocharts48.png" LogicalName="products/shared/images/productmicrocharts48.png" />
+    <EmbeddedResource Include="products\shared\images\productsyntaxeditor48.png" LogicalName="products/shared/images/productsyntaxeditor48.png" />
+    <EmbeddedResource Include="products\shared\images\productshell48.png" LogicalName="products/shared/images/productshell48.png" />
+    <EmbeddedResource Include="FJqiAXJwYKB5Xggukb.IfYOf54PqvhCLfOd3k" LogicalName="FJqiAXJwYKB5Xggukb.IfYOf54PqvhCLfOd3k" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <Reference Include="UIAutomationTypes" />
+    <Reference Include="UIAutomationProvider" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+  </ItemGroup>
+</Project>

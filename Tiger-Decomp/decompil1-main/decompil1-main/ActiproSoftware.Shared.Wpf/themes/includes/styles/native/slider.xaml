@@ -1,0 +1,411 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controlsPrimitives="clr-namespace:ActiproSoftware.Windows.Controls.Primitives" xmlns:themes="clr-namespace:ActiproSoftware.Windows.Themes">
+  <Geometry x:Key="SliderThumbOuterBorderGeometry">M -5,-9.5 A 1 1 0 0 1 -4,-10.5 L 4,-10.5 A 1 1 0 0 1 5,-9.5 L 5,9.5 A 1 1 0 0 1 4,10.5 L -4,10.5 A 1 1 0 0 1 -5,9.5 Z</Geometry>
+  <Geometry x:Key="SliderThumbMiddleBorderGeometry">M -4,-9.5 L 4,-9.5 L 4,9.5 L -4,9.5 Z</Geometry>
+  <Geometry x:Key="SliderThumbDisabledGeometry">M -5,-10.5 L 5,-10.5 L 5,10.5 L -5,10.5 Z</Geometry>
+  <Geometry x:Key="SliderPointedThumbOuterBorderGeometry">M 4.5,-7.5 A 1 1 0 0 0 3.5,-8.5 L -3.5,-8.5 A 1 1 0 0 0 -4.5,-7.5 L -4.5,4.5 L -0.5,8.5 L 0.5,8.5 L 4.5,4.5 Z</Geometry>
+  <Geometry x:Key="SliderPointedThumbMiddleBorderGeometry">M 3.5,-7.5 L -3.5,-7.5 L -3.5,4.5 L 0,8 L 3.5,4.5 Z</Geometry>
+  <Geometry x:Key="SliderPointedThumbInnerBorderGeometry">M 2.5,-6.5 L -2.5,-6.5 L -2.5,4.5 L 0,7 L 2.5 4.5 Z</Geometry>
+  <Geometry x:Key="SliderPointedThumbDisabledGeometry">M 4.5,-8.5 L -4.5,-8.5 L -4.5,4.5 L -0.5,8.5 L 0.5,8.5 L 4.5,4.5 Z</Geometry>
+  <Style x:Key="SliderRepeatButtonStyle" TargetType="{x:Type RepeatButton}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="IsTabStop" Value="false" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type RepeatButton}">
+          <Rectangle Fill="#00FFFFFF" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="HorizontalSliderThumbStyle" TargetType="{x:Type Thumb}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Width" Value="11" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Canvas SnapsToDevicePixels="true">
+            <UIElement.RenderTransform>
+              <TranslateTransform X="5.5" Y="11" />
+            </UIElement.RenderTransform>
+            <Path Name="background" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundNormalBrushKey}}" Data="{StaticResource SliderThumbOuterBorderGeometry}" />
+            <Path Name="innerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderNormalBrushKey}}" Data="{StaticResource SliderThumbMiddleBorderGeometry}" />
+            <Path Name="outerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderNormalBrushKey}}" Data="{StaticResource SliderThumbOuterBorderGeometry}" />
+          </Canvas>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundHoverBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderHoverBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderHoverBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="FrameworkElement.Tag" Value="Focused">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundFocusedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="Thumb.IsDragging" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundPressedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderPressedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderPressedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundDisabledBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Property="Path.Data" Value="{StaticResource SliderThumbDisabledGeometry}" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="HorizontalSliderUpThumbStyle" TargetType="{x:Type Thumb}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="Width" Value="10" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Canvas SnapsToDevicePixels="true">
+            <UIElement.RenderTransform>
+              <TransformGroup>
+                <RotateTransform Angle="180" />
+                <TranslateTransform X="5" Y="9" />
+              </TransformGroup>
+            </UIElement.RenderTransform>
+            <Path Name="background" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+            <Path Name="innerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbMiddleBorderGeometry}" />
+            <Path Name="outerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+          </Canvas>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundHoverBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderHoverBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderHoverBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="FrameworkElement.Tag" Value="Focused">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundFocusedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="Thumb.IsDragging" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundPressedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderPressedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderPressedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundDisabledBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Property="Path.Data" Value="{StaticResource SliderPointedThumbDisabledGeometry}" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="HorizontalSliderDownThumbStyle" TargetType="{x:Type Thumb}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="Width" Value="10" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Canvas SnapsToDevicePixels="true">
+            <UIElement.RenderTransform>
+              <TranslateTransform X="5" Y="9" />
+            </UIElement.RenderTransform>
+            <Path Name="background" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+            <Path Name="innerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbMiddleBorderGeometry}" />
+            <Path Name="outerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+          </Canvas>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundHoverBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderHoverBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderHoverBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="FrameworkElement.Tag" Value="Focused">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundFocusedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="Thumb.IsDragging" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundPressedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderPressedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderPressedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBackgroundDisabledBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalInnerBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Property="Path.Data" Value="{StaticResource SliderPointedThumbDisabledGeometry}" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbHorizontalBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="VerticalSliderThumbStyle" TargetType="{x:Type Thumb}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="Height" Value="11" />
+    <Setter Property="Width" Value="22" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Canvas SnapsToDevicePixels="true">
+            <UIElement.RenderTransform>
+              <TransformGroup>
+                <RotateTransform Angle="90" />
+                <TranslateTransform X="11" Y="5.5" />
+              </TransformGroup>
+            </UIElement.RenderTransform>
+            <Path Name="background" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundNormalBrushKey}}" Data="{StaticResource SliderThumbOuterBorderGeometry}" />
+            <Path Name="innerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderNormalBrushKey}}" Data="{StaticResource SliderThumbMiddleBorderGeometry}" />
+            <Path Name="outerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderNormalBrushKey}}" Data="{StaticResource SliderThumbOuterBorderGeometry}" />
+          </Canvas>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundHoverBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderHoverBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderHoverBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="FrameworkElement.Tag" Value="Focused">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundFocusedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="Thumb.IsDragging" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundPressedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderPressedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderPressedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundDisabledBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Property="Path.Data" Value="{StaticResource SliderThumbDisabledGeometry}" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="VerticalSliderLeftThumbStyle" TargetType="{x:Type Thumb}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="Height" Value="10" />
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Canvas SnapsToDevicePixels="true">
+            <UIElement.RenderTransform>
+              <TransformGroup>
+                <RotateTransform Angle="90" />
+                <TranslateTransform X="9" Y="5" />
+              </TransformGroup>
+            </UIElement.RenderTransform>
+            <Path Name="background" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+            <Path Name="innerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbMiddleBorderGeometry}" />
+            <Path Name="outerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+          </Canvas>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundHoverBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderHoverBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderHoverBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="FrameworkElement.Tag" Value="Focused">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundFocusedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="Thumb.IsDragging" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundPressedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderPressedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderPressedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundDisabledBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Property="Path.Data" Value="{StaticResource SliderPointedThumbDisabledGeometry}" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="VerticalSliderRightThumbStyle" TargetType="{x:Type Thumb}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="true" />
+    <Setter Property="Height" Value="10" />
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Focusable" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Canvas SnapsToDevicePixels="true">
+            <UIElement.RenderTransform>
+              <TransformGroup>
+                <RotateTransform Angle="-90" />
+                <TranslateTransform X="9" Y="5" />
+              </TransformGroup>
+            </UIElement.RenderTransform>
+            <Path Name="background" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+            <Path Name="innerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbMiddleBorderGeometry}" />
+            <Path Name="outerBorder" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderNormalBrushKey}}" Data="{StaticResource SliderPointedThumbOuterBorderGeometry}" />
+          </Canvas>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundHoverBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderHoverBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderHoverBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="FrameworkElement.Tag" Value="Focused">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundFocusedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderFocusedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="Thumb.IsDragging" Value="true">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundPressedBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderPressedBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderPressedBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter TargetName="background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBackgroundDisabledBrushKey}}" Property="Shape.Fill" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalInnerBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+              <Setter TargetName="outerBorder" Property="Path.Data" Value="{StaticResource SliderPointedThumbDisabledGeometry}" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderThumbVerticalBorderDisabledBrushKey}}" Property="Shape.Stroke" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.SliderStyleKey}" TargetType="{x:Type Slider}">
+    <Setter Property="Background" Value="#00FFFFFF" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.SliderForegroundNormalBrushKey}}" />
+    <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Slider}">
+          <Border Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" SnapsToDevicePixels="true">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" MinHeight="{TemplateBinding FrameworkElement.MinHeight}" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <TickBar Name="topTick" Grid.Row="0" Placement="Top" Height="4" Fill="{TemplateBinding Control.Foreground}" Visibility="Collapsed" />
+              <TickBar Name="bottomTick" Grid.Row="2" Placement="Bottom" Height="4" Fill="{TemplateBinding Control.Foreground}" Visibility="Collapsed" />
+              <controlsPrimitives:ElementChrome x:Name="trackBackground" Grid.Row="1" Margin="5,0" VerticalAlignment="Center" Height="4" Background="{DynamicResource {x:Static themes:AssetResourceKeys.SliderTrackHorizontalBackgroundNormalBrushKey}}" BorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.SliderTrackHorizontalBorderNormalBrushKey}}" BorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.SliderBorderNormalThicknessKey}}" CornerRadius="1">
+                <Canvas Margin="-6,-1">
+                  <Rectangle Name="PART_SelectionRange" Height="4" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderSelectionBackgroundNormalBrushKey}}" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderSelectionBorderNormalBrushKey}}" StrokeThickness="1" Visibility="Hidden" />
+                </Canvas>
+              </controlsPrimitives:ElementChrome>
+              <Track Name="PART_Track" Grid.Row="1">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Style="{StaticResource SliderRepeatButtonStyle}" />
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Style="{StaticResource SliderRepeatButtonStyle}" />
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Name="thumb" Style="{StaticResource HorizontalSliderThumbStyle}" />
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Slider.TickPlacement" Value="TopLeft">
+              <Setter TargetName="topTick" Property="Visibility" Value="Visible" />
+              <Setter TargetName="thumb" Property="Style" Value="{StaticResource HorizontalSliderUpThumbStyle}" />
+              <Setter TargetName="trackBackground" Property="Margin" Value="5,2,5,0" />
+            </Trigger>
+            <Trigger Property="Slider.TickPlacement" Value="BottomRight">
+              <Setter TargetName="bottomTick" Property="Visibility" Value="Visible" />
+              <Setter TargetName="thumb" Property="Style" Value="{StaticResource HorizontalSliderDownThumbStyle}" />
+              <Setter TargetName="trackBackground" Property="Margin" Value="5,0,5,2" />
+            </Trigger>
+            <Trigger Property="Slider.TickPlacement" Value="Both">
+              <Setter TargetName="topTick" Property="Visibility" Value="Visible" />
+              <Setter TargetName="bottomTick" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="Slider.IsSelectionRangeEnabled" Value="true">
+              <Setter TargetName="PART_SelectionRange" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="UIElement.IsKeyboardFocused" Value="true">
+              <Setter TargetName="thumb" Property="FrameworkElement.Tag" Value="Focused" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property="Slider.Orientation" Value="Vertical">
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="{x:Type Slider}">
+              <Border Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" SnapsToDevicePixels="true">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" MinWidth="{TemplateBinding FrameworkElement.MinWidth}" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TickBar Name="leftTick" Grid.Column="0" Placement="Left" Width="4" Fill="{TemplateBinding Control.Foreground}" Visibility="Collapsed" />
+                  <TickBar Name="rightTick" Grid.Column="2" Placement="Right" Width="4" Fill="{TemplateBinding Control.Foreground}" Visibility="Collapsed" />
+                  <controlsPrimitives:ElementChrome x:Name="trackBackground" Grid.Column="1" Margin="0,5" HorizontalAlignment="Center" Width="4" Background="{DynamicResource {x:Static themes:AssetResourceKeys.SliderTrackVerticalBackgroundNormalBrushKey}}" BorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.SliderTrackVerticalBorderNormalBrushKey}}" BorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.SliderBorderNormalThicknessKey}}" CornerRadius="1">
+                    <Canvas Margin="-1,-6">
+                      <Rectangle Name="PART_SelectionRange" Width="4" Fill="{DynamicResource {x:Static themes:AssetResourceKeys.SliderSelectionBackgroundNormalBrushKey}}" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.SliderSelectionBorderNormalBrushKey}}" StrokeThickness="1" Visibility="Hidden" />
+                    </Canvas>
+                  </controlsPrimitives:ElementChrome>
+                  <Track Name="PART_Track" Grid.Column="1">
+                    <Track.DecreaseRepeatButton>
+                      <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Style="{StaticResource SliderRepeatButtonStyle}" />
+                    </Track.DecreaseRepeatButton>
+                    <Track.IncreaseRepeatButton>
+                      <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Style="{StaticResource SliderRepeatButtonStyle}" />
+                    </Track.IncreaseRepeatButton>
+                    <Track.Thumb>
+                      <Thumb Name="thumb" Style="{StaticResource VerticalSliderThumbStyle}" />
+                    </Track.Thumb>
+                  </Track>
+                </Grid>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="Slider.TickPlacement" Value="TopLeft">
+                  <Setter TargetName="leftTick" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="thumb" Property="Style" Value="{StaticResource VerticalSliderLeftThumbStyle}" />
+                  <Setter TargetName="trackBackground" Property="Margin" Value="2,5,0,5" />
+                </Trigger>
+                <Trigger Property="Slider.TickPlacement" Value="BottomRight">
+                  <Setter TargetName="rightTick" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="thumb" Property="Style" Value="{StaticResource VerticalSliderRightThumbStyle}" />
+                  <Setter TargetName="trackBackground" Property="Margin" Value="0,5,2,5" />
+                </Trigger>
+                <Trigger Property="Slider.TickPlacement" Value="Both">
+                  <Setter TargetName="leftTick" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="rightTick" Property="Visibility" Value="Visible" />
+                </Trigger>
+                <Trigger Property="Slider.IsSelectionRangeEnabled" Value="true">
+                  <Setter TargetName="PART_SelectionRange" Property="Visibility" Value="Visible" />
+                </Trigger>
+                <Trigger Property="UIElement.IsKeyboardFocused" Value="true">
+                  <Setter TargetName="thumb" Property="FrameworkElement.Tag" Value="Focused" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+</ResourceDictionary>

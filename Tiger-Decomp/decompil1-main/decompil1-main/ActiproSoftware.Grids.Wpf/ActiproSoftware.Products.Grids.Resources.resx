@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>1.3</value></resheader><resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><data name="UICommandSizeColumnToFitText" xml:space="preserve"><value>Size Column to Fit</value></data>
+  <data name="UIExpandableCollectionConverterNullText" xml:space="preserve"><value>&lt;null&gt;</value></data>
+  <data name="UIPropertyGridAddChildButtonToolTip" xml:space="preserve"><value>Add New</value></data>
+  <data name="UIPropertyGridColumnHeaderNameText" xml:space="preserve"><value>Name</value></data>
+  <data name="UICommandResetText" xml:space="preserve"><value>Reset</value></data>
+  <data name="UIPropertyGridRemoveButtonToolTip" xml:space="preserve"><value>Remove</value></data>
+  <data name="UIPropertyGridSummaryNoDisplayNameText" xml:space="preserve"><value>(No name)</value></data>
+  <data name="UIExpandableCollectionConverterOneItemText" xml:space="preserve"><value>1 item</value></data>
+  <data name="UICommandCopyNameText" xml:space="preserve"><value>Copy Name</value></data>
+  <data name="UICommandCopyValueText" xml:space="preserve"><value>Copy Value</value></data>
+  <data name="UIPropertyGridColumnHeaderValueText" xml:space="preserve"><value>Value</value></data>
+  <data name="UICommandPasteValueText" xml:space="preserve"><value>Paste Value</value></data>
+  <data name="UICommandDescriptionText" xml:space="preserve"><value>Description</value></data>
+  <data name="UIExpandableCollectionConverterNoItemsText" xml:space="preserve"><value>No items</value></data>
+  <data name="UICommandSizeAllColumnsToFitText" xml:space="preserve"><value>Size All Columns to Fit</value></data>
+  <data name="UIExpandableCollectionConverterIndexFormat" xml:space="preserve"><value>[{0}]</value></data>
+  <data name="UIExpandableCollectionConverterMultipleItemsFormat" xml:space="preserve"><value>{0} items</value></data>
+  <data name="UIPropertyGridSummaryNoDescriptionText" xml:space="preserve"><value>(No description)</value></data>
+  </root>

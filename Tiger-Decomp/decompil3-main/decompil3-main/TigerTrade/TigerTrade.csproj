@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>TigerTrade</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net472</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="qK3FP8lvZ7TTkU6yBQW4.6eUw5UlvVKZETsWEgZwH" />
+    <None Remove="yAkOEslvt5ZKVxCYy0yj.YrIdAslvUF16pq15n2ZR" />
+    <None Remove="TigerTrade.exe.licenses" />
+    <None Remove="W881hOlvKqNJP90O9PbY.aAgIX3lvm7yXRLXvFOMP" />
+    <None Remove="c5LZJ5lvTr6Lwuekdnye.s5NSSflvyy1r1MOPEVTf" />
+    <EmbeddedResource Include="qK3FP8lvZ7TTkU6yBQW4.6eUw5UlvVKZETsWEgZwH" LogicalName="qK3FP8lvZ7TTkU6yBQW4.6eUw5UlvVKZETsWEgZwH" />
+    <EmbeddedResource Include="yAkOEslvt5ZKVxCYy0yj.YrIdAslvUF16pq15n2ZR" LogicalName="yAkOEslvt5ZKVxCYy0yj.YrIdAslvUF16pq15n2ZR" />
+    <EmbeddedResource Include="TigerTrade.exe.licenses" LogicalName="TigerTrade.exe.licenses" />
+    <EmbeddedResource Include="W881hOlvKqNJP90O9PbY.aAgIX3lvm7yXRLXvFOMP" LogicalName="W881hOlvKqNJP90O9PbY.aAgIX3lvm7yXRLXvFOMP" />
+    <EmbeddedResource Include="c5LZJ5lvTr6Lwuekdnye.s5NSSflvyy1r1MOPEVTf" LogicalName="c5LZJ5lvTr6Lwuekdnye.s5NSSflvyy1r1MOPEVTf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="ActiproSoftware.Shared.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Shared.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="UIKit.Core">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\UIKit.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="TigerTrade.Core">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="ActiproSoftware.Grids.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Grids.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="ActiproSoftware.Editors.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Editors.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="ActiproSoftware.DataGrid.Contrib.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.DataGrid.Contrib.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="TigerTrade.Tc">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Tc.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Configuration" />
+    <Reference Include="TigerTrade.Chart">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Chart.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Diagnostics.DiagnosticSource">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="TigerTrade.Dx">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Dx.dll</HintPath>
+    </Reference>
+    <Reference Include="ActiproSoftware.Docking.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Docking.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="MailKit">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\MailKit.dll</HintPath>
+    </Reference>
+    <Reference Include="MimeKit">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\MimeKit.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.Caching" />
+    <Reference Include="System.Xml" />
+    <Reference Include="ActiproSoftware.SyntaxEditor.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.SyntaxEditor.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\Microsoft.Web.WebView2.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\Microsoft.Web.WebView2.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="TigerTrade.Sockets">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Sockets.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json" />
+    <Reference Include="System.Net.Http">
+      <HintPath>..\..\..\..\..\Windows\Microsoft.NET\assembly\GAC_MSIL\System.Net.Http\v4.0_4.0.0.0__b03f5f7f11d50a3a\System.Net.Http.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Management" />
+    <Reference Include="Microsoft.ApplicationInsights">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\Microsoft.ApplicationInsights.dll</HintPath>
+    </Reference>
+    <Reference Include="BouncyCastle.Crypto">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\BouncyCastle.Crypto.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.IdentityModel.Tokens">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\Microsoft.IdentityModel.Tokens.dll</HintPath>
+    </Reference>
+    <Reference Include="TigerTrade.Api">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Api.dll</HintPath>
+    </Reference>
+    <Reference Include="websocket-sharp" />
+    <Reference Include="NAudio">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\NAudio.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IdentityModel.Tokens.Jwt">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\System.IdentityModel.Tokens.Jwt.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

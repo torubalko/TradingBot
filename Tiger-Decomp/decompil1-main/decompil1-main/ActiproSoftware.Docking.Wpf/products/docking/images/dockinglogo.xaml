@@ -1,0 +1,77 @@
+﻿<DrawingImage xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<DrawingImage.Drawing>
+		<DrawingGroup ClipGeometry="M0,0 V48 H48 V0 H0 Z">
+			<GeometryDrawing Geometry="F0 M48,48z M0,0z M40,2C40,0.896,39.104,0,38,0L2,0C0.896,0,0,0.896,0,2L0,38C0,39.104,0.896,40,2,40L38,40C39.104,40,40,39.104,40,38L40,2z">
+				<GeometryDrawing.Brush>
+					<LinearGradientBrush StartPoint="0,0" EndPoint="1,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="2.44929E-15,40,-40,2.44929E-15,20,3.55271E-15">
+						<GradientStop Color="#FF0078D4" Offset="0" />
+						<GradientStop Color="#FF0D62AB" Offset="0.5" />
+						<GradientStop Color="#FF184F85" Offset="1" />
+					</LinearGradientBrush>
+				</GeometryDrawing.Brush>
+			</GeometryDrawing>
+			<GeometryDrawing>
+				<GeometryDrawing.Brush>
+					<LinearGradientBrush StartPoint="0,0" EndPoint="1,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="6.79865E-15,24,-18,5.09899E-15,20,12">
+						<GradientStop Color="#FFFFFFFF" Offset="0" />
+						<GradientStop Color="#FFEDEFF0" Offset="0.5" />
+						<GradientStop Color="#FFD5D9DC" Offset="1" />
+					</LinearGradientBrush>
+				</GeometryDrawing.Brush>
+				<GeometryDrawing.Geometry>
+					<RectangleGeometry RadiusX="0" RadiusY="0" Rect="4,12,32,24" />
+				</GeometryDrawing.Geometry>
+			</GeometryDrawing>
+			<DrawingGroup Opacity="1">
+				<GeometryDrawing Geometry="F0 M48,48z M0,0z M21,40L21,21 25,21 25,40 21,40z">
+					<GeometryDrawing.Brush>
+						<LinearGradientBrush StartPoint="0,0" EndPoint="1,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="-4,-4.72399E-16,1.65595E-16,1.9,25,30.5">
+							<GradientStop Color="#33000000" Offset="0" />
+							<GradientStop Color="#004D4D4D" Offset="1" />
+						</LinearGradientBrush>
+					</GeometryDrawing.Brush>
+				</GeometryDrawing>
+				<GeometryDrawing Geometry="F0 M48,48z M0,0z M25,21L25,17C22.24,17,21,18.24,21,21L25,21z">
+					<GeometryDrawing.Brush>
+						<RadialGradientBrush Center="0,0" RadiusX="1" RadiusY="1" GradientOrigin="0,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="-3.5,-3.5,-3.5,3.5,25.5053,21.4908">
+							<GradientStop Color="#33000000" Offset="0" />
+							<GradientStop Color="#004D4D4D" Offset="1" />
+						</RadialGradientBrush>
+					</GeometryDrawing.Brush>
+				</GeometryDrawing>
+				<GeometryDrawing>
+					<GeometryDrawing.Brush>
+						<LinearGradientBrush StartPoint="0,0" EndPoint="1,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="5.14061E-17,-4,-1.5,2.44929E-16,32.5,21">
+							<GradientStop Color="#33000000" Offset="0" />
+							<GradientStop Color="#004D4D4D" Offset="1" />
+						</LinearGradientBrush>
+					</GeometryDrawing.Brush>
+					<GeometryDrawing.Geometry>
+						<RectangleGeometry RadiusX="0" RadiusY="0" Rect="25,17,15,4" />
+					</GeometryDrawing.Geometry>
+				</GeometryDrawing>
+			</DrawingGroup>
+			<GeometryDrawing Geometry="F0 M48,48z M0,0z M48,22C48,20.896,47.104,20,46,20L26,20C24.896,20,24,20.896,24,22L24,46C24,47.104,24.896,48,26,48L46,48C47.104,48,48,47.104,48,46L48,22z">
+				<GeometryDrawing.Brush>
+					<LinearGradientBrush StartPoint="0,0" EndPoint="1,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="1.4149E-14,28,-28,1.4149E-14,36,20">
+						<GradientStop Color="#FF199BE2" Offset="0" />
+						<GradientStop Color="#FF0078D4" Offset="0.5" />
+						<GradientStop Color="#FF0D62AB" Offset="1" />
+					</LinearGradientBrush>
+				</GeometryDrawing.Brush>
+			</GeometryDrawing>
+			<GeometryDrawing>
+				<GeometryDrawing.Brush>
+					<LinearGradientBrush StartPoint="0,0" EndPoint="1,0" MappingMode="Absolute" SpreadMethod="Pad" Opacity="1" Transform="7.34788E-16,12,-9,5.51091E-16,36,32">
+						<GradientStop Color="#FFFFFFFF" Offset="0" />
+						<GradientStop Color="#FFEDEFF0" Offset="0.5" />
+						<GradientStop Color="#FFD5D9DC" Offset="1" />
+					</LinearGradientBrush>
+				</GeometryDrawing.Brush>
+				<GeometryDrawing.Geometry>
+					<RectangleGeometry RadiusX="0" RadiusY="0" Rect="28,32,16,12" />
+				</GeometryDrawing.Geometry>
+			</GeometryDrawing>
+		</DrawingGroup>
+	</DrawingImage.Drawing>
+</DrawingImage>

@@ -1,8 +1,10 @@
 <Solution>
   <Configurations>
+    <Platform Name="Any CPU" />
     <Platform Name="x64" />
   </Configurations>
   <Project Path="BinanceDataFeed/BinanceDataFeed.vcxproj" Id="b7c8d9e0-f1a2-4b3c-9d8e-7f6a5b4c3d2e" />
+  <Project Path="Tiger-Decomp/Tiger-Decomp.csproj" Id="beaa20b9-223d-4df5-8e5d-45433042336c" />
   <Project Path="TradingBot.Core/TradingBot.Core.vcxproj" Id="4bea9901-e0a0-4e3d-9c6b-6154638b19dc" />
   <Project Path="TradingBot.Runner/TradingBot.Runner.vcxproj" Id="5ac7aa39-9553-4727-a532-7d8e1be6bf79" />
 </Solution>

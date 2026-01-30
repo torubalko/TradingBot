@@ -1,0 +1,312 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:ActiproSoftware.Windows.Controls" xmlns:controlsPrimitives="clr-namespace:ActiproSoftware.Windows.Controls.Primitives" xmlns:themes="clr-namespace:ActiproSoftware.Windows.Themes">
+  <Style x:Key="ButtonFocusVisual">
+    <Setter Property="Control.Template">
+      <Setter.Value>
+        <ControlTemplate>
+          <Rectangle Margin="2" StrokeThickness="1" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" StrokeDashArray="1 2" SnapsToDevicePixels="True" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.ButtonBaseStyleKey}" TargetType="{x:Type ButtonBase}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderNormalBrushKey}}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderNormalThicknessKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundNormalBrushKey}}" />
+    <Setter Property="Padding" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonPaddingNormalThicknessKey}}" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderNormalCornerRadiusKey}}" />
+    <Setter Property="FrameworkElement.FocusVisualStyle" Value="{StaticResource ButtonFocusVisual}" />
+    <Setter Property="themes:ThemeProperties.IsAnimationEnabled" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonIsAnimationEnabledBooleanKey}}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ButtonBase}">
+          <controlsPrimitives:ElementChrome x:Name="chrome" Background="{TemplateBinding Control.Background}" BackgroundChecked="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundCheckedBrushKey}}" BackgroundDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDefaultedBrushKey}}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDisabledBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundHoverBrushKey}}" BackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundPressedBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushChecked="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderCheckedBrushKey}}" BorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDefaultedBrushKey}}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDisabledBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderHoverBrushKey}}" BorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderPressedBrushKey}}" BorderThickness="{TemplateBinding Control.BorderThickness}" InnerBorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalBrushKey}}" InnerBorderBrushChecked="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderCheckedBrushKey}}" InnerBorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDefaultedBrushKey}}" InnerBorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDisabledBrushKey}}" InnerBorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderHoverBrushKey}}" InnerBorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderPressedBrushKey}}" InnerBorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalThicknessKey}}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True">
+            <ContentPresenter Margin="{TemplateBinding Control.Padding}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+          </controlsPrimitives:ElementChrome>
+          <ControlTemplate.Triggers>
+            <Trigger Property="UIElement.IsKeyboardFocused" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundDefaultedBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+            </Trigger>
+            <Trigger Property="Button.IsDefaulted" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundDefaultedBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+            </Trigger>
+            <Trigger Property="ToggleButton.IsChecked" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundCheckedBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Checked" />
+            </Trigger>
+            <Trigger Property="UIElement.IsMouseOver" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundHoverBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Hover" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundPressedBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Pressed" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.EmbeddedButtonBaseStyleKey}" TargetType="{x:Type ButtonBase}">
+    <Setter Property="Background" Value="#00FFFFFF" />
+    <Setter Property="BorderBrush" Value="#00FFFFFF" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalThicknessKey}}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="themes:ThemeProperties.DisabledOpacity" Value="0.4" />
+    <Setter Property="UIElement.SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ButtonBase}">
+          <Border Name="outerBorder" Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True">
+            <Grid>
+              <Border Name="innerBorder" BorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderNormalBrushKey}}" BorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalThicknessKey}}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True" />
+              <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+                <ContentPresenter Name="presenter" Margin="{TemplateBinding Control.Padding}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+              </controls:PixelSnapper>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="ToggleButton.IsChecked" Value="True">
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundCheckedNormalBrushKey}}" Property="Border.Background" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderCheckedNormalBrushKey}}" Property="Border.BorderBrush" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderCheckedNormalBrushKey}}" Property="Border.BorderBrush" />
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Foreground" />
+            </Trigger>
+            <Trigger Property="UIElement.IsMouseOver" Value="True">
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Border.Background" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Foreground" />
+            </Trigger>
+            <Trigger Property="UIElement.IsKeyboardFocused" Value="True">
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Border.Background" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Foreground" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="UIElement.IsMouseOver" Value="True" />
+                <Condition Property="ToggleButton.IsChecked" Value="True" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundCheckedHoverBrushKey}}" Property="Border.Background" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Foreground" />
+            </MultiTrigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="UIElement.IsKeyboardFocused" Value="True" />
+                <Condition Property="ToggleButton.IsChecked" Value="True" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundCheckedHoverBrushKey}}" Property="Border.Background" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Foreground" />
+            </MultiTrigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundPressedBrushKey}}" Property="Border.Background" />
+              <Setter TargetName="outerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderPressedBrushKey}}" Property="Border.BorderBrush" />
+              <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderPressedBrushKey}}" Property="Border.BorderBrush" />
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Foreground" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundDisabledBrushKey}}" Property="Foreground" />
+              <Setter TargetName="presenter" Property="UIElement.Opacity" Value="{Binding Path=(themes:ThemeProperties.DisabledOpacity), RelativeSource={RelativeSource TemplatedParent}}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.EmbeddedButtonBaseOverrideStyleKey}" TargetType="{x:Type ButtonBase}" BasedOn="{StaticResource {x:Static themes:SharedResourceKeys.EmbeddedButtonBaseStyleKey}}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="True" />
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.ToolBarEmbeddedButtonBaseStyleKey}" TargetType="{x:Type ButtonBase}" BasedOn="{StaticResource {x:Static themes:SharedResourceKeys.EmbeddedButtonBaseStyleKey}}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalBrushKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundNormalBrushKey}}" />
+    <Setter Property="Focusable" Value="True" />
+    <Setter Property="IsTabStop" Value="True" />
+    <Setter Property="MinHeight" Value="22" />
+    <Setter Property="MinWidth" Value="22" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalCornerRadiusKey}}" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.CheckBoxStyleKey}" TargetType="{x:Type CheckBox}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderNormalBrushKey}}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderNormalThicknessKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowNormalBrushKey}}" />
+    <Setter Property="FrameworkElement.FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.CheckBoxBorderNormalCornerRadiusKey}}" />
+    <Setter Property="themes:ThemeProperties.IsAnimationEnabled" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletIsAnimationEnabledBooleanKey}}" />
+    <Setter Property="themes:ThemeProperties.UseAlternateStyle" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphUseAlternateGeometryBooleanKey}}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type CheckBox}">
+          <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+            <Grid Background="#00FFFFFF">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid Name="bulletGrid" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}">
+                <Rectangle Name="bulletFocusRectangle" Margin="-2" StrokeThickness="1" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" StrokeDashArray="1 2" SnapsToDevicePixels="True" Visibility="Collapsed" />
+                <controlsPrimitives:CheckChrome x:Name="chrome" Background="{TemplateBinding Control.Background}" BackgroundChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundCheckedNormalBrushKey}}" BackgroundCheckedHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundCheckedHoverBrushKey}}" BackgroundCheckedPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundCheckedPressedBrushKey}}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundDisabledBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundHoverBrushKey}}" BackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundPressedBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderCheckedNormalBrushKey}}" BorderBrushCheckedHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderCheckedHoverBrushKey}}" BorderBrushCheckedPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderCheckedPressedBrushKey}}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderDisabledBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderHoverBrushKey}}" BorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderPressedBrushKey}}" InnerBackground="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundNormalBrushKey}}" InnerBackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundDisabledBrushKey}}" InnerBackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundHoverBrushKey}}" InnerBackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundPressedBrushKey}}" InnerBorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderNormalBrushKey}}" InnerBorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderDisabledBrushKey}}" InnerBorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderHoverBrushKey}}" InnerBorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderPressedBrushKey}}" GlyphBackgroundChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletSquareGlyphBackgroundCheckedNormalBrushKey}}" GlyphBackgroundCheckedDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletSquareGlyphBackgroundCheckedDisabledBrushKey}}" GlyphBackgroundCheckedHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletSquareGlyphBackgroundCheckedHoverBrushKey}}" GlyphBackgroundCheckedPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletSquareGlyphBackgroundCheckedPressedBrushKey}}" GlyphBorderBrushChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletSquareGlyphBorderCheckedNormalBrushKey}}" GlyphBorderBrushCheckedDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletSquareGlyphBorderCheckedDisabledBrushKey}}" GlyphBackgroundIndeterminate="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminateNormalBrushKey}}" GlyphBackgroundIndeterminateDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminateDisabledBrushKey}}" GlyphBackgroundIndeterminateHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminateHoverBrushKey}}" GlyphBackgroundIndeterminatePressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminatePressedBrushKey}}" GlyphBorderBrushIndeterminate="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminateNormalBrushKey}}" GlyphBorderBrushIndeterminateDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminateDisabledBrushKey}}" GlyphBorderBrushIndeterminateHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminateHoverBrushKey}}" GlyphBorderBrushIndeterminatePressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminatePressedBrushKey}}" RelativeSize="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBulletChromeRelativeSizeKey}}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" UseAlternateGeometry="{TemplateBinding themes:ThemeProperties.UseAlternateStyle}" IsChecked="{TemplateBinding ToggleButton.IsChecked}" SnapsToDevicePixels="True" BorderWidth="{Binding Path=BorderThickness.Left, RelativeSource={RelativeSource TemplatedParent}}" />
+              </Grid>
+              <Grid Name="contentGrid" Column="1" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}">
+                <Rectangle Name="contentFocusRectangle" Margin="-2,0,0,0" StrokeThickness="1" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" StrokeDashArray="1 2" SnapsToDevicePixels="True" Visibility="Collapsed" />
+                <ContentPresenter Margin="{TemplateBinding Control.Padding}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" />
+              </Grid>
+            </Grid>
+          </controls:PixelSnapper>
+          <ControlTemplate.Triggers>
+            <Trigger Property="VerticalContentAlignment" Value="Stretch">
+              <Setter TargetName="bulletGrid" Property="VerticalAlignment" Value="Center" />
+            </Trigger>
+            <Trigger Property="HasContent" Value="True">
+              <Setter TargetName="contentGrid" Property="Margin" Value="6,0,0,0" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="UIElement.IsKeyboardFocused" Value="True" />
+                <Condition Property="HasContent" Value="False" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="bulletFocusRectangle" Property="Visibility" Value="Visible" />
+            </MultiTrigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="UIElement.IsKeyboardFocused" Value="True" />
+                <Condition Property="HasContent" Value="True" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="contentFocusRectangle" Property="Visibility" Value="Visible" />
+            </MultiTrigger>
+            <Trigger Property="UIElement.IsMouseOver" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundHoverBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:BulletChrome.State" Value="Hover" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundPressedBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:BulletChrome.State" Value="Pressed" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:BulletChrome.State" Value="Disabled" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.RadioButtonStyleKey}" TargetType="{x:Type RadioButton}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderNormalBrushKey}}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderNormalThicknessKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowNormalBrushKey}}" />
+    <Setter Property="FrameworkElement.FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="themes:ThemeProperties.IsAnimationEnabled" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletIsAnimationEnabledBooleanKey}}" />
+    <Setter Property="themes:ThemeProperties.UseAlternateStyle" Value="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphUseAlternateGeometryBooleanKey}}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type RadioButton}">
+          <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+            <Grid Background="#00FFFFFF">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid Name="bulletGrid" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}">
+                <Ellipse Name="bulletFocusRectangle" Margin="-2" StrokeThickness="1" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" StrokeDashArray="1 2" SnapsToDevicePixels="True" Visibility="Collapsed" />
+                <controlsPrimitives:RadioChrome x:Name="chrome" Background="{TemplateBinding Control.Background}" BackgroundChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundCheckedNormalBrushKey}}" BackgroundCheckedHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundCheckedHoverBrushKey}}" BackgroundCheckedPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundCheckedPressedBrushKey}}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundDisabledBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundHoverBrushKey}}" BackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBackgroundPressedBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderCheckedNormalBrushKey}}" BorderBrushCheckedHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderCheckedHoverBrushKey}}" BorderBrushCheckedPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderCheckedPressedBrushKey}}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderDisabledBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderHoverBrushKey}}" BorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBorderPressedBrushKey}}" InnerBackground="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundNormalBrushKey}}" InnerBackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundDisabledBrushKey}}" InnerBackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundHoverBrushKey}}" InnerBackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBackgroundPressedBrushKey}}" InnerBorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderNormalBrushKey}}" InnerBorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderDisabledBrushKey}}" InnerBorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderHoverBrushKey}}" InnerBorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletInnerBorderPressedBrushKey}}" GlyphBackgroundChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletRoundGlyphBackgroundCheckedNormalBrushKey}}" GlyphBackgroundCheckedDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletRoundGlyphBackgroundCheckedDisabledBrushKey}}" GlyphBackgroundCheckedHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletRoundGlyphBackgroundCheckedHoverBrushKey}}" GlyphBackgroundCheckedPressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletRoundGlyphBackgroundCheckedPressedBrushKey}}" GlyphBorderBrushChecked="{DynamicResource {x:Static themes:AssetResourceKeys.BulletRoundGlyphBorderCheckedNormalBrushKey}}" GlyphBorderBrushCheckedDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletRoundGlyphBorderCheckedDisabledBrushKey}}" GlyphBackgroundIndeterminate="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminateNormalBrushKey}}" GlyphBackgroundIndeterminateDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminateDisabledBrushKey}}" GlyphBackgroundIndeterminateHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminateHoverBrushKey}}" GlyphBackgroundIndeterminatePressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBackgroundIndeterminatePressedBrushKey}}" GlyphBorderBrushIndeterminate="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminateNormalBrushKey}}" GlyphBorderBrushIndeterminateDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminateDisabledBrushKey}}" GlyphBorderBrushIndeterminateHover="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminateHoverBrushKey}}" GlyphBorderBrushIndeterminatePressed="{DynamicResource {x:Static themes:AssetResourceKeys.BulletGlyphBorderIndeterminatePressedBrushKey}}" RelativeSize="{DynamicResource {x:Static themes:AssetResourceKeys.BulletBulletChromeRelativeSizeKey}}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" UseAlternateGeometry="{TemplateBinding themes:ThemeProperties.UseAlternateStyle}" IsChecked="{TemplateBinding ToggleButton.IsChecked}" SnapsToDevicePixels="True" BorderWidth="{Binding Path=BorderThickness.Left, RelativeSource={RelativeSource TemplatedParent}}" />
+              </Grid>
+              <Grid Name="contentGrid" Column="1" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}">
+                <Rectangle Name="contentFocusRectangle" Margin="-2,0,0,0" StrokeThickness="1" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" StrokeDashArray="1 2" SnapsToDevicePixels="True" Visibility="Collapsed" />
+                <ContentPresenter Margin="{TemplateBinding Control.Padding}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" />
+              </Grid>
+            </Grid>
+          </controls:PixelSnapper>
+          <ControlTemplate.Triggers>
+            <Trigger Property="VerticalContentAlignment" Value="Stretch">
+              <Setter TargetName="bulletGrid" Property="VerticalAlignment" Value="Center" />
+            </Trigger>
+            <Trigger Property="HasContent" Value="True">
+              <Setter TargetName="contentGrid" Property="Margin" Value="6,0,0,0" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="UIElement.IsKeyboardFocused" Value="True" />
+                <Condition Property="HasContent" Value="False" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="bulletFocusRectangle" Property="Visibility" Value="Visible" />
+            </MultiTrigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="UIElement.IsKeyboardFocused" Value="True" />
+                <Condition Property="HasContent" Value="True" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="contentFocusRectangle" Property="Visibility" Value="Visible" />
+            </MultiTrigger>
+            <Trigger Property="UIElement.IsMouseOver" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundHoverBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:BulletChrome.State" Value="Hover" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundPressedBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:BulletChrome.State" Value="Pressed" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:BulletChrome.State" Value="Disabled" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.HyperlinkStyleKey}" TargetType="{x:Type Hyperlink}">
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.HyperlinkForegroundNormalBrushKey}}" />
+    <Setter Property="Inline.TextDecorations" Value="Underline" />
+    <Style.Triggers>
+      <Trigger Property="ContentElement.IsMouseOver" Value="True">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.HyperlinkForegroundHoverBrushKey}}" />
+      </Trigger>
+      <Trigger Property="ContentElement.IsEnabled" Value="False">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" />
+      </Trigger>
+      <Trigger Property="ContentElement.IsEnabled" Value="True">
+        <Setter Property="FrameworkContentElement.Cursor" Value="Hand" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.StatusBarEmbeddedHyperlinkStyleKey}" TargetType="{x:Type Hyperlink}">
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.StatusBarHyperlinkForegroundNormalBrushKey}}" />
+    <Setter Property="Inline.TextDecorations" Value="Underline" />
+    <Style.Triggers>
+      <Trigger Property="ContentElement.IsMouseOver" Value="True">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.StatusBarHyperlinkForegroundHoverBrushKey}}" />
+      </Trigger>
+      <Trigger Property="ContentElement.IsEnabled" Value="False">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.StatusBarForegroundDisabledBrushKey}}" />
+      </Trigger>
+      <Trigger Property="ContentElement.IsEnabled" Value="True">
+        <Setter Property="FrameworkContentElement.Cursor" Value="Hand" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+</ResourceDictionary>

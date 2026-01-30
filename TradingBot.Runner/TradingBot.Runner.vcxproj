@@ -149,6 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="config.json" />
+    <None Include="config.local.json" />
     <None Include="config.production.json" />
     <None Include="packages.config" />
   </ItemGroup>

@@ -1,0 +1,23 @@
+using System;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+
+[assembly: AssemblyInformationalVersion("6.15.0.21202181027.55c3b46a00b6ada51cc24d38ce15f867c1a5501f")]
+[assembly: AssemblyFileVersion("6.15.0.21202")]
+[assembly: AssemblyMetadata("Serviceable", "True")]
+[assembly: CLSCompliant(true)]
+[assembly: ComVisible(false)]
+[assembly: InternalsVisibleTo("Microsoft.IdentityModel.JsonWebTokens.Tests, PublicKey=0024000004800000940000000602000000240000525341310004000001000100b5fc90e7027f67871e773a8fde8938c81dd402ba65b9201d60593e96c492651e889cc13f1415ebb53fac1131ae0bd333c5ee6021672d9718ea31a8aebd0da0072f25d87dba6fc90ffd598ed4da35e44c398c454307e8e33b8426143daec9f596836f97c8f74750e5975c64e2189f45def46b2a2b1247adc3652bf5c308055da9")]
+[assembly: InternalsVisibleTo("Microsoft.IdentityModel.Protocols.SignedHttpRequest, PublicKey=0024000004800000940000000602000000240000525341310004000001000100b5fc90e7027f67871e773a8fde8938c81dd402ba65b9201d60593e96c492651e889cc13f1415ebb53fac1131ae0bd333c5ee6021672d9718ea31a8aebd0da0072f25d87dba6fc90ffd598ed4da35e44c398c454307e8e33b8426143daec9f596836f97c8f74750e5975c64e2189f45def46b2a2b1247adc3652bf5c308055da9")]
+[assembly: InternalsVisibleTo("System.IdentityModel.Tokens.Jwt, PublicKey=0024000004800000940000000602000000240000525341310004000001000100b5fc90e7027f67871e773a8fde8938c81dd402ba65b9201d60593e96c492651e889cc13f1415ebb53fac1131ae0bd333c5ee6021672d9718ea31a8aebd0da0072f25d87dba6fc90ffd598ed4da35e44c398c454307e8e33b8426143daec9f596836f97c8f74750e5975c64e2189f45def46b2a2b1247adc3652bf5c308055da9")]
+[assembly: AssemblyCompany("Microsoft Corporation.")]
+[assembly: AssemblyConfiguration("Release")]
+[assembly: AssemblyCopyright("© Microsoft Corporation. All rights reserved.")]
+[assembly: AssemblyDescription("Includes types that provide support for creating, serializing and validating JSON Web Tokens.")]
+[assembly: AssemblyProduct("Microsoft IdentityModel")]
+[assembly: AssemblyTitle("Microsoft.IdentityModel.JsonWebTokens")]
+[assembly: AssemblyMetadata("RepositoryUrl", "https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet")]
+[assembly: AssemblyVersion("6.15.0.0")]

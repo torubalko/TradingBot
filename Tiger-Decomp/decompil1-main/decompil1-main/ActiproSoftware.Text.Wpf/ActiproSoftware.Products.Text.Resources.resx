@@ -1,0 +1,155 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>1.3</value></resheader><resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><data name="UITextChangeTypeDelete" xml:space="preserve"><value>Delete</value></data>
+  <data name="UITextChangeTypeOutdent" xml:space="preserve"><value>Outdent</value></data>
+  <data name="UISearchOperationTypeFindNext" xml:space="preserve"><value>Find next</value></data>
+  <data name="ExNoFindText" xml:space="preserve"><value>No find text was specified.</value></data>
+  <data name="ExInvalidUnicodeCategoryName" xml:space="preserve"><value>Invalid Unicode category name.</value></data>
+  <data name="ExInvalidDynamicLexicalPatternGroupLookAheadRegex" xml:space="preserve"><value>Invalid regular expression in DynamicLexicalPatternGroup for token '{0}' in the look-ahead pattern '{1}'.</value></data>
+  <data name="UISearchOperationTypeReplaceAll" xml:space="preserve"><value>Replace all</value></data>
+  <data name="UITextChangeTypeChangeCase" xml:space="preserve"><value>Change case</value></data>
+  <data name="UIClassificationTypeString" xml:space="preserve"><value>String</value></data>
+  <data name="ExTabSizeMinimum" xml:space="preserve"><value>The tab size must be at least 1.</value></data>
+  <data name="ExRegexParserNoRegularExpression" xml:space="preserve"><value>No regular expression was located.</value></data>
+  <data name="UISearchPatternProviderWildcard" xml:space="preserve"><value>Wildcard</value></data>
+  <data name="ExInvalidDynamicLexicalPatternGroupLookBehindRegex" xml:space="preserve"><value>Invalid regular expression in DynamicLexicalPatternGroup for token '{0}' in the look-behind pattern '{1}'.</value></data>
+  <data name="UITextChangeTypeCut" xml:space="preserve"><value>Cut</value></data>
+  <data name="UITextStatisticNonWhitespaceCharacters" xml:space="preserve"><value>Characters (non-whitespace)</value></data>
+  <data name="ExRegexParserUnexpectedRangeEnd" xml:space="preserve"><value>Unexpected end in regular expression range.</value></data>
+  <data name="UITextChangeTypeConvertSpacesToTabs" xml:space="preserve"><value>Convert spaces to tabs</value></data>
+  <data name="UITextStatisticNonWhitespaceLines" xml:space="preserve"><value>Lines (non-whitespace)</value></data>
+  <data name="UITextStatisticFleschKincaidGradeLevel" xml:space="preserve"><value>Flesch-Kincaid Grade Level</value></data>
+  <data name="UITextStatisticAverageSyllablesPerWord" xml:space="preserve"><value>Average Syllables / Word</value></data>
+  <data name="UITextChangeTypeTextReplacement" xml:space="preserve"><value>Text replacement</value></data>
+  <data name="UISearchPatternProviderAcronym" xml:space="preserve"><value>Acronym</value></data>
+  <data name="UIClassificationTypeIdentifier" xml:space="preserve"><value>Identifier</value></data>
+  <data name="ExInvalidWalkerTreeStateMovingToPreviousLeaf" xml:space="preserve"><value>Invalid walker tree state while moving to the previous leaf.</value></data>
+  <data name="UIClassificationTypeNumber" xml:space="preserve"><value>Number</value></data>
+  <data name="ExInvalidRegexOpCode" xml:space="preserve"><value>Op code '{0}' not implemented.</value></data>
+  <data name="UIClassificationTypeOtherError" xml:space="preserve"><value>Other Error</value></data>
+  <data name="UITextChangeTypeCommentLines" xml:space="preserve"><value>Comment lines</value></data>
+  <data name="ExTaggerConstructorNotFound" xml:space="preserve"><value>A public constructor that accepts a single ICodeDocument instance parameter on the tagger type '{0}' was not found.</value></data>
+  <data name="ExRegexParserUnexpectedGroupingConstructEnd" xml:space="preserve"><value>Unexpected end in regular expression advanced grouping construct.</value></data>
+  <data name="UISearchResultWrapped" xml:space="preserve"><value>(wrapped)</value></data>
+  <data name="UISearchPatternProviderShorthand" xml:space="preserve"><value>Shorthand</value></data>
+  <data name="ExNoMergableLexer" xml:space="preserve"><value>The document's language doesn't have a IMergableLexer available.</value></data>
+  <data name="ExNoMergableToken" xml:space="preserve"><value>The lexer '{0}' did not return an IMergableToken instance.</value></data>
+  <data name="UITextStatisticLetters" xml:space="preserve"><value>Letters</value></data>
+  <data name="ExRegexParserUnexpectedQuotedStringEnd" xml:space="preserve"><value>Unexpected end in regular expression quoted string.</value></data>
+  <data name="UITextChangeTypeMoveSelectedLinesDown" xml:space="preserve"><value>Move selected lines down</value></data>
+  <data name="UITextChangeTypeDuplicate" xml:space="preserve"><value>Duplicate</value></data>
+  <data name="UITextChangeTypeInsertFile" xml:space="preserve"><value>Insert file</value></data>
+  <data name="UITextChangeTypeUncommentLines" xml:space="preserve"><value>Uncomment lines</value></data>
+  <data name="ExInvalidDynamicLexicalMacroRegex" xml:space="preserve"><value>Invalid regular expression in DynamicLexicalMacro '{0}' with pattern '{1}'.</value></data>
+  <data name="ExInvalidWalkerTreeStateMovingToNextLeaf" xml:space="preserve"><value>Invalid walker tree state while moving to the next leaf.</value></data>
+  <data name="ExRegexParserUnknownGroupingConstruct" xml:space="preserve"><value>Unknown regular expression advanced grouping construct.</value></data>
+  <data name="ExRegexParserNoLeftExpressionForBarOperand" xml:space="preserve"><value>No left expression for operand |.</value></data>
+  <data name="UITextStatisticSentences" xml:space="preserve"><value>Sentences</value></data>
+  <data name="ExTextChangeOffsetDeltaSequentialOnlyInvalidOperation" xml:space="preserve"><value>Since the TextChangeOffsetDelta.SequentialOnly option is set, no operation may occur at a start offset before any previously-added operation within this text change.</value></data>
+  <data name="UITextChangeTypeTransposeCharacters" xml:space="preserve"><value>Transpose characters</value></data>
+  <data name="ExNoDefaultLexicalState" xml:space="preserve"><value>The language's lexer doesn't define a default lexical state.</value></data>
+  <data name="UIClassificationTypePreprocessorKeyword" xml:space="preserve"><value>Preprocessor Keyword</value></data>
+  <data name="ExRegexParserInvalidRangeCharacter" xml:space="preserve"><value>An invalid character '{0}' was found in a range specification.</value></data>
+  <data name="UITextChangeTypeDragAndDrop" xml:space="preserve"><value>Drag/drop</value></data>
+  <data name="UITextChangeTypeTrimTrailingWhitespace" xml:space="preserve"><value>Trim trailing whitespace</value></data>
+  <data name="UITextChangeTypeToggleCase" xml:space="preserve"><value>Toggle case</value></data>
+  <data name="UITextStatisticWords" xml:space="preserve"><value>Words</value></data>
+  <data name="ExReadOnlyCollection" xml:space="preserve"><value>The collection is read-only and cannot be modified.</value></data>
+  <data name="UISearchOperationTypeFindAll" xml:space="preserve"><value>Find all</value></data>
+  <data name="UITextChangeTypeInsertCodeSnippetTemplate" xml:space="preserve"><value>Insert snippet template</value></data>
+  <data name="UITextStatisticLines" xml:space="preserve"><value>Lines</value></data>
+  <data name="UITextChangeTypeSpellingChange" xml:space="preserve"><value>Spelling change</value></data>
+  <data name="ExParseRequestNoParser" xml:space="preserve"><value>The IParseRequest did not specify an IParser.</value></data>
+  <data name="UITextChangeTypePaste" xml:space="preserve"><value>Paste</value></data>
+  <data name="UISearchPatternProviderRegularExpression" xml:space="preserve"><value>Regular expression</value></data>
+  <data name="UITextChangeTypeEnter" xml:space="preserve"><value>Enter</value></data>
+  <data name="UITextStatisticSyllables" xml:space="preserve"><value>Syllables</value></data>
+  <data name="UITextChangeTypeHeaderAndFooterChange" xml:space="preserve"><value>Header/footer change</value></data>
+  <data name="UIClassificationTypeWarning" xml:space="preserve"><value>Warning</value></data>
+  <data name="ExInvalidDynamicLexicalPatternGroupRegex" xml:space="preserve"><value>Invalid regular expression in DynamicLexicalPatternGroup for token '{0}' in the pattern '{1}'.</value></data>
+  <data name="UILanguageKeyPlainText" xml:space="preserve"><value>Plain text</value></data>
+  <data name="ExAutoCorrectNotPermittedWithRegex" xml:space="preserve"><value>A CaseSensitivity setting of 'AutoCorrect' is not permitted on regex lexical pattern groups.</value></data>
+  <data name="ExTextSnapshotRequiresCodeDocument" xml:space="preserve"><value>The specified ITextSnapshot must be for an ICodeDocument.</value></data>
+  <data name="UITextChangeTypeAutoFormat" xml:space="preserve"><value>Auto-format</value></data>
+  <data name="UITextStatisticAverageLettersPerWord" xml:space="preserve"><value>Average Letters / Word</value></data>
+  <data name="UITextChangeTypeUpdateCodeSnippetTemplateFields" xml:space="preserve"><value>Update template fields</value></data>
+  <data name="UITextChangeTypeReplace" xml:space="preserve"><value>Replace</value></data>
+  <data name="UITextStatisticAverageWordsPerSentence" xml:space="preserve"><value>Average Words / Sentence</value></data>
+  <data name="ExRegexParserEmptyQuotedString" xml:space="preserve"><value>Unquoted string did not contain any characters.</value></data>
+  <data name="ExRegexParserInvalidSubstitutionGroupNumber" xml:space="preserve"><value>Invalid substitution group number.</value></data>
+  <data name="ExRegexParserUnexpectedLookBehindConstructEnd" xml:space="preserve"><value>Unexpected end in regular expression look-behind construct.</value></data>
+  <data name="UISearchOperationTypeReplaceNext" xml:space="preserve"><value>Replace next</value></data>
+  <data name="UIClassificationTypeComment" xml:space="preserve"><value>Comment</value></data>
+  <data name="UITextChangeTypeTransposeLines" xml:space="preserve"><value>Transpose lines</value></data>
+  <data name="UITextChangeTypeTransposeWords" xml:space="preserve"><value>Transpose words</value></data>
+  <data name="ExTextSnapshotRangeSnapshotMismatch" xml:space="preserve"><value>TextSnapshotRange objects must reference the same snapshot.</value></data>
+  <data name="ExInvalidDynamicLexerLexicalStateType" xml:space="preserve"><value>An IDynamicLexer can only contain lexical states of type DynamicLexicalState.</value></data>
+  <data name="ExTaggerConstructorUnableToLoad" xml:space="preserve"><value>A public constructor that accepts a single ICodeDocument instance parameter on the tagger type '{0}' was unable to be loaded.</value></data>
+  <data name="UIClassificationTypeCompilerError" xml:space="preserve"><value>Compiler Error</value></data>
+  <data name="ExInvalidMacroKey" xml:space="preserve"><value>The macro '{0}' is not defined.</value></data>
+  <data name="ExEnumerationEnded" xml:space="preserve"><value>The enumeration has ended.</value></data>
+  <data name="ExInvalidRegexNodeType" xml:space="preserve"><value>The regular expression encountered an unhandled node type '{0}'.</value></data>
+  <data name="UITextChangeTypeAutoReplace" xml:space="preserve"><value>Auto-replace</value></data>
+  <data name="ExTextChangeOperationRequired" xml:space="preserve"><value>Operation must be of type TextChangeOperation.</value></data>
+  <data name="UITextChangeTypeAutoIndent" xml:space="preserve"><value>Auto-indent</value></data>
+  <data name="ExRegexParserUnexpectedCharClassEnd" xml:space="preserve"><value>Unexpected end in regular expression character class.</value></data>
+  <data name="UITextChangeTypeOpenLine" xml:space="preserve"><value>Open line</value></data>
+  <data name="UITextChangeTypeReplaceAll" xml:space="preserve"><value>Replace all</value></data>
+  <data name="UITextChangeTypeConvertTabsToSpaces" xml:space="preserve"><value>Convert tabs to spaces</value></data>
+  <data name="ExTextVersionDocumentMismatch" xml:space="preserve"><value>Both versions must reference the same ITextDocument.</value></data>
+  <data name="UITextStatisticCharacters" xml:space="preserve"><value>Characters</value></data>
+  <data name="UITextStatisticConsonants" xml:space="preserve"><value>Consonants</value></data>
+  <data name="ExInvalidOffsetLength" xml:space="preserve"><value>Invalid offset and length.</value></data>
+  <data name="ExInvalidEncodedCharacter" xml:space="preserve"><value>Invalid encoded character specification.</value></data>
+  <data name="UITextChangeTypeAutoComplete" xml:space="preserve"><value>Auto-complete</value></data>
+  <data name="ExReaderClosed" xml:space="preserve"><value>The reader has already been closed.</value></data>
+  <data name="UIClassificationTypeReadOnlyRegion" xml:space="preserve"><value>Read-Only Region</value></data>
+  <data name="UITextStatisticFleschReadingEaseScore" xml:space="preserve"><value>Flesch Reading Ease Score (0-100)</value></data>
+  <data name="ExInvalidParameterType" xml:space="preserve"><value>Parameter must be of type {0}.</value></data>
+  <data name="ExIntervalsDoNotIntersect" xml:space="preserve"><value>Intervals don't intersect.</value></data>
+  <data name="ExTextChangeRequiresOneOperation" xml:space="preserve"><value>The ITextChange must contain at least one operation.</value></data>
+  <data name="UITextChangeTypeTyping" xml:space="preserve"><value>Typing</value></data>
+  <data name="UITextChangeTypeIndent" xml:space="preserve"><value>Indent</value></data>
+  <data name="UITextChangeTypeAutoCorrect" xml:space="preserve"><value>Auto-correct</value></data>
+  <data name="ExStartOffsetNotInSearchRange" xml:space="preserve"><value>The start offset must be within the search text range.</value></data>
+  <data name="ExRegexParserUnexpectedMacroReferenceEnd" xml:space="preserve"><value>Unexpected end in regular expression macro reference.</value></data>
+  <data name="UIClassificationTypeSyntaxError" xml:space="preserve"><value>Syntax Error</value></data>
+  <data name="UIClassificationTypeKeyword" xml:space="preserve"><value>Keyword</value></data>
+  <data name="ExRegexParserNoRangeMinimum" xml:space="preserve"><value>A valid minimum must be indicated for a range specification.</value></data>
+  <data name="UITextStatisticVowels" xml:space="preserve"><value>Vowels</value></data>
+  <data name="ExTextSnapshotRequiresTextDocumentBase" xml:space="preserve"><value>The snapshot must point to a TextDocumentBase implementation.</value></data>
+  <data name="UITextChangeTypeMoveSelectedLinesUp" xml:space="preserve"><value>Move selected lines up</value></data>
+  <data name="UISearchPatternProviderNormal" xml:space="preserve"><value>Normal</value></data>
+  <data name="ExTextSnapshotRangeDeleted" xml:space="preserve"><value>The specified TextSnapshotRange cannot be deleted.</value></data>
+  <data name="UITextChangeTypeCustom" xml:space="preserve"><value>Custom</value></data>
+  <data name="ExRegexParserOpenCurlyBraceExpected" xml:space="preserve"><value>'{' character expected.</value></data>
+  <data name="UITextChangeTypeBackspace" xml:space="preserve"><value>Backspace</value></data>
+  <data name="ExEnumerationNotStarted" xml:space="preserve"><value>The enumeration has not been started.</value></data>
+  </root>

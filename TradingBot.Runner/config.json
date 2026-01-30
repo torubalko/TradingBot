@@ -1,7 +1,7 @@
 {
     "api": {
-        "apiKey": "qvDDXIinfIY5Inu4ymyj04CtaR0zHdNpCa1qWk86MsO0BX5gv8jFGn6NCXYAEQAt",
-        "secretKey": "MTeHNwF7R4Aj5pxFaO0FsnuBoUY37HabGrFKTvur7BMhEfXxDVCEbBXHnfIQu5zo",
+        "apiKey": "<PUT_API_KEY_IN_ENV_OR_CONFIG_LOCAL>",
+        "secretKey": "<PUT_SECRET_IN_ENV_OR_CONFIG_LOCAL>",
         "isTestnet": false,
         "spotHost": "api.binance.com",
         "futuresHost": "fapi.binance.com",

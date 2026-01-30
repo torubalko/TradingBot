@@ -1,0 +1,462 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:ActiproSoftware.Windows.Controls" xmlns:controlsPrimitives="clr-namespace:ActiproSoftware.Windows.Controls.Primitives" xmlns:data="clr-namespace:ActiproSoftware.Windows.Data" xmlns:system="clr-namespace:System;assembly=mscorlib" xmlns:themes="clr-namespace:ActiproSoftware.Windows.Themes">
+  <system:Double x:Key="PopupButtonDropDownButtonWidth">15</system:Double>
+  <data:CornerRadiusConverter x:Key="CornerRadiusConverter" />
+  <ControlTemplate x:Key="PopupButtonDefaultTemplate" TargetType="{x:Type controls:PopupButton}">
+    <Grid SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}">
+      <controlsPrimitives:ElementChrome x:Name="PART_IndicatorArea" Background="{TemplateBinding Control.Background}" BackgroundDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDefaultedBrushKey}}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDisabledBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundHoverBrushKey}}" BackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundPressedBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDefaultedBrushKey}}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDisabledBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderHoverBrushKey}}" BorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderPressedBrushKey}}" BorderThickness="{TemplateBinding Control.BorderThickness}" InnerBorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalBrushKey}}" InnerBorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDefaultedBrushKey}}" InnerBorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDisabledBrushKey}}" InnerBorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderHoverBrushKey}}" InnerBorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderPressedBrushKey}}" InnerBorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalThicknessKey}}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True">
+        <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Name="leftSpacerColumn" Width="0" />
+              <ColumnDefinition Name="contentColumn" Width="*" />
+              <ColumnDefinition Name="indicatorColumn" Width="Auto" />
+              <ColumnDefinition Name="rightSpacerColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+            <ContentPresenter Name="contentPresenter" Grid.Column="1" Margin="{TemplateBinding Control.Padding}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" RecognizesAccessKey="True" />
+            <ContentPresenter Name="indicatorPresenter" Grid.Column="2" Content="{TemplateBinding controls:PopupButton.PopupIndicator}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupIndicatorTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+          </Grid>
+        </controls:PixelSnapper>
+      </controlsPrimitives:ElementChrome>
+      <Popup Name="PART_Popup" AllowsTransparency="{TemplateBinding controls:PopupButton.PopupAllowsTransparency}" PopupAnimation="{TemplateBinding controls:PopupButton.PopupAnimation}">
+        <controlsPrimitives:ShadowChrome x:Name="shadow" Direction="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowDirectionDoubleKey}}" ShadowOpacity="{DynamicResource {x:Static themes:AssetResourceKeys.ShadowOpacityNormalDoubleKey}}" SnapsToDevicePixels="True">
+          <Border Background="{TemplateBinding controls:PopupButton.PopupBackground}" BorderBrush="{TemplateBinding controls:PopupButton.PopupBorderBrush}" BorderThickness="{TemplateBinding controls:PopupButton.PopupBorderThickness}" CornerRadius="{TemplateBinding controls:PopupButton.PopupCornerRadius}" Padding="{TemplateBinding controls:PopupButton.PopupPadding}" RenderOptions.ClearTypeHint="Enabled">
+            <controls:PixelSnapper MinWidth="10" MinHeight="10">
+              <ContentPresenter ContentTemplateSelector="{TemplateBinding controls:PopupButton.PopupContentTemplateSelector}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupContentTemplate}" Content="{TemplateBinding controls:PopupButton.PopupContent}" />
+            </controls:PixelSnapper>
+          </Border>
+        </controlsPrimitives:ShadowChrome>
+      </Popup>
+    </Grid>
+    <ControlTemplate.Triggers>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition SourceName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Normal" />
+          <Condition Property="controls:PopupButton.IsTransparencyModeEnabled" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.Background" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderBrush" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.Highlight" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.InnerBorderBrush" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+      </MultiTrigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition SourceName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+          <Condition Property="controls:PopupButton.IsTransparencyModeEnabled" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BackgroundDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderBrushDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.HighlightDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.InnerBorderBrushDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+      </MultiTrigger>
+      <Trigger Property="UIElement.IsKeyboardFocused" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundDefaultedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+      </Trigger>
+      <Trigger Property="Button.IsDefaulted" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundDefaultedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+      </Trigger>
+      <Trigger Property="UIElement.IsMouseOver" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Hover" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.IsPopupOpen" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundPressedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Pressed" />
+      </Trigger>
+      <Trigger Property="UIElement.IsEnabled" Value="False">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="ButtonOnly">
+        <Setter TargetName="indicatorPresenter" Property="UIElement.Visibility" Value="Collapsed" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="CenterMerged">
+        <Setter TargetName="leftSpacerColumn" Property="ColumnDefinition.Width" Value="*" />
+        <Setter TargetName="contentColumn" Property="ColumnDefinition.Width" Value="Auto" />
+        <Setter TargetName="indicatorColumn" Property="ColumnDefinition.MinWidth" Value="{StaticResource PopupButtonDropDownButtonWidth}" />
+        <Setter TargetName="rightSpacerColumn" Property="ColumnDefinition.Width" Value="*" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="Merged">
+        <Setter TargetName="indicatorColumn" Property="ColumnDefinition.MinWidth" Value="{StaticResource PopupButtonDropDownButtonWidth}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="PopupOnly">
+        <Setter TargetName="contentColumn" Property="ColumnDefinition.MinWidth" Value="{StaticResource PopupButtonDropDownButtonWidth}" />
+        <Setter TargetName="contentPresenter" Property="UIElement.Visibility" Value="Collapsed" />
+        <Setter TargetName="indicatorPresenter" Property="Grid.Column" Value="1" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.PopupMenu" Value="{x:Null}">
+        <Setter TargetName="PART_Popup" Property="Popup.IsOpen" Value="{Binding Path=IsPopupOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.HasDropShadow" Value="True">
+        <Setter TargetName="shadow" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowElevationInt32Key}}" Property="controlsPrimitives:ShadowChrome.Elevation" />
+        <Setter TargetName="shadow" Property="FrameworkElement.Margin" Value="{Binding ElementName=shadow, Path=ShadowThickness}" />
+      </Trigger>
+    </ControlTemplate.Triggers>
+  </ControlTemplate>
+  <ControlTemplate x:Key="PopupButtonSplitTemplate" TargetType="{x:Type controls:PopupButton}">
+    <Grid SnapsToDevicePixels="True">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Name="contentColumn" Width="*" />
+        <ColumnDefinition Width="1" MaxWidth="1" />
+        <ColumnDefinition Name="indicatorColumn" Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <controlsPrimitives:ElementChrome x:Name="contentArea" Grid.Column="0" Grid.ColumnSpan="2" Background="{TemplateBinding Control.Background}" BackgroundDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDefaultedBrushKey}}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDisabledBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundHoverBrushKey}}" BackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundPressedBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDefaultedBrushKey}}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDisabledBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderHoverBrushKey}}" BorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderPressedBrushKey}}" BorderThickness="{TemplateBinding Control.BorderThickness}" InnerBorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalBrushKey}}" InnerBorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDefaultedBrushKey}}" InnerBorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDisabledBrushKey}}" InnerBorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderHoverBrushKey}}" InnerBorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderPressedBrushKey}}" InnerBorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalThicknessKey}}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" SnapsToDevicePixels="True" Focusable="False" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius, ConverterParameter=Left, Converter={StaticResource CornerRadiusConverter}}">
+        <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+          <ContentPresenter Margin="{TemplateBinding Control.Padding}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+        </controls:PixelSnapper>
+      </controlsPrimitives:ElementChrome>
+      <controlsPrimitives:ElementChrome x:Name="PART_IndicatorArea" Grid.Column="1" Grid.ColumnSpan="2" Background="{TemplateBinding Control.Background}" BackgroundDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDefaultedBrushKey}}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundDisabledBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundHoverBrushKey}}" BackgroundPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundPressedBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDefaultedBrushKey}}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderDisabledBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderHoverBrushKey}}" BorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderPressedBrushKey}}" BorderThickness="{TemplateBinding Control.BorderThickness}" InnerBorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalBrushKey}}" InnerBorderBrushDefaulted="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDefaultedBrushKey}}" InnerBorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderDisabledBrushKey}}" InnerBorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderHoverBrushKey}}" InnerBorderBrushPressed="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderPressedBrushKey}}" InnerBorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonInnerBorderNormalThicknessKey}}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" SnapsToDevicePixels="True" Focusable="False" ToolTip="{TemplateBinding controls:PopupButton.PopupIndicatorToolTip}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius, ConverterParameter=Right, Converter={StaticResource CornerRadiusConverter}}">
+        <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+          <ContentPresenter Content="{TemplateBinding controls:PopupButton.PopupIndicator}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupIndicatorTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True" MinWidth="{StaticResource PopupButtonDropDownButtonWidth}" />
+        </controls:PixelSnapper>
+      </controlsPrimitives:ElementChrome>
+      <Popup Name="PART_Popup" Grid.ColumnSpan="3" AllowsTransparency="{TemplateBinding controls:PopupButton.PopupAllowsTransparency}" PopupAnimation="{TemplateBinding controls:PopupButton.PopupAnimation}">
+        <controlsPrimitives:ShadowChrome x:Name="shadow" Direction="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowDirectionDoubleKey}}" ShadowOpacity="{DynamicResource {x:Static themes:AssetResourceKeys.ShadowOpacityNormalDoubleKey}}" SnapsToDevicePixels="True">
+          <Border Background="{TemplateBinding controls:PopupButton.PopupBackground}" BorderBrush="{TemplateBinding controls:PopupButton.PopupBorderBrush}" BorderThickness="{TemplateBinding controls:PopupButton.PopupBorderThickness}" CornerRadius="{TemplateBinding controls:PopupButton.PopupCornerRadius}" Padding="{TemplateBinding controls:PopupButton.PopupPadding}" RenderOptions.ClearTypeHint="Enabled">
+            <controls:PixelSnapper MinWidth="10" MinHeight="10">
+              <ContentPresenter ContentTemplateSelector="{TemplateBinding controls:PopupButton.PopupContentTemplateSelector}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupContentTemplate}" Content="{TemplateBinding controls:PopupButton.PopupContent}" />
+            </controls:PixelSnapper>
+          </Border>
+        </controlsPrimitives:ShadowChrome>
+      </Popup>
+    </Grid>
+    <ControlTemplate.Triggers>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition SourceName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Normal" />
+          <Condition SourceName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Normal" />
+          <Condition Property="controls:PopupButton.IsTransparencyModeEnabled" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.Background" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.BorderBrush" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.Highlight" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.InnerBorderBrush" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.Background" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderBrush" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.Highlight" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.InnerBorderBrush" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+      </MultiTrigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition SourceName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+          <Condition SourceName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+          <Condition Property="controls:PopupButton.IsTransparencyModeEnabled" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.BackgroundDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.BorderBrushDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.HighlightDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.InnerBorderBrushDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BackgroundDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderBrushDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.HighlightDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.InnerBorderBrushDisabled" Value="#00FFFFFF" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+      </MultiTrigger>
+      <Trigger Property="UIElement.IsKeyboardFocused" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundDefaultedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+      </Trigger>
+      <Trigger Property="Button.IsDefaulted" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundDefaultedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Defaulted" />
+      </Trigger>
+      <Trigger Property="UIElement.IsMouseOver" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Hover" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Hover" />
+      </Trigger>
+      <Trigger Property="ButtonBase.IsPressed" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundPressedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Pressed" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.IsPopupOpen" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundPressedBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Pressed" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Pressed" />
+      </Trigger>
+      <Trigger Property="UIElement.IsEnabled" Value="False">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentArea" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+        <Setter TargetName="PART_IndicatorArea" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.PopupMenu" Value="{x:Null}">
+        <Setter TargetName="PART_Popup" Property="Popup.IsOpen" Value="{Binding Path=IsPopupOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.HasDropShadow" Value="True">
+        <Setter TargetName="shadow" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowElevationInt32Key}}" Property="controlsPrimitives:ShadowChrome.Elevation" />
+        <Setter TargetName="shadow" Property="FrameworkElement.Margin" Value="{Binding ElementName=shadow, Path=ShadowThickness}" />
+      </Trigger>
+    </ControlTemplate.Triggers>
+  </ControlTemplate>
+  <ControlTemplate x:Key="EmbeddedPopupButtonDefaultTemplate" TargetType="{x:Type controls:PopupButton}">
+    <Grid SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}">
+      <Border Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True">
+        <Grid Name="PART_IndicatorArea">
+          <Border Name="innerBorder" BorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderNormalBrushKey}}" BorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalThicknessKey}}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True" />
+          <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+            <Grid SnapsToDevicePixels="True">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Name="leftSpacerColumn" Width="0" />
+                <ColumnDefinition Name="contentColumn" Width="*" />
+                <ColumnDefinition Name="indicatorColumn" Width="Auto" />
+                <ColumnDefinition Name="rightSpacerColumn" Width="0" />
+              </Grid.ColumnDefinitions>
+              <ContentPresenter Name="contentPresenter" Grid.Column="1" Margin="{TemplateBinding Control.Padding}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+              <ContentPresenter Name="indicatorPresenter" Grid.Column="2" Content="{TemplateBinding controls:PopupButton.PopupIndicator}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupIndicatorTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+            </Grid>
+          </controls:PixelSnapper>
+        </Grid>
+      </Border>
+      <Popup Name="PART_Popup" AllowsTransparency="{TemplateBinding controls:PopupButton.PopupAllowsTransparency}" PopupAnimation="{TemplateBinding controls:PopupButton.PopupAnimation}">
+        <controlsPrimitives:ShadowChrome x:Name="shadow" Direction="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowDirectionDoubleKey}}" ShadowOpacity="{DynamicResource {x:Static themes:AssetResourceKeys.ShadowOpacityNormalDoubleKey}}" SnapsToDevicePixels="True">
+          <Border Background="{TemplateBinding controls:PopupButton.PopupBackground}" BorderBrush="{TemplateBinding controls:PopupButton.PopupBorderBrush}" BorderThickness="{TemplateBinding controls:PopupButton.PopupBorderThickness}" CornerRadius="{TemplateBinding controls:PopupButton.PopupCornerRadius}" Padding="{TemplateBinding controls:PopupButton.PopupPadding}" RenderOptions.ClearTypeHint="Enabled">
+            <controls:PixelSnapper MinWidth="10" MinHeight="10">
+              <ContentPresenter ContentTemplateSelector="{TemplateBinding controls:PopupButton.PopupContentTemplateSelector}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupContentTemplate}" Content="{TemplateBinding controls:PopupButton.PopupContent}" />
+            </controls:PixelSnapper>
+          </Border>
+        </controlsPrimitives:ShadowChrome>
+      </Popup>
+    </Grid>
+    <ControlTemplate.Triggers>
+      <Trigger Property="controls:PopupButton.IsPopupOpen" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundOpenedBrushKey}}" Property="Control.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderOpenedBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderOpenedBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger Property="UIElement.IsMouseOver" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Control.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger Property="UIElement.IsKeyboardFocused" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Control.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition Property="UIElement.IsMouseOver" Value="True" />
+          <Condition Property="controls:PopupButton.IsPopupOpen" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundCheckedHoverBrushKey}}" Property="Control.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderCheckedHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </MultiTrigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition Property="UIElement.IsKeyboardFocused" Value="True" />
+          <Condition Property="controls:PopupButton.IsPopupOpen" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundCheckedHoverBrushKey}}" Property="Control.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderCheckedHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </MultiTrigger>
+      <Trigger Property="ButtonBase.IsPressed" Value="True">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundPressedBrushKey}}" Property="Control.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderPressedBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="innerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderPressedBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger Property="UIElement.IsEnabled" Value="False">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentPresenter" Property="UIElement.Opacity" Value="{Binding Path=(themes:ThemeProperties.DisabledOpacity), RelativeSource={RelativeSource TemplatedParent}}" />
+        <Setter TargetName="indicatorPresenter" Property="UIElement.Opacity" Value="{Binding Path=(themes:ThemeProperties.DisabledOpacity), RelativeSource={RelativeSource TemplatedParent}}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="ButtonOnly">
+        <Setter TargetName="indicatorPresenter" Property="UIElement.Visibility" Value="Collapsed" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="CenterMerged">
+        <Setter TargetName="leftSpacerColumn" Property="ColumnDefinition.Width" Value="*" />
+        <Setter TargetName="contentColumn" Property="ColumnDefinition.Width" Value="Auto" />
+        <Setter TargetName="indicatorColumn" Property="ColumnDefinition.MinWidth" Value="{StaticResource PopupButtonDropDownButtonWidth}" />
+        <Setter TargetName="rightSpacerColumn" Property="ColumnDefinition.Width" Value="*" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="Merged">
+        <Setter TargetName="indicatorColumn" Property="ColumnDefinition.MinWidth" Value="{StaticResource PopupButtonDropDownButtonWidth}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="PopupOnly">
+        <Setter TargetName="contentPresenter" Property="UIElement.Visibility" Value="Collapsed" />
+        <Setter TargetName="indicatorPresenter" Property="Grid.Column" Value="1" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.PopupMenu" Value="{x:Null}">
+        <Setter TargetName="PART_Popup" Property="Popup.IsOpen" Value="{Binding Path=IsPopupOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.HasDropShadow" Value="True">
+        <Setter TargetName="shadow" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowElevationInt32Key}}" Property="controlsPrimitives:ShadowChrome.Elevation" />
+        <Setter TargetName="shadow" Property="FrameworkElement.Margin" Value="{Binding ElementName=shadow, Path=ShadowThickness}" />
+      </Trigger>
+    </ControlTemplate.Triggers>
+  </ControlTemplate>
+  <ControlTemplate x:Key="EmbeddedPopupButtonSplitTemplate" TargetType="{x:Type controls:PopupButton}">
+    <Grid SnapsToDevicePixels="True">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Name="contentColumn" Width="*" />
+        <ColumnDefinition Width="1" MaxWidth="1" />
+        <ColumnDefinition Name="indicatorColumn" Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <Border Name="contentArea" Grid.Column="0" Grid.ColumnSpan="2" Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" SnapsToDevicePixels="True" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius, ConverterParameter=Left, Converter={StaticResource CornerRadiusConverter}}">
+        <Grid>
+          <Border Name="contentInnerBorder" BorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderNormalBrushKey}}" BorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalThicknessKey}}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True" />
+          <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+            <ContentPresenter Name="contentPresenter" Margin="{TemplateBinding Control.Padding}" HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+          </controls:PixelSnapper>
+        </Grid>
+      </Border>
+      <Border Name="PART_IndicatorArea" Grid.Column="1" Grid.ColumnSpan="2" Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" SnapsToDevicePixels="True" ToolTip="{TemplateBinding controls:PopupButton.PopupIndicatorToolTip}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius, ConverterParameter=Right, Converter={StaticResource CornerRadiusConverter}}">
+        <Grid>
+          <Border Name="indicatorInnerBorder" BorderBrush="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderNormalBrushKey}}" BorderThickness="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalThicknessKey}}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="True" />
+          <controls:PixelSnapper VerticalRoundMode="CeilingToEven">
+            <ContentPresenter Name="indicatorPresenter" Content="{TemplateBinding controls:PopupButton.PopupIndicator}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupIndicatorTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True" MinWidth="{StaticResource PopupButtonDropDownButtonWidth}" />
+          </controls:PixelSnapper>
+        </Grid>
+      </Border>
+      <Popup Name="PART_Popup" Grid.ColumnSpan="3" AllowsTransparency="{TemplateBinding controls:PopupButton.PopupAllowsTransparency}" PopupAnimation="{TemplateBinding controls:PopupButton.PopupAnimation}">
+        <controlsPrimitives:ShadowChrome x:Name="shadow" Direction="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowDirectionDoubleKey}}" ShadowOpacity="{DynamicResource {x:Static themes:AssetResourceKeys.ShadowOpacityNormalDoubleKey}}" SnapsToDevicePixels="True">
+          <Border Background="{TemplateBinding controls:PopupButton.PopupBackground}" BorderBrush="{TemplateBinding controls:PopupButton.PopupBorderBrush}" BorderThickness="{TemplateBinding controls:PopupButton.PopupBorderThickness}" CornerRadius="{TemplateBinding controls:PopupButton.PopupCornerRadius}" Padding="{TemplateBinding controls:PopupButton.PopupPadding}" RenderOptions.ClearTypeHint="Enabled">
+            <controls:PixelSnapper MinWidth="10" MinHeight="10">
+              <ContentPresenter ContentTemplateSelector="{TemplateBinding controls:PopupButton.PopupContentTemplateSelector}" ContentTemplate="{TemplateBinding controls:PopupButton.PopupContentTemplate}" Content="{TemplateBinding controls:PopupButton.PopupContent}" />
+            </controls:PixelSnapper>
+          </Border>
+        </controlsPrimitives:ShadowChrome>
+      </Popup>
+    </Grid>
+    <ControlTemplate.Triggers>
+      <Trigger Property="controls:PopupButton.IsPopupOpen" Value="True">
+        <Setter TargetName="PART_IndicatorArea" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundOpenedBrushKey}}" Property="Border.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderOpenedBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="indicatorInnerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderOpenedBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger SourceName="contentArea" Property="UIElement.IsMouseOver" Value="True">
+        <Setter TargetName="contentArea" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Border.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="contentInnerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger SourceName="PART_IndicatorArea" Property="UIElement.IsMouseOver" Value="True">
+        <Setter TargetName="PART_IndicatorArea" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Border.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="indicatorInnerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger Property="UIElement.IsKeyboardFocused" Value="True">
+        <Setter TargetName="contentArea" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundHoverBrushKey}}" Property="Border.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="contentInnerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions>
+          <Condition SourceName="PART_IndicatorArea" Property="UIElement.IsMouseOver" Value="True" />
+          <Condition Property="controls:PopupButton.IsPopupOpen" Value="True" />
+        </MultiTrigger.Conditions>
+        <Setter TargetName="PART_IndicatorArea" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundCheckedHoverBrushKey}}" Property="Border.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderCheckedHoverBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="indicatorInnerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderCheckedHoverBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </MultiTrigger>
+      <Trigger Property="ButtonBase.IsPressed" Value="True">
+        <Setter TargetName="contentArea" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundPressedBrushKey}}" Property="Border.Background" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderPressedBrushKey}}" Property="Control.BorderBrush" />
+        <Setter TargetName="contentInnerBorder" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonInnerBorderPressedBrushKey}}" Property="Border.BorderBrush" />
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundHoverBrushKey}}" Property="Control.Foreground" />
+      </Trigger>
+      <Trigger Property="UIElement.IsEnabled" Value="False">
+        <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Control.Foreground" />
+        <Setter TargetName="contentPresenter" Property="UIElement.Opacity" Value="{Binding Path=(themes:ThemeProperties.DisabledOpacity), RelativeSource={RelativeSource TemplatedParent}}" />
+        <Setter TargetName="indicatorPresenter" Property="UIElement.Opacity" Value="{Binding Path=(themes:ThemeProperties.DisabledOpacity), RelativeSource={RelativeSource TemplatedParent}}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.PopupMenu" Value="{x:Null}">
+        <Setter TargetName="PART_Popup" Property="Popup.IsOpen" Value="{Binding Path=IsPopupOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+      </Trigger>
+      <Trigger Property="controls:PopupButton.HasDropShadow" Value="True">
+        <Setter TargetName="shadow" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupShadowElevationInt32Key}}" Property="controlsPrimitives:ShadowChrome.Elevation" />
+        <Setter TargetName="shadow" Property="FrameworkElement.Margin" Value="{Binding ElementName=shadow, Path=ShadowThickness}" />
+      </Trigger>
+    </ControlTemplate.Triggers>
+  </ControlTemplate>
+  <Style x:Key="ButtonFocusVisualStyle">
+    <Setter Property="Control.Template">
+      <Setter.Value>
+        <ControlTemplate>
+          <Rectangle Margin="2" StrokeThickness="1" Stroke="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" StrokeDashArray="1 2" SnapsToDevicePixels="True" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Type controls:PopupButton}" TargetType="{x:Type controls:PopupButton}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderNormalBrushKey}}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderNormalThicknessKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonForegroundNormalBrushKey}}" />
+    <Setter Property="controls:PopupButton.HasDropShadow" Value="{DynamicResource {x:Static SystemParameters.DropShadowKey}}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonPaddingNormalThicknessKey}}" />
+    <Setter Property="MinHeight" Value="13" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="FrameworkElement.FocusVisualStyle" Value="{StaticResource ButtonFocusVisualStyle}" />
+    <Setter Property="themes:ThemeProperties.IsAnimationEnabled" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonIsAnimationEnabledBooleanKey}}" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ButtonBorderNormalCornerRadiusKey}}" />
+    <Setter Property="Template" Value="{StaticResource PopupButtonDefaultTemplate}" />
+    <Setter Property="controls:PopupButton.PopupMenuDataContext" Value="{Binding}" />
+    <Setter Property="controls:PopupButton.PopupBackground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBackgroundNormalBrushKey}}" />
+    <Setter Property="controls:PopupButton.PopupBorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBorderNormalBrushKey}}" />
+    <Setter Property="controls:PopupButton.PopupBorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBorderNormalThicknessKey}}" />
+    <Setter Property="controls:PopupButton.PopupCornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBorderNormalCornerRadiusKey}}" />
+    <Setter Property="controls:PopupButton.PopupIndicatorTemplate" Value="{DynamicResource {x:Static themes:SharedResourceKeys.DropDownArrowGlyphTemplateKey}}" />
+    <Style.Triggers>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="Split">
+        <Setter Property="Template" Value="{StaticResource PopupButtonSplitTemplate}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.EmbeddedPopupButtonStyleKey}" TargetType="{x:Type controls:PopupButton}">
+    <Setter Property="Background" Value="#00FFFFFF" />
+    <Setter Property="BorderBrush" Value="#00FFFFFF" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalThicknessKey}}" />
+    <Setter Property="controls:PopupButton.HasDropShadow" Value="{DynamicResource {x:Static SystemParameters.DropShadowKey}}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="2" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="themes:ThemeProperties.DisabledOpacity" Value="0.4" />
+    <Setter Property="UIElement.SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template" Value="{StaticResource EmbeddedPopupButtonDefaultTemplate}" />
+    <Setter Property="controls:PopupButton.PopupMenuDataContext" Value="{Binding}" />
+    <Setter Property="controls:PopupButton.PopupBackground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBackgroundNormalBrushKey}}" />
+    <Setter Property="controls:PopupButton.PopupBorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBorderNormalBrushKey}}" />
+    <Setter Property="controls:PopupButton.PopupBorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBorderNormalThicknessKey}}" />
+    <Setter Property="controls:PopupButton.PopupCornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.PopupBorderNormalCornerRadiusKey}}" />
+    <Setter Property="controls:PopupButton.PopupIndicatorTemplate" Value="{DynamicResource {x:Static themes:SharedResourceKeys.SmallDropDownArrowGlyphTemplateKey}}" />
+    <Style.Triggers>
+      <Trigger Property="controls:PopupButton.DisplayMode" Value="Split">
+        <Setter Property="Template" Value="{StaticResource EmbeddedPopupButtonSplitTemplate}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.EmbeddedPopupButtonOverrideStyleKey}" TargetType="{x:Type controls:PopupButton}" BasedOn="{StaticResource {x:Static themes:SharedResourceKeys.EmbeddedPopupButtonStyleKey}}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="True" />
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.ToolBarEmbeddedPopupButtonStyleKey}" TargetType="{x:Type controls:PopupButton}" BasedOn="{StaticResource {x:Static themes:SharedResourceKeys.EmbeddedPopupButtonStyleKey}}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalBrushKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonForegroundNormalBrushKey}}" />
+    <Setter Property="Focusable" Value="True" />
+    <Setter Property="IsTabStop" Value="True" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ToolBarButtonBorderNormalCornerRadiusKey}}" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
+</ResourceDictionary>

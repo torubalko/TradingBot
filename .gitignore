@@ -151,6 +151,10 @@ coverage*.info
 *.coverage
 *.coveragexml
 
+# Local secrets
+TradingBot.Runner/config.local.json
+.env
+
 # NCrunch
 _NCrunch_*
 .*crunch*.local.xml

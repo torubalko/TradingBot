@@ -1,0 +1,1150 @@
+using Org.BouncyCastle.Crypto.Utilities;
+
+namespace Org.BouncyCastle.Math.Raw;
+
+internal abstract class Nat224
+{
+	private const ulong M = 4294967295uL;
+
+	public static uint Add(uint[] x, uint[] y, uint[] z)
+	{
+		ulong c = 0uL;
+		c += (ulong)((long)x[0] + (long)y[0]);
+		z[0] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[1] + (long)y[1]);
+		z[1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[2] + (long)y[2]);
+		z[2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[3] + (long)y[3]);
+		z[3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[4] + (long)y[4]);
+		z[4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[5] + (long)y[5]);
+		z[5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[6] + (long)y[6]);
+		z[6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint Add(uint[] x, int xOff, uint[] y, int yOff, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		c += (ulong)((long)x[xOff] + (long)y[yOff]);
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 1] + (long)y[yOff + 1]);
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 2] + (long)y[yOff + 2]);
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 3] + (long)y[yOff + 3]);
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 4] + (long)y[yOff + 4]);
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 5] + (long)y[yOff + 5]);
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 6] + (long)y[yOff + 6]);
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint AddBothTo(uint[] x, uint[] y, uint[] z)
+	{
+		ulong c = 0uL;
+		c += (ulong)((long)x[0] + (long)y[0] + z[0]);
+		z[0] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[1] + (long)y[1] + z[1]);
+		z[1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[2] + (long)y[2] + z[2]);
+		z[2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[3] + (long)y[3] + z[3]);
+		z[3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[4] + (long)y[4] + z[4]);
+		z[4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[5] + (long)y[5] + z[5]);
+		z[5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[6] + (long)y[6] + z[6]);
+		z[6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint AddBothTo(uint[] x, int xOff, uint[] y, int yOff, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		c += (ulong)((long)x[xOff] + (long)y[yOff] + z[zOff]);
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 1] + (long)y[yOff + 1] + z[zOff + 1]);
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 2] + (long)y[yOff + 2] + z[zOff + 2]);
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 3] + (long)y[yOff + 3] + z[zOff + 3]);
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 4] + (long)y[yOff + 4] + z[zOff + 4]);
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 5] + (long)y[yOff + 5] + z[zOff + 5]);
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 6] + (long)y[yOff + 6] + z[zOff + 6]);
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint AddTo(uint[] x, uint[] z)
+	{
+		ulong c = 0uL;
+		c += (ulong)((long)x[0] + (long)z[0]);
+		z[0] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[1] + (long)z[1]);
+		z[1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[2] + (long)z[2]);
+		z[2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[3] + (long)z[3]);
+		z[3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[4] + (long)z[4]);
+		z[4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[5] + (long)z[5]);
+		z[5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[6] + (long)z[6]);
+		z[6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint AddTo(uint[] x, int xOff, uint[] z, int zOff, uint cIn)
+	{
+		ulong c = cIn;
+		c += (ulong)((long)x[xOff] + (long)z[zOff]);
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 1] + (long)z[zOff + 1]);
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 2] + (long)z[zOff + 2]);
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 3] + (long)z[zOff + 3]);
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 4] + (long)z[zOff + 4]);
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 5] + (long)z[zOff + 5]);
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)x[xOff + 6] + (long)z[zOff + 6]);
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint AddToEachOther(uint[] u, int uOff, uint[] v, int vOff)
+	{
+		ulong c = 0uL;
+		c += (ulong)((long)u[uOff] + (long)v[vOff]);
+		u[uOff] = (uint)c;
+		v[vOff] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)u[uOff + 1] + (long)v[vOff + 1]);
+		u[uOff + 1] = (uint)c;
+		v[vOff + 1] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)u[uOff + 2] + (long)v[vOff + 2]);
+		u[uOff + 2] = (uint)c;
+		v[vOff + 2] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)u[uOff + 3] + (long)v[vOff + 3]);
+		u[uOff + 3] = (uint)c;
+		v[vOff + 3] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)u[uOff + 4] + (long)v[vOff + 4]);
+		u[uOff + 4] = (uint)c;
+		v[vOff + 4] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)u[uOff + 5] + (long)v[vOff + 5]);
+		u[uOff + 5] = (uint)c;
+		v[vOff + 5] = (uint)c;
+		c >>= 32;
+		c += (ulong)((long)u[uOff + 6] + (long)v[vOff + 6]);
+		u[uOff + 6] = (uint)c;
+		v[vOff + 6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static void Copy(uint[] x, uint[] z)
+	{
+		z[0] = x[0];
+		z[1] = x[1];
+		z[2] = x[2];
+		z[3] = x[3];
+		z[4] = x[4];
+		z[5] = x[5];
+		z[6] = x[6];
+	}
+
+	public static void Copy(uint[] x, int xOff, uint[] z, int zOff)
+	{
+		z[zOff] = x[xOff];
+		z[zOff + 1] = x[xOff + 1];
+		z[zOff + 2] = x[xOff + 2];
+		z[zOff + 3] = x[xOff + 3];
+		z[zOff + 4] = x[xOff + 4];
+		z[zOff + 5] = x[xOff + 5];
+		z[zOff + 6] = x[xOff + 6];
+	}
+
+	public static uint[] Create()
+	{
+		return new uint[7];
+	}
+
+	public static uint[] CreateExt()
+	{
+		return new uint[14];
+	}
+
+	public static bool Diff(uint[] x, int xOff, uint[] y, int yOff, uint[] z, int zOff)
+	{
+		bool num = Gte(x, xOff, y, yOff);
+		if (num)
+		{
+			Sub(x, xOff, y, yOff, z, zOff);
+			return num;
+		}
+		Sub(y, yOff, x, xOff, z, zOff);
+		return num;
+	}
+
+	public static bool Eq(uint[] x, uint[] y)
+	{
+		for (int i = 6; i >= 0; i--)
+		{
+			if (x[i] != y[i])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public static uint GetBit(uint[] x, int bit)
+	{
+		if (bit == 0)
+		{
+			return x[0] & 1;
+		}
+		int w = bit >> 5;
+		if (w < 0 || w >= 7)
+		{
+			return 0u;
+		}
+		int b = bit & 0x1F;
+		return (x[w] >> b) & 1;
+	}
+
+	public static bool Gte(uint[] x, uint[] y)
+	{
+		for (int i = 6; i >= 0; i--)
+		{
+			uint x_i = x[i];
+			uint y_i = y[i];
+			if (x_i < y_i)
+			{
+				return false;
+			}
+			if (x_i > y_i)
+			{
+				return true;
+			}
+		}
+		return true;
+	}
+
+	public static bool Gte(uint[] x, int xOff, uint[] y, int yOff)
+	{
+		for (int i = 6; i >= 0; i--)
+		{
+			uint x_i = x[xOff + i];
+			uint y_i = y[yOff + i];
+			if (x_i < y_i)
+			{
+				return false;
+			}
+			if (x_i > y_i)
+			{
+				return true;
+			}
+		}
+		return true;
+	}
+
+	public static bool IsOne(uint[] x)
+	{
+		if (x[0] != 1)
+		{
+			return false;
+		}
+		for (int i = 1; i < 7; i++)
+		{
+			if (x[i] != 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public static bool IsZero(uint[] x)
+	{
+		for (int i = 0; i < 7; i++)
+		{
+			if (x[i] != 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public static void Mul(uint[] x, uint[] y, uint[] zz)
+	{
+		ulong y_0 = y[0];
+		ulong y_1 = y[1];
+		ulong y_2 = y[2];
+		ulong y_3 = y[3];
+		ulong y_4 = y[4];
+		ulong y_5 = y[5];
+		ulong y_6 = y[6];
+		ulong c = 0uL;
+		ulong x_0 = x[0];
+		c += x_0 * y_0;
+		zz[0] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_1;
+		zz[1] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_2;
+		zz[2] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_3;
+		zz[3] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_4;
+		zz[4] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_5;
+		zz[5] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_6;
+		zz[6] = (uint)c;
+		c >>= 32;
+		zz[7] = (uint)c;
+		for (int i = 1; i < 7; i++)
+		{
+			ulong c2 = 0uL;
+			ulong x_i = x[i];
+			c2 += x_i * y_0 + zz[i];
+			zz[i] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_1 + zz[i + 1];
+			zz[i + 1] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_2 + zz[i + 2];
+			zz[i + 2] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_3 + zz[i + 3];
+			zz[i + 3] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_4 + zz[i + 4];
+			zz[i + 4] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_5 + zz[i + 5];
+			zz[i + 5] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_6 + zz[i + 6];
+			zz[i + 6] = (uint)c2;
+			c2 >>= 32;
+			zz[i + 7] = (uint)c2;
+		}
+	}
+
+	public static void Mul(uint[] x, int xOff, uint[] y, int yOff, uint[] zz, int zzOff)
+	{
+		ulong y_0 = y[yOff];
+		ulong y_1 = y[yOff + 1];
+		ulong y_2 = y[yOff + 2];
+		ulong y_3 = y[yOff + 3];
+		ulong y_4 = y[yOff + 4];
+		ulong y_5 = y[yOff + 5];
+		ulong y_6 = y[yOff + 6];
+		ulong c = 0uL;
+		ulong x_0 = x[xOff];
+		c += x_0 * y_0;
+		zz[zzOff] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_1;
+		zz[zzOff + 1] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_2;
+		zz[zzOff + 2] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_3;
+		zz[zzOff + 3] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_4;
+		zz[zzOff + 4] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_5;
+		zz[zzOff + 5] = (uint)c;
+		c >>= 32;
+		c += x_0 * y_6;
+		zz[zzOff + 6] = (uint)c;
+		c >>= 32;
+		zz[zzOff + 7] = (uint)c;
+		for (int i = 1; i < 7; i++)
+		{
+			zzOff++;
+			ulong c2 = 0uL;
+			ulong x_i = x[xOff + i];
+			c2 += x_i * y_0 + zz[zzOff];
+			zz[zzOff] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_1 + zz[zzOff + 1];
+			zz[zzOff + 1] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_2 + zz[zzOff + 2];
+			zz[zzOff + 2] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_3 + zz[zzOff + 3];
+			zz[zzOff + 3] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_4 + zz[zzOff + 4];
+			zz[zzOff + 4] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_5 + zz[zzOff + 5];
+			zz[zzOff + 5] = (uint)c2;
+			c2 >>= 32;
+			c2 += x_i * y_6 + zz[zzOff + 6];
+			zz[zzOff + 6] = (uint)c2;
+			c2 >>= 32;
+			zz[zzOff + 7] = (uint)c2;
+		}
+	}
+
+	public static uint MulAddTo(uint[] x, uint[] y, uint[] zz)
+	{
+		ulong y_0 = y[0];
+		ulong y_1 = y[1];
+		ulong y_2 = y[2];
+		ulong y_3 = y[3];
+		ulong y_4 = y[4];
+		ulong y_5 = y[5];
+		ulong y_6 = y[6];
+		ulong zc = 0uL;
+		for (int i = 0; i < 7; i++)
+		{
+			ulong c = 0uL;
+			ulong x_i = x[i];
+			c += x_i * y_0 + zz[i];
+			zz[i] = (uint)c;
+			c >>= 32;
+			c += x_i * y_1 + zz[i + 1];
+			zz[i + 1] = (uint)c;
+			c >>= 32;
+			c += x_i * y_2 + zz[i + 2];
+			zz[i + 2] = (uint)c;
+			c >>= 32;
+			c += x_i * y_3 + zz[i + 3];
+			zz[i + 3] = (uint)c;
+			c >>= 32;
+			c += x_i * y_4 + zz[i + 4];
+			zz[i + 4] = (uint)c;
+			c >>= 32;
+			c += x_i * y_5 + zz[i + 5];
+			zz[i + 5] = (uint)c;
+			c >>= 32;
+			c += x_i * y_6 + zz[i + 6];
+			zz[i + 6] = (uint)c;
+			c >>= 32;
+			zc += c + zz[i + 7];
+			zz[i + 7] = (uint)zc;
+			zc >>= 32;
+		}
+		return (uint)zc;
+	}
+
+	public static uint MulAddTo(uint[] x, int xOff, uint[] y, int yOff, uint[] zz, int zzOff)
+	{
+		ulong y_0 = y[yOff];
+		ulong y_1 = y[yOff + 1];
+		ulong y_2 = y[yOff + 2];
+		ulong y_3 = y[yOff + 3];
+		ulong y_4 = y[yOff + 4];
+		ulong y_5 = y[yOff + 5];
+		ulong y_6 = y[yOff + 6];
+		ulong zc = 0uL;
+		for (int i = 0; i < 7; i++)
+		{
+			ulong c = 0uL;
+			ulong x_i = x[xOff + i];
+			c += x_i * y_0 + zz[zzOff];
+			zz[zzOff] = (uint)c;
+			c >>= 32;
+			c += x_i * y_1 + zz[zzOff + 1];
+			zz[zzOff + 1] = (uint)c;
+			c >>= 32;
+			c += x_i * y_2 + zz[zzOff + 2];
+			zz[zzOff + 2] = (uint)c;
+			c >>= 32;
+			c += x_i * y_3 + zz[zzOff + 3];
+			zz[zzOff + 3] = (uint)c;
+			c >>= 32;
+			c += x_i * y_4 + zz[zzOff + 4];
+			zz[zzOff + 4] = (uint)c;
+			c >>= 32;
+			c += x_i * y_5 + zz[zzOff + 5];
+			zz[zzOff + 5] = (uint)c;
+			c >>= 32;
+			c += x_i * y_6 + zz[zzOff + 6];
+			zz[zzOff + 6] = (uint)c;
+			c >>= 32;
+			zc += c + zz[zzOff + 7];
+			zz[zzOff + 7] = (uint)zc;
+			zc >>= 32;
+			zzOff++;
+		}
+		return (uint)zc;
+	}
+
+	public static ulong Mul33Add(uint w, uint[] x, int xOff, uint[] y, int yOff, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		ulong wVal = w;
+		ulong x2 = x[xOff];
+		c += wVal * x2 + y[yOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		ulong x3 = x[xOff + 1];
+		c += wVal * x3 + x2 + y[yOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		ulong x4 = x[xOff + 2];
+		c += wVal * x4 + x3 + y[yOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		ulong x5 = x[xOff + 3];
+		c += wVal * x5 + x4 + y[yOff + 3];
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		ulong x6 = x[xOff + 4];
+		c += wVal * x6 + x5 + y[yOff + 4];
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		ulong x7 = x[xOff + 5];
+		c += wVal * x7 + x6 + y[yOff + 5];
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		ulong x8 = x[xOff + 6];
+		c += wVal * x8 + x7 + y[yOff + 6];
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return c + x8;
+	}
+
+	public static uint MulByWord(uint x, uint[] z)
+	{
+		ulong c = 0uL;
+		ulong xVal = x;
+		c += xVal * z[0];
+		z[0] = (uint)c;
+		c >>= 32;
+		c += xVal * z[1];
+		z[1] = (uint)c;
+		c >>= 32;
+		c += xVal * z[2];
+		z[2] = (uint)c;
+		c >>= 32;
+		c += xVal * z[3];
+		z[3] = (uint)c;
+		c >>= 32;
+		c += xVal * z[4];
+		z[4] = (uint)c;
+		c >>= 32;
+		c += xVal * z[5];
+		z[5] = (uint)c;
+		c >>= 32;
+		c += xVal * z[6];
+		z[6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint MulByWordAddTo(uint x, uint[] y, uint[] z)
+	{
+		ulong c = 0uL;
+		ulong xVal = x;
+		c += xVal * z[0] + y[0];
+		z[0] = (uint)c;
+		c >>= 32;
+		c += xVal * z[1] + y[1];
+		z[1] = (uint)c;
+		c >>= 32;
+		c += xVal * z[2] + y[2];
+		z[2] = (uint)c;
+		c >>= 32;
+		c += xVal * z[3] + y[3];
+		z[3] = (uint)c;
+		c >>= 32;
+		c += xVal * z[4] + y[4];
+		z[4] = (uint)c;
+		c >>= 32;
+		c += xVal * z[5] + y[5];
+		z[5] = (uint)c;
+		c >>= 32;
+		c += xVal * z[6] + y[6];
+		z[6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint MulWordAddTo(uint x, uint[] y, int yOff, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		ulong xVal = x;
+		c += xVal * y[yOff] + z[zOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += xVal * y[yOff + 1] + z[zOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += xVal * y[yOff + 2] + z[zOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += xVal * y[yOff + 3] + z[zOff + 3];
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		c += xVal * y[yOff + 4] + z[zOff + 4];
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		c += xVal * y[yOff + 5] + z[zOff + 5];
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		c += xVal * y[yOff + 6] + z[zOff + 6];
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return (uint)c;
+	}
+
+	public static uint Mul33DWordAdd(uint x, ulong y, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		ulong xVal = x;
+		ulong y2 = y & 0xFFFFFFFFu;
+		c += xVal * y2 + z[zOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		ulong y3 = y >> 32;
+		c += xVal * y3 + y2 + z[zOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += y3 + z[zOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += z[zOff + 3];
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		if (c != 0L)
+		{
+			return Nat.IncAt(7, z, zOff, 4);
+		}
+		return 0u;
+	}
+
+	public static uint Mul33WordAdd(uint x, uint y, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		ulong yVal = y;
+		c += yVal * x + z[zOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += yVal + z[zOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += z[zOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		if (c != 0L)
+		{
+			return Nat.IncAt(7, z, zOff, 3);
+		}
+		return 0u;
+	}
+
+	public static uint MulWordDwordAdd(uint x, ulong y, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		ulong xVal = x;
+		c += xVal * y + z[zOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += xVal * (y >> 32) + z[zOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += z[zOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		if (c != 0L)
+		{
+			return Nat.IncAt(7, z, zOff, 3);
+		}
+		return 0u;
+	}
+
+	public static uint MulWord(uint x, uint[] y, uint[] z, int zOff)
+	{
+		ulong c = 0uL;
+		ulong xVal = x;
+		int i = 0;
+		do
+		{
+			c += xVal * y[i];
+			z[zOff + i] = (uint)c;
+			c >>= 32;
+		}
+		while (++i < 7);
+		return (uint)c;
+	}
+
+	public static void Square(uint[] x, uint[] zz)
+	{
+		ulong x_0 = x[0];
+		uint c = 0u;
+		int i = 6;
+		int j = 14;
+		do
+		{
+			long num = x[i--];
+			ulong p = (ulong)(num * num);
+			zz[--j] = (c << 31) | (uint)(int)(p >> 33);
+			zz[--j] = (uint)(p >> 1);
+			c = (uint)p;
+		}
+		while (i > 0);
+		ulong p2 = x_0 * x_0;
+		ulong zz_1 = (c << 31) | (p2 >> 33);
+		zz[0] = (uint)p2;
+		c = (uint)((int)(p2 >> 32) & 1);
+		ulong x_1 = x[1];
+		ulong zz_2 = zz[2];
+		zz_1 += x_1 * x_0;
+		uint w = (uint)zz_1;
+		zz[1] = (w << 1) | c;
+		c = w >> 31;
+		zz_2 += zz_1 >> 32;
+		ulong x_2 = x[2];
+		ulong zz_3 = zz[3];
+		ulong zz_4 = zz[4];
+		zz_2 += x_2 * x_0;
+		w = (uint)zz_2;
+		zz[2] = (w << 1) | c;
+		c = w >> 31;
+		zz_3 += (zz_2 >> 32) + x_2 * x_1;
+		zz_4 += zz_3 >> 32;
+		zz_3 &= 0xFFFFFFFFu;
+		ulong x_3 = x[3];
+		ulong zz_5 = zz[5] + (zz_4 >> 32);
+		zz_4 &= 0xFFFFFFFFu;
+		ulong zz_6 = zz[6] + (zz_5 >> 32);
+		zz_5 &= 0xFFFFFFFFu;
+		zz_3 += x_3 * x_0;
+		w = (uint)zz_3;
+		zz[3] = (w << 1) | c;
+		c = w >> 31;
+		zz_4 += (zz_3 >> 32) + x_3 * x_1;
+		zz_5 += (zz_4 >> 32) + x_3 * x_2;
+		zz_4 &= 0xFFFFFFFFu;
+		zz_6 += zz_5 >> 32;
+		zz_5 &= 0xFFFFFFFFu;
+		ulong x_4 = x[4];
+		ulong zz_7 = zz[7] + (zz_6 >> 32);
+		zz_6 &= 0xFFFFFFFFu;
+		ulong zz_8 = zz[8] + (zz_7 >> 32);
+		zz_7 &= 0xFFFFFFFFu;
+		zz_4 += x_4 * x_0;
+		w = (uint)zz_4;
+		zz[4] = (w << 1) | c;
+		c = w >> 31;
+		zz_5 += (zz_4 >> 32) + x_4 * x_1;
+		zz_6 += (zz_5 >> 32) + x_4 * x_2;
+		zz_5 &= 0xFFFFFFFFu;
+		zz_7 += (zz_6 >> 32) + x_4 * x_3;
+		zz_6 &= 0xFFFFFFFFu;
+		zz_8 += zz_7 >> 32;
+		zz_7 &= 0xFFFFFFFFu;
+		ulong x_5 = x[5];
+		ulong zz_9 = zz[9] + (zz_8 >> 32);
+		zz_8 &= 0xFFFFFFFFu;
+		ulong zz_10 = zz[10] + (zz_9 >> 32);
+		zz_9 &= 0xFFFFFFFFu;
+		zz_5 += x_5 * x_0;
+		w = (uint)zz_5;
+		zz[5] = (w << 1) | c;
+		c = w >> 31;
+		zz_6 += (zz_5 >> 32) + x_5 * x_1;
+		zz_7 += (zz_6 >> 32) + x_5 * x_2;
+		zz_6 &= 0xFFFFFFFFu;
+		zz_8 += (zz_7 >> 32) + x_5 * x_3;
+		zz_7 &= 0xFFFFFFFFu;
+		zz_9 += (zz_8 >> 32) + x_5 * x_4;
+		zz_8 &= 0xFFFFFFFFu;
+		zz_10 += zz_9 >> 32;
+		zz_9 &= 0xFFFFFFFFu;
+		ulong x_6 = x[6];
+		ulong zz_11 = zz[11] + (zz_10 >> 32);
+		zz_10 &= 0xFFFFFFFFu;
+		ulong zz_12 = zz[12] + (zz_11 >> 32);
+		zz_11 &= 0xFFFFFFFFu;
+		zz_6 += x_6 * x_0;
+		w = (uint)zz_6;
+		zz[6] = (w << 1) | c;
+		c = w >> 31;
+		zz_7 += (zz_6 >> 32) + x_6 * x_1;
+		zz_8 += (zz_7 >> 32) + x_6 * x_2;
+		zz_9 += (zz_8 >> 32) + x_6 * x_3;
+		zz_10 += (zz_9 >> 32) + x_6 * x_4;
+		zz_11 += (zz_10 >> 32) + x_6 * x_5;
+		zz_12 += zz_11 >> 32;
+		w = (uint)zz_7;
+		zz[7] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_8;
+		zz[8] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_9;
+		zz[9] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_10;
+		zz[10] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_11;
+		zz[11] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_12;
+		zz[12] = (w << 1) | c;
+		c = w >> 31;
+		w = zz[13] + (uint)(int)(zz_12 >> 32);
+		zz[13] = (w << 1) | c;
+	}
+
+	public static void Square(uint[] x, int xOff, uint[] zz, int zzOff)
+	{
+		ulong x_0 = x[xOff];
+		uint c = 0u;
+		int i = 6;
+		int j = 14;
+		do
+		{
+			long num = x[xOff + i--];
+			ulong p = (ulong)(num * num);
+			zz[zzOff + --j] = (c << 31) | (uint)(int)(p >> 33);
+			zz[zzOff + --j] = (uint)(p >> 1);
+			c = (uint)p;
+		}
+		while (i > 0);
+		ulong p2 = x_0 * x_0;
+		ulong zz_1 = (c << 31) | (p2 >> 33);
+		zz[zzOff] = (uint)p2;
+		c = (uint)((int)(p2 >> 32) & 1);
+		ulong x_1 = x[xOff + 1];
+		ulong zz_2 = zz[zzOff + 2];
+		zz_1 += x_1 * x_0;
+		uint w = (uint)zz_1;
+		zz[zzOff + 1] = (w << 1) | c;
+		c = w >> 31;
+		zz_2 += zz_1 >> 32;
+		ulong x_2 = x[xOff + 2];
+		ulong zz_3 = zz[zzOff + 3];
+		ulong zz_4 = zz[zzOff + 4];
+		zz_2 += x_2 * x_0;
+		w = (uint)zz_2;
+		zz[zzOff + 2] = (w << 1) | c;
+		c = w >> 31;
+		zz_3 += (zz_2 >> 32) + x_2 * x_1;
+		zz_4 += zz_3 >> 32;
+		zz_3 &= 0xFFFFFFFFu;
+		ulong x_3 = x[xOff + 3];
+		ulong zz_5 = zz[zzOff + 5] + (zz_4 >> 32);
+		zz_4 &= 0xFFFFFFFFu;
+		ulong zz_6 = zz[zzOff + 6] + (zz_5 >> 32);
+		zz_5 &= 0xFFFFFFFFu;
+		zz_3 += x_3 * x_0;
+		w = (uint)zz_3;
+		zz[zzOff + 3] = (w << 1) | c;
+		c = w >> 31;
+		zz_4 += (zz_3 >> 32) + x_3 * x_1;
+		zz_5 += (zz_4 >> 32) + x_3 * x_2;
+		zz_4 &= 0xFFFFFFFFu;
+		zz_6 += zz_5 >> 32;
+		zz_5 &= 0xFFFFFFFFu;
+		ulong x_4 = x[xOff + 4];
+		ulong zz_7 = zz[zzOff + 7] + (zz_6 >> 32);
+		zz_6 &= 0xFFFFFFFFu;
+		ulong zz_8 = zz[zzOff + 8] + (zz_7 >> 32);
+		zz_7 &= 0xFFFFFFFFu;
+		zz_4 += x_4 * x_0;
+		w = (uint)zz_4;
+		zz[zzOff + 4] = (w << 1) | c;
+		c = w >> 31;
+		zz_5 += (zz_4 >> 32) + x_4 * x_1;
+		zz_6 += (zz_5 >> 32) + x_4 * x_2;
+		zz_5 &= 0xFFFFFFFFu;
+		zz_7 += (zz_6 >> 32) + x_4 * x_3;
+		zz_6 &= 0xFFFFFFFFu;
+		zz_8 += zz_7 >> 32;
+		zz_7 &= 0xFFFFFFFFu;
+		ulong x_5 = x[xOff + 5];
+		ulong zz_9 = zz[zzOff + 9] + (zz_8 >> 32);
+		zz_8 &= 0xFFFFFFFFu;
+		ulong zz_10 = zz[zzOff + 10] + (zz_9 >> 32);
+		zz_9 &= 0xFFFFFFFFu;
+		zz_5 += x_5 * x_0;
+		w = (uint)zz_5;
+		zz[zzOff + 5] = (w << 1) | c;
+		c = w >> 31;
+		zz_6 += (zz_5 >> 32) + x_5 * x_1;
+		zz_7 += (zz_6 >> 32) + x_5 * x_2;
+		zz_6 &= 0xFFFFFFFFu;
+		zz_8 += (zz_7 >> 32) + x_5 * x_3;
+		zz_7 &= 0xFFFFFFFFu;
+		zz_9 += (zz_8 >> 32) + x_5 * x_4;
+		zz_8 &= 0xFFFFFFFFu;
+		zz_10 += zz_9 >> 32;
+		zz_9 &= 0xFFFFFFFFu;
+		ulong x_6 = x[xOff + 6];
+		ulong zz_11 = zz[zzOff + 11] + (zz_10 >> 32);
+		zz_10 &= 0xFFFFFFFFu;
+		ulong zz_12 = zz[zzOff + 12] + (zz_11 >> 32);
+		zz_11 &= 0xFFFFFFFFu;
+		zz_6 += x_6 * x_0;
+		w = (uint)zz_6;
+		zz[zzOff + 6] = (w << 1) | c;
+		c = w >> 31;
+		zz_7 += (zz_6 >> 32) + x_6 * x_1;
+		zz_8 += (zz_7 >> 32) + x_6 * x_2;
+		zz_9 += (zz_8 >> 32) + x_6 * x_3;
+		zz_10 += (zz_9 >> 32) + x_6 * x_4;
+		zz_11 += (zz_10 >> 32) + x_6 * x_5;
+		zz_12 += zz_11 >> 32;
+		w = (uint)zz_7;
+		zz[zzOff + 7] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_8;
+		zz[zzOff + 8] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_9;
+		zz[zzOff + 9] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_10;
+		zz[zzOff + 10] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_11;
+		zz[zzOff + 11] = (w << 1) | c;
+		c = w >> 31;
+		w = (uint)zz_12;
+		zz[zzOff + 12] = (w << 1) | c;
+		c = w >> 31;
+		w = zz[zzOff + 13] + (uint)(int)(zz_12 >> 32);
+		zz[zzOff + 13] = (w << 1) | c;
+	}
+
+	public static int Sub(uint[] x, uint[] y, uint[] z)
+	{
+		long c = 0L;
+		c += (long)x[0] - (long)y[0];
+		z[0] = (uint)c;
+		c >>= 32;
+		c += (long)x[1] - (long)y[1];
+		z[1] = (uint)c;
+		c >>= 32;
+		c += (long)x[2] - (long)y[2];
+		z[2] = (uint)c;
+		c >>= 32;
+		c += (long)x[3] - (long)y[3];
+		z[3] = (uint)c;
+		c >>= 32;
+		c += (long)x[4] - (long)y[4];
+		z[4] = (uint)c;
+		c >>= 32;
+		c += (long)x[5] - (long)y[5];
+		z[5] = (uint)c;
+		c >>= 32;
+		c += (long)x[6] - (long)y[6];
+		z[6] = (uint)c;
+		c >>= 32;
+		return (int)c;
+	}
+
+	public static int Sub(uint[] x, int xOff, uint[] y, int yOff, uint[] z, int zOff)
+	{
+		long c = 0L;
+		c += (long)x[xOff] - (long)y[yOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += (long)x[xOff + 1] - (long)y[yOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += (long)x[xOff + 2] - (long)y[yOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += (long)x[xOff + 3] - (long)y[yOff + 3];
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		c += (long)x[xOff + 4] - (long)y[yOff + 4];
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		c += (long)x[xOff + 5] - (long)y[yOff + 5];
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		c += (long)x[xOff + 6] - (long)y[yOff + 6];
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return (int)c;
+	}
+
+	public static int SubBothFrom(uint[] x, uint[] y, uint[] z)
+	{
+		long c = 0L;
+		c += (long)z[0] - (long)x[0] - y[0];
+		z[0] = (uint)c;
+		c >>= 32;
+		c += (long)z[1] - (long)x[1] - y[1];
+		z[1] = (uint)c;
+		c >>= 32;
+		c += (long)z[2] - (long)x[2] - y[2];
+		z[2] = (uint)c;
+		c >>= 32;
+		c += (long)z[3] - (long)x[3] - y[3];
+		z[3] = (uint)c;
+		c >>= 32;
+		c += (long)z[4] - (long)x[4] - y[4];
+		z[4] = (uint)c;
+		c >>= 32;
+		c += (long)z[5] - (long)x[5] - y[5];
+		z[5] = (uint)c;
+		c >>= 32;
+		c += (long)z[6] - (long)x[6] - y[6];
+		z[6] = (uint)c;
+		c >>= 32;
+		return (int)c;
+	}
+
+	public static int SubFrom(uint[] x, uint[] z)
+	{
+		long c = 0L;
+		c += (long)z[0] - (long)x[0];
+		z[0] = (uint)c;
+		c >>= 32;
+		c += (long)z[1] - (long)x[1];
+		z[1] = (uint)c;
+		c >>= 32;
+		c += (long)z[2] - (long)x[2];
+		z[2] = (uint)c;
+		c >>= 32;
+		c += (long)z[3] - (long)x[3];
+		z[3] = (uint)c;
+		c >>= 32;
+		c += (long)z[4] - (long)x[4];
+		z[4] = (uint)c;
+		c >>= 32;
+		c += (long)z[5] - (long)x[5];
+		z[5] = (uint)c;
+		c >>= 32;
+		c += (long)z[6] - (long)x[6];
+		z[6] = (uint)c;
+		c >>= 32;
+		return (int)c;
+	}
+
+	public static int SubFrom(uint[] x, int xOff, uint[] z, int zOff)
+	{
+		long c = 0L;
+		c += (long)z[zOff] - (long)x[xOff];
+		z[zOff] = (uint)c;
+		c >>= 32;
+		c += (long)z[zOff + 1] - (long)x[xOff + 1];
+		z[zOff + 1] = (uint)c;
+		c >>= 32;
+		c += (long)z[zOff + 2] - (long)x[xOff + 2];
+		z[zOff + 2] = (uint)c;
+		c >>= 32;
+		c += (long)z[zOff + 3] - (long)x[xOff + 3];
+		z[zOff + 3] = (uint)c;
+		c >>= 32;
+		c += (long)z[zOff + 4] - (long)x[xOff + 4];
+		z[zOff + 4] = (uint)c;
+		c >>= 32;
+		c += (long)z[zOff + 5] - (long)x[xOff + 5];
+		z[zOff + 5] = (uint)c;
+		c >>= 32;
+		c += (long)z[zOff + 6] - (long)x[xOff + 6];
+		z[zOff + 6] = (uint)c;
+		c >>= 32;
+		return (int)c;
+	}
+
+	public static BigInteger ToBigInteger(uint[] x)
+	{
+		byte[] bs = new byte[28];
+		for (int i = 0; i < 7; i++)
+		{
+			uint x_i = x[i];
+			if (x_i != 0)
+			{
+				Pack.UInt32_To_BE(x_i, bs, 6 - i << 2);
+			}
+		}
+		return new BigInteger(1, bs);
+	}
+
+	public static void Zero(uint[] z)
+	{
+		z[0] = 0u;
+		z[1] = 0u;
+		z[2] = 0u;
+		z[3] = 0u;
+		z[4] = 0u;
+		z[5] = 0u;
+		z[6] = 0u;
+	}
+}

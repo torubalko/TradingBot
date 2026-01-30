@@ -22,6 +22,7 @@
 #include "ThreadPool.h"
 #include "LockFreeQueue.h"
 #include "LatencyTracker.h"
+#include "DepthDelta.h"
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -90,6 +91,11 @@ using DisconnectedCallback = std::function<void()>;
 using SnapshotCallback = std::function<void(const std::string& symbol, 
     const std::vector<std::pair<double, double>>& bids, 
     const std::vector<std::pair<double, double>>& asks)>;
+
+// Raw snapshot / delta callbacks for Tiger RAW path
+using RawSnapshotCallback = std::function<void(const std::string& symbol, int64_t lastUpdateId,
+    const std::vector<DepthLevel>& bids, const std::vector<DepthLevel>& asks)>;
+using RawDeltaCallback = std::function<void(const DepthDelta&)>;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WebSocket Session (one per stream)
@@ -162,6 +168,8 @@ public:
     void SetConnectedCallback(ConnectedCallback cb) { connectedCallback_ = std::move(cb); }
     void SetDisconnectedCallback(DisconnectedCallback cb) { disconnectedCallback_ = std::move(cb); }
     void SetSnapshotCallback(SnapshotCallback cb) { snapshotCallback_ = std::move(cb); }
+    void SetRawSnapshotCallback(RawSnapshotCallback cb) { rawSnapshotCallback_ = std::move(cb); }
+    void SetRawDeltaCallback(RawDeltaCallback cb) { rawDeltaCallback_ = std::move(cb); }
     
     // Order Book Access
     OrderBook& GetOrderBook(const std::string& symbol);
@@ -238,6 +246,13 @@ private:
     std::atomic<int64_t> lastNetworkDeltaMs_{0};
     std::atomic<int64_t> lastRawNetworkDeltaMs_{0};
     std::atomic<bool> timeSyncOk_{false};
+
+    // Tiger pipeline: WS -> SPSC ring -> OrderBook thread
+    std::unique_ptr<LockFreeQueue<DepthDelta, 262144>> depthQueue_;
+    std::thread orderBookThread_;
+    std::atomic<bool> obThreadRunning_{false};
+    RawSnapshotCallback rawSnapshotCallback_;
+    RawDeltaCallback rawDeltaCallback_;
 };
 
 inline std::string upper_symbol(const std::string& s) {

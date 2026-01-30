@@ -18,9 +18,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="TradingBot.Runner.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="Graphics.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -33,11 +30,15 @@
     <ClCompile Include="..\BinanceDataFeed\HighSpeedDataFeed.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="TradingBot.Runner.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="config.json" />
     <None Include="config.production.json" />
+    <None Include="config.local.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics.h">

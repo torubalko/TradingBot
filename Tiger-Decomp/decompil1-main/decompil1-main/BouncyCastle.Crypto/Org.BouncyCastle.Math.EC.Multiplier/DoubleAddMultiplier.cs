@@ -1,0 +1,24 @@
+using System;
+
+namespace Org.BouncyCastle.Math.EC.Multiplier;
+
+[Obsolete("Will be removed")]
+public class DoubleAddMultiplier : AbstractECMultiplier
+{
+	protected override ECPoint MultiplyPositive(ECPoint p, BigInteger k)
+	{
+		ECPoint[] R = new ECPoint[2]
+		{
+			p.Curve.Infinity,
+			p
+		};
+		int n = k.BitLength;
+		for (int i = 0; i < n; i++)
+		{
+			int b = (k.TestBit(i) ? 1 : 0);
+			int bp = 1 - b;
+			R[bp] = R[bp].TwicePlus(R[b]);
+		}
+		return R[0];
+	}
+}

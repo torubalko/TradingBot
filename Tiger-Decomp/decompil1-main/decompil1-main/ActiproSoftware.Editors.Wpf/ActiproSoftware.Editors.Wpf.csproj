@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>ActiproSoftware.Editors.Wpf</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net452</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="products\editors\images\editorslogo.xaml" />
+    <None Remove="ZtYZQJwQUh9XDXOwlT.V21aYRb8T5QCiiNiwC" />
+    <EmbeddedResource Include="products\editors\images\editorslogo.xaml" LogicalName="products/editors/images/editorslogo.xaml" />
+    <EmbeddedResource Include="ZtYZQJwQUh9XDXOwlT.V21aYRb8T5QCiiNiwC" LogicalName="ZtYZQJwQUh9XDXOwlT.V21aYRb8T5QCiiNiwC" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="ActiproSoftware.Shared.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Shared.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="UIAutomationTypes" />
+    <Reference Include="UIAutomationProvider" />
+  </ItemGroup>
+</Project>

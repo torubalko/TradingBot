@@ -1,0 +1,23 @@
+namespace ActiproSoftware.Products.Grids;
+
+public enum SRName
+{
+	UICommandCopyNameText,
+	UICommandCopyValueText,
+	UICommandDescriptionText,
+	UICommandPasteValueText,
+	UICommandResetText,
+	UICommandSizeAllColumnsToFitText,
+	UICommandSizeColumnToFitText,
+	UIExpandableCollectionConverterIndexFormat,
+	UIExpandableCollectionConverterMultipleItemsFormat,
+	UIExpandableCollectionConverterNoItemsText,
+	UIExpandableCollectionConverterNullText,
+	UIExpandableCollectionConverterOneItemText,
+	UIPropertyGridColumnHeaderNameText,
+	UIPropertyGridColumnHeaderValueText,
+	UIPropertyGridAddChildButtonToolTip,
+	UIPropertyGridRemoveButtonToolTip,
+	UIPropertyGridSummaryNoDescriptionText,
+	UIPropertyGridSummaryNoDisplayNameText
+}

@@ -114,6 +114,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DepthDelta.h" />
     <ClInclude Include="HighSpeedDataFeed.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="LatencyTracker.h" />

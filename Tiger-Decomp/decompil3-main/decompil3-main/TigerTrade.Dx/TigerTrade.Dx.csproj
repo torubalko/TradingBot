@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>TigerTrade.Dx</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net472</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="38xt9EkDfYvjcAYgfFCW.4hr2ALkD9ksyhTJgegSR" />
+    <None Remove="FWQYyvkDYto4jH2GiF5A.Wd9s5PkDoYvjQMO61I1Z" />
+    <None Remove="tjHwCckD2ZOoAnCmhGll.auOUj6kDHIIXpY9LE06H" />
+    <None Remove="WuhY2qk4z3rc2tPeRX0y.th1CsXkD0MI91Odm8Lqp" />
+    <EmbeddedResource Include="38xt9EkDfYvjcAYgfFCW.4hr2ALkD9ksyhTJgegSR" LogicalName="38xt9EkDfYvjcAYgfFCW.4hr2ALkD9ksyhTJgegSR" />
+    <EmbeddedResource Include="FWQYyvkDYto4jH2GiF5A.Wd9s5PkDoYvjQMO61I1Z" LogicalName="FWQYyvkDYto4jH2GiF5A.Wd9s5PkDoYvjQMO61I1Z" />
+    <EmbeddedResource Include="tjHwCckD2ZOoAnCmhGll.auOUj6kDHIIXpY9LE06H" LogicalName="tjHwCckD2ZOoAnCmhGll.auOUj6kDHIIXpY9LE06H" />
+    <EmbeddedResource Include="WuhY2qk4z3rc2tPeRX0y.th1CsXkD0MI91Odm8Lqp" LogicalName="WuhY2qk4z3rc2tPeRX0y.th1CsXkD0MI91Odm8Lqp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="SharpDX">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="SharpDX.XAudio2">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\SharpDX.XAudio2.dll</HintPath>
+    </Reference>
+    <Reference Include="TigerTrade.Core">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\TigerTrade.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Configuration" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="SharpDX.Direct2D1">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\SharpDX.Direct2D1.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.DXGI">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\SharpDX.DXGI.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+</Project>

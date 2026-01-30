@@ -1,0 +1,260 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:ActiproSoftware.Windows.Controls" xmlns:controlsPrimitives="clr-namespace:ActiproSoftware.Windows.Controls.Primitives" xmlns:data="clr-namespace:ActiproSoftware.Windows.Data" xmlns:themes="clr-namespace:ActiproSoftware.Windows.Themes">
+  <Style x:Key="{x:Static themes:SharedResourceKeys.TextBoxBaseStyleKey}" TargetType="{x:Type TextBoxBase}">
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderNormalBrushKey}}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderNormalThicknessKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowNormalBrushKey}}" />
+    <Setter Property="TextBoxBase.CaretBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditCaretBackgroundNormalBrushKey}}" />
+    <Setter Property="Padding" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditPaddingNormalThicknessKey}}" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderNormalCornerRadiusKey}}" />
+    <Setter Property="themes:ThemeProperties.IsAnimationEnabled" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditIsAnimationEnabledBooleanKey}}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type TextBoxBase}">
+          <controlsPrimitives:ElementChrome x:Name="chrome" Background="{TemplateBinding Control.Background}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundDisabledBrushKey}}" BackgroundFocused="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundFocusedBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundHoverBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderDisabledBrushKey}}" BorderBrushFocused="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderFocusedBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderHoverBrushKey}}" BorderThickness="{TemplateBinding Control.BorderThickness}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="true">
+            <Grid>
+              <ScrollViewer Name="PART_ContentHost" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+              <ContentPresenter Name="hint" Margin="4,0" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding controls:HintProperties.Hint}" ContentTemplate="{TemplateBinding controls:HintProperties.HintTemplate}" ContentTemplateSelector="{TemplateBinding controls:HintProperties.HintTemplateSelector}" Opacity="0.67" Visibility="Collapsed" TextBlock.Foreground="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" />
+            </Grid>
+          </controlsPrimitives:ElementChrome>
+          <ControlTemplate.Triggers>
+            <Trigger Property="themes:ThemeProperties.UseBackgroundStates" Value="false">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BackgroundFocused" Value="{x:Null}" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BackgroundHover" Value="{x:Null}" />
+            </Trigger>
+            <Trigger Property="themes:ThemeProperties.UseBorderStates" Value="false">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderBrushDisabled" Value="{x:Null}" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderBrushFocused" Value="{x:Null}" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderBrushHover" Value="{x:Null}" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="themes:ThemeProperties.UseBorderStates" Value="false" />
+                <Condition Property="BorderBrush" Value="#00FFFFFF" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+            </MultiTrigger>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Hover" />
+            </Trigger>
+            <Trigger Property="UIElement.IsKeyboardFocused" Value="true">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Focused" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+            </Trigger>
+            <Trigger Property="controls:HintProperties.HasHint" Value="True">
+              <Setter TargetName="hint" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="controls:HintProperties.HasContent" Value="False" />
+                <Condition Property="UIElement.IsKeyboardFocusWithin" Value="True" />
+              </MultiTrigger.Conditions>
+              <TriggerBase.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" To=".33" Duration="0:0:0.2" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.EnterActions>
+              <TriggerBase.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" Duration="0:0:0.4" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.ExitActions>
+            </MultiTrigger>
+            <Trigger Property="controls:HintProperties.HasContent" Value="True">
+              <TriggerBase.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.EnterActions>
+              <TriggerBase.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" Duration="0:0:0.4" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.ExitActions>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.PasswordBoxStyleKey}" TargetType="{x:Type PasswordBox}">
+    <Setter Property="FrameworkElement.OverridesDefaultStyle" Value="True" />
+    <Setter Property="Background" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundNormalBrushKey}}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderNormalBrushKey}}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderNormalThicknessKey}}" />
+    <Setter Property="Foreground" Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowNormalBrushKey}}" />
+    <Setter Property="Padding" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditPaddingNormalThicknessKey}}" />
+    <Setter Property="themes:ThemeProperties.CornerRadius" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderNormalCornerRadiusKey}}" />
+    <Setter Property="themes:ThemeProperties.IsAnimationEnabled" Value="{DynamicResource {x:Static themes:AssetResourceKeys.EditIsAnimationEnabledBooleanKey}}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type PasswordBox}">
+          <controlsPrimitives:ElementChrome x:Name="chrome" Background="{TemplateBinding Control.Background}" BackgroundDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundDisabledBrushKey}}" BackgroundFocused="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundFocusedBrushKey}}" BackgroundHover="{DynamicResource {x:Static themes:AssetResourceKeys.EditBackgroundHoverBrushKey}}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderBrushDisabled="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderDisabledBrushKey}}" BorderBrushFocused="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderFocusedBrushKey}}" BorderBrushHover="{DynamicResource {x:Static themes:AssetResourceKeys.EditBorderHoverBrushKey}}" BorderThickness="{TemplateBinding Control.BorderThickness}" IsAnimationEnabled="{TemplateBinding themes:ThemeProperties.IsAnimationEnabled}" CornerRadius="{TemplateBinding themes:ThemeProperties.CornerRadius}" SnapsToDevicePixels="true">
+            <Grid>
+              <TextBlock Name="heightRequirement" Text="Gg" Visibility="Hidden" />
+              <ScrollViewer Name="PART_ContentHost" VerticalAlignment="Center" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" TextBlock.FontFamily="Times New Roman" />
+              <ContentPresenter Name="hint" Margin="4,0" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding controls:HintProperties.Hint}" ContentTemplate="{TemplateBinding controls:HintProperties.HintTemplate}" ContentTemplateSelector="{TemplateBinding controls:HintProperties.HintTemplateSelector}" Opacity="0.67" Visibility="Collapsed" TextBlock.Foreground="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" />
+            </Grid>
+          </controlsPrimitives:ElementChrome>
+          <ControlTemplate.Triggers>
+            <Trigger Property="themes:ThemeProperties.UseBackgroundStates" Value="false">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BackgroundFocused" Value="{x:Null}" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BackgroundHover" Value="{x:Null}" />
+            </Trigger>
+            <Trigger Property="themes:ThemeProperties.UseBorderStates" Value="false">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderBrushDisabled" Value="{x:Null}" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderBrushFocused" Value="{x:Null}" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderBrushHover" Value="{x:Null}" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="themes:ThemeProperties.UseBorderStates" Value="false" />
+                <Condition Property="BorderBrush" Value="#00FFFFFF" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.BorderStyle" Value="Default" />
+            </MultiTrigger>
+            <Trigger Property="UIElement.IsMouseOver" Value="true">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Hover" />
+            </Trigger>
+            <Trigger Property="UIElement.IsKeyboardFocused" Value="true">
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Focused" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Foreground" />
+              <Setter TargetName="chrome" Property="controlsPrimitives:ElementChrome.State" Value="Disabled" />
+            </Trigger>
+            <Trigger Property="controls:HintProperties.HasHint" Value="True">
+              <Setter TargetName="hint" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="controls:HintProperties.HasContent" Value="False" />
+                <Condition Property="UIElement.IsKeyboardFocusWithin" Value="True" />
+              </MultiTrigger.Conditions>
+              <TriggerBase.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" To=".33" Duration="0:0:0.2" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.EnterActions>
+              <TriggerBase.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" Duration="0:0:0.4" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.ExitActions>
+            </MultiTrigger>
+            <Trigger Property="controls:HintProperties.HasContent" Value="True">
+              <TriggerBase.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.EnterActions>
+              <TriggerBase.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" Duration="0:0:0.4" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.ExitActions>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Static themes:SharedResourceKeys.EmbeddedTextBoxStyleKey}" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Static themes:SharedResourceKeys.TextBoxBaseStyleKey}}">
+    <Setter Property="Background" Value="#00FFFFFF" />
+    <Setter Property="BorderBrush" Value="#00FFFFFF" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FrameworkElement.FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="TextBox.MaxLines" Value="1" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Validation.ErrorTemplate">
+      <Setter.Value>
+        <ControlTemplate>
+          <Grid>
+            <AdornedElementPlaceholder Name="controlWithError" />
+            <Border BorderBrush="#FFFF0000" BorderThickness="1" />
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type TextBox}">
+          <Border Name="chrome" Background="{TemplateBinding Control.Background}" BorderBrush="{TemplateBinding Control.BorderBrush}" BorderThickness="{TemplateBinding Control.BorderThickness}" SnapsToDevicePixels="true">
+            <Grid>
+              <ScrollViewer Name="PART_ContentHost" SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}" />
+              <ContentPresenter Name="hint" Margin="4,0" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding controls:HintProperties.Hint}" ContentTemplate="{TemplateBinding controls:HintProperties.HintTemplate}" ContentTemplateSelector="{TemplateBinding controls:HintProperties.HintTemplateSelector}" Opacity="0.67" Visibility="Collapsed" TextBlock.Foreground="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" />
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="false">
+              <Setter Value="{DynamicResource {x:Static themes:AssetResourceKeys.ContainerForegroundLowDisabledBrushKey}}" Property="Foreground" />
+            </Trigger>
+            <Trigger Property="controls:HintProperties.HasHint" Value="True">
+              <Setter TargetName="hint" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="controls:HintProperties.HasContent" Value="False" />
+                <Condition Property="UIElement.IsKeyboardFocusWithin" Value="True" />
+              </MultiTrigger.Conditions>
+              <TriggerBase.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" To=".33" Duration="0:0:0.2" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.EnterActions>
+              <TriggerBase.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" Duration="0:0:0.4" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.ExitActions>
+            </MultiTrigger>
+            <Trigger Property="controls:HintProperties.HasContent" Value="True">
+              <TriggerBase.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.EnterActions>
+              <TriggerBase.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="hint" Storyboard.TargetProperty="Opacity" Duration="0:0:0.4" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </TriggerBase.ExitActions>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="{x:Type controlsPrimitives:EmbeddedTextBox}" TargetType="{x:Type controlsPrimitives:EmbeddedTextBox}" BasedOn="{StaticResource {x:Static themes:SharedResourceKeys.EmbeddedTextBoxStyleKey}}">
+    <Setter Property="UIElement.AllowDrop" Value="True" />
+  </Style>
+</ResourceDictionary>

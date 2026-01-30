@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="ActiproSoftware.Windows.Controls.SyntaxEditor.Dialogs.PrintPreviewWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:productsEditor="clr-namespace:ActiproSoftware.Products.SyntaxEditor" xmlns:editorDialogs="clr-namespace:ActiproSoftware.Windows.Controls.SyntaxEditor.Dialogs" Icon="pack://application:,,,/ActiproSoftware.SyntaxEditor.Wpf;component/Products/SyntaxEditor/Images/PrintPreview16.png" Width="600" Height="400" WindowStartupLocation="CenterOwner" Title="{productsEditor:SR UIPrintPreviewWindowTitle}">
+  <editorDialogs:EditorDocumentViewer x:Name="documentViewer" />
+</Window>

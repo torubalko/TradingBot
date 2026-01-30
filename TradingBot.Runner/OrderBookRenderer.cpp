@@ -3,8 +3,8 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
-#include <unordered_map>
 #include <mutex>
+#include "../TradingBot.Core/RawOrderBook.h"
 #include <limits>
 #include <iostream>
 
@@ -35,8 +35,12 @@ namespace {
         else if (absV >= 1'000.0) { suffix = L'K'; scaled = vol / 1'000.0; }
 
         int prec = 2;
-        if (std::fabs(scaled) >= 100.0) prec = 0;
-        else if (std::fabs(scaled) >= 10.0) prec = 1;
+        double absScaled = std::fabs(scaled);
+        if (absScaled >= 100.0) prec = 0;
+        else if (absScaled >= 10.0) prec = 1;
+        else if (absScaled >= 1.0) prec = 2;
+        else if (absScaled >= 0.1) prec = 3;
+        else prec = 4;
         std::wstringstream ss;
         ss << std::fixed << std::setprecision(prec) << scaled;
         auto s = ss.str();
@@ -106,9 +110,14 @@ if (!snapshotPtr) {
     return;
 }
 
-const auto& snapshot = *snapshotPtr;
-const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
+    const auto& snapshot = *snapshotPtr;
+    const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.empty()) ? snapshot.BidsQuote : snapshot.Bids;
     const auto& asksSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.AsksQuote.empty()) ? snapshot.AsksQuote : snapshot.Asks;
+
+    // Prefer RAW snapshot even if legacy vectors are empty
+    auto rawSnap = sharedState_->GetRawSnapshot();
+    const TradingBot::Core::Raw::SideBook* rawBids = rawSnap.bids;
+    const TradingBot::Core::Raw::SideBook* rawAsks = rawSnap.asks;
 
 #ifdef _WIN32
     // Debug: Log level counts periodically
@@ -116,8 +125,12 @@ const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.e
     auto logNow = std::chrono::steady_clock::now();
     if (std::chrono::duration_cast<std::chrono::seconds>(logNow - lastLog).count() >= 5) {
         std::wstringstream dbg;
-        dbg << L"[OrderBook] Snapshot levels: bids=" << bidsSrc.size() 
-            << L" asks=" << asksSrc.size()
+        size_t dbgBids = bidsSrc.size();
+        size_t dbgAsks = asksSrc.size();
+        if (rawBids) dbgBids = rawBids->size;
+        if (rawAsks) dbgAsks = rawAsks->size;
+        dbg << L"[OrderBook] Snapshot levels: bids=" << dbgBids 
+            << L" asks=" << dbgAsks
             << L" compression=" << compressionStep_
             << L" visible=" << visibleLevels_ << L"\n";
         OutputDebugStringW(dbg.str().c_str());
@@ -125,7 +138,7 @@ const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.e
     }
 #endif
 
-    if (bidsSrc.empty() || asksSrc.empty()) {
+    if ((bidsSrc.empty() || asksSrc.empty()) && (!rawBids || !rawAsks || rawBids->size == 0 || rawAsks->size == 0)) {
         graphics_->DrawTextPixels(L"Waiting for Order Book synchronization...", 
                                  x + 10, y + 10, width - 20, 20, 12, 
                                  0.7f, 0.7f, 0.7f, 1.0f);
@@ -171,6 +184,25 @@ const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.e
     };
 
     double tickSize = getMarketTick();
+    if ((tickSize <= 0.0 || std::isnan(tickSize)) && rawBids && rawAsks) {
+        // Fallback: deduce from RAW
+        auto deduceTickRaw = [&](const TradingBot::Core::Raw::SideBook* side, bool descending){
+            double t = 0.0;
+            if (!side || side->size < 2) return t;
+            for (int i = 0; i + 1 < side->size; ++i) {
+                double d = descending ? (side->levels[i].price - side->levels[i+1].price)
+                                      : (side->levels[i+1].price - side->levels[i].price);
+                if (d > 1e-12) t = (t == 0.0) ? d : (std::min)(t, d);
+            }
+            return t;
+        };
+        double tb = deduceTickRaw(rawBids, true);
+        double ta = deduceTickRaw(rawAsks, false);
+        double t = 0.0;
+        if (tb > 0.0 && ta > 0.0) t = (tb < ta) ? tb : ta;
+        else t = (tb > 0.0) ? tb : ta;
+        if (t > 0.0) tickSize = t;
+    }
     double bucketWidth = tickSize * (compressionStep_ > 0 ? compressionStep_ : 1);
     if (bucketWidth <= 0.0) bucketWidth = 0.1;
 
@@ -183,51 +215,61 @@ const auto& bidsSrc = (volumeMode_ == VolumeMode::Quote && !snapshot.BidsQuote.e
     // Fallback to depth snapshot if bookTicker not available yet
     double bestBidSrc = (tickerBid > 0.0) ? tickerBid : (bidsSrc.empty() ? 0.0 : bidsSrc[0].first);
     double bestAskSrc = (tickerAsk > 0.0) ? tickerAsk : (asksSrc.empty() ? 0.0 : asksSrc[0].first);
+    if (bestBidSrc <= 0.0 && rawBids && rawBids->size > 0) bestBidSrc = rawBids->levels[0].price;
+    if (bestAskSrc <= 0.0 && rawAsks && rawAsks->size > 0) bestAskSrc = rawAsks->levels[0].price;
     
     double midAnchor = 0.0;
     if (bestBidSrc > 0.0 && bestAskSrc > 0.0) midAnchor = (bestBidSrc + bestAskSrc) * 0.5;
     else if (bestBidSrc > 0.0) midAnchor = bestBidSrc;
     else if (bestAskSrc > 0.0) midAnchor = bestAskSrc;
 
-    // HFT OPTIMIZED: Pre-allocated hash map for O(1) lookup
-    static thread_local std::unordered_map<double, double> aggCache;
-    
-    auto bucketByPrice = [&](const std::vector<std::pair<double, double>>& src,
-                             std::vector<std::pair<double, double>>& dst,
-                             bool descending,
-                             double anchorPrice) {
-        if (src.empty() && anchorPrice <= 0.0) return;
-        
-        // Step 1: Aggregate into hash map O(N)
-        aggCache.clear();
-        aggCache.reserve(src.size());
-        for (const auto& level : src) {
-            double bucketPrice = std::floor(level.first / bucketWidth) * bucketWidth;
-            aggCache[bucketPrice] += level.second;
-        }
-        
-        // Step 2: Extract visible levels O(M)
-        dst.clear();
-        dst.reserve(visibleLevels_ > 0 ? visibleLevels_ : 1);
-        
-        size_t desired = static_cast<size_t>(visibleLevels_ > 0 ? visibleLevels_ : 1);
-        double startBucket = descending ? std::floor(anchorPrice / bucketWidth) * bucketWidth
-                                        : std::ceil(anchorPrice / bucketWidth) * bucketWidth;
-        
-        for (size_t i = 0; i < desired; ++i) {
-            double price = descending ? (startBucket - static_cast<double>(i) * bucketWidth)
-                                      : (startBucket + static_cast<double>(i) * bucketWidth);
-            auto it = aggCache.find(price);
-            double volume = (it != aggCache.end()) ? it->second : 0.0;
-            dst.emplace_back(price, volume);
+    const int MAX_VIS = 2048;
+    int vis = (visibleLevels_ > 0) ? visibleLevels_ : 1;
+    if (vis > MAX_VIS) vis = MAX_VIS;
+    double bidBuckets[2048] = {};
+    double askBuckets[2048] = {};
+    double bidsAnchor = (bestBidSrc > 0.0) ? std::floor(bestBidSrc / bucketWidth) * bucketWidth
+                                           : std::floor(midAnchor / bucketWidth) * bucketWidth;
+    // Align ask bucket 0 exactly to best ask so first visible level is best ask
+    double asksAnchor = (bestAskSrc > 0.0) ? std::floor(bestAskSrc / bucketWidth) * bucketWidth
+                                           : std::floor(midAnchor / bucketWidth) * bucketWidth;
+
+    auto compressSide = [&](const TradingBot::Core::Raw::SideBook* side, bool isBid, double anchor, double* buckets){
+        if (!side) return;
+        for (int i = 0; i < side->size; ++i) {
+            double price = side->levels[i].price;
+            double qty = side->levels[i].qty;
+            double bucket = std::floor(price / bucketWidth) * bucketWidth;
+            double offset = isBid ? ((anchor - bucket) / bucketWidth) : ((bucket - anchor) / bucketWidth);
+            int idx = static_cast<int>(offset + 0.5);
+            if (idx >= 0 && idx < vis && idx < MAX_VIS) {
+                buckets[idx] += qty;
+            }
         }
     };
 
-    double bidsAnchor = std::floor(midAnchor / bucketWidth) * bucketWidth;
-    double asksAnchor = std::ceil(midAnchor / bucketWidth) * bucketWidth;
+    // Prefer RAW snapshot when available
+    if (rawBids && rawAsks) {
+        compressSide(rawBids, true, bidsAnchor, bidBuckets);
+        compressSide(rawAsks, false, asksAnchor, askBuckets);
 
-    bucketByPrice(bidsSrc, cachedBids_, true, bidsAnchor);
-    bucketByPrice(asksSrc, cachedAsks_, false, asksAnchor);
+        cachedBids_.clear();
+        cachedAsks_.clear();
+        cachedBids_.reserve(vis);
+        cachedAsks_.reserve(vis);
+        for (int i = 0; i < vis; ++i) {
+            cachedBids_.emplace_back(bidsAnchor - static_cast<double>(i) * bucketWidth, bidBuckets[i]);
+            cachedAsks_.emplace_back(asksAnchor + static_cast<double>(i) * bucketWidth, askBuckets[i]);
+        }
+    } else {
+        // Fallback to existing compressed vectors if raw not ready
+        cachedBids_.clear();
+        cachedAsks_.clear();
+        cachedBids_.reserve(bidsSrc.size());
+        cachedAsks_.reserve(asksSrc.size());
+        cachedBids_.insert(cachedBids_.end(), bidsSrc.begin(), bidsSrc.end());
+        cachedAsks_.insert(cachedAsks_.end(), asksSrc.begin(), asksSrc.end());
+    }
 
     // If quote data is not precomputed, derive from price*base
     if (volumeMode_ == VolumeMode::Quote) {

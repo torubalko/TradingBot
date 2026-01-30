@@ -1,0 +1,3 @@
+namespace Microsoft.IdentityModel.Tokens;
+
+public delegate bool IssuerSigningKeyValidatorUsingConfiguration(SecurityKey securityKey, SecurityToken securityToken, TokenValidationParameters validationParameters, BaseConfiguration configuration);

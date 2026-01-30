@@ -1,0 +1,172 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>ActiproSoftware.SyntaxEditor.Wpf</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net452</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="products\syntaxeditor\images\classic\extensionmethodpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\classprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\eventinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\enumerationitem16.png" />
+    <None Remove="products\syntaxeditor\images\classic\extensionmethodprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\propertyprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\constantpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\codesnippet16.png" />
+    <None Remove="products\syntaxeditor\images\classic\enumerationinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\interfaceprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\delegateinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\enumerationpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\methodprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\interfaceprotected16.png" />
+    <None Remove="products\syntaxeditor\images\syntaxeditorlogo.xaml" />
+    <None Remove="products\syntaxeditor\images\classic\xmlcdatasection16.png" />
+    <None Remove="products\syntaxeditor\images\classic\interfacepublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\xmlcomment16.png" />
+    <None Remove="products\syntaxeditor\images\classic\propertypublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\methodinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\eventprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\interfaceinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\eventprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\structureprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\folderclosed16.png" />
+    <None Remove="products\syntaxeditor\images\classic\assembly16.png" />
+    <None Remove="products\syntaxeditor\images\classic\classprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\xmlprocessinginstruction16.png" />
+    <None Remove="products\syntaxeditor\images\classic\namespace16.png" />
+    <None Remove="products\syntaxeditor\images\classic\xmltag16.png" />
+    <None Remove="products\syntaxeditor\images\classic\propertyprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\structurepublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\genericargument16.png" />
+    <None Remove="products\syntaxeditor\images\classic\standardmodulepublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\delegateprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\structureinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\parameter16.png" />
+    <None Remove="products\syntaxeditor\images\classic\fieldinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\xmlattribute16.png" />
+    <None Remove="products\syntaxeditor\images\classic\classinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\fieldpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\methodprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\xmldeclaration16.png" />
+    <None Remove="products\syntaxeditor\images\classic\eventpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\enumerationprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\operator16.png" />
+    <None Remove="products\syntaxeditor\images\classic\classpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\extensionmethodinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\extensionmethodprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\constantprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\fieldprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\constantprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\propertyinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\warning16.png" />
+    <None Remove="products\syntaxeditor\images\classic\methodpublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\enumerationprivate16.png" />
+    <None Remove="products\syntaxeditor\images\classic\structureprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\keyword16.png" />
+    <None Remove="products\syntaxeditor\images\classic\delegateprotected16.png" />
+    <None Remove="products\syntaxeditor\images\classic\constantinternal16.png" />
+    <None Remove="products\syntaxeditor\images\printpreview16.png" />
+    <None Remove="products\syntaxeditor\images\classic\standardmoduleinternal16.png" />
+    <None Remove="products\syntaxeditor\images\classic\delegatepublic16.png" />
+    <None Remove="products\syntaxeditor\images\classic\fieldprivate16.png" />
+    <None Remove="ActiproSoftware.Products.SyntaxEditor.Cursors.IncrementalSearchBackward.cur" />
+    <None Remove="EG1XQy3R8DljPEJZgd.2OTec8J2J67UU0j8UX" />
+    <None Remove="ActiproSoftware.Products.SyntaxEditor.Cursors.IncrementalSearchForward.cur" />
+    <None Remove="ActiproSoftware.Products.SyntaxEditor.Cursors.ReverseArrow.cur" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\extensionmethodpublic16.png" LogicalName="products/syntaxeditor/images/classic/extensionmethodpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\classprotected16.png" LogicalName="products/syntaxeditor/images/classic/classprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\eventinternal16.png" LogicalName="products/syntaxeditor/images/classic/eventinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\enumerationitem16.png" LogicalName="products/syntaxeditor/images/classic/enumerationitem16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\extensionmethodprivate16.png" LogicalName="products/syntaxeditor/images/classic/extensionmethodprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\propertyprivate16.png" LogicalName="products/syntaxeditor/images/classic/propertyprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\constantpublic16.png" LogicalName="products/syntaxeditor/images/classic/constantpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\codesnippet16.png" LogicalName="products/syntaxeditor/images/classic/codesnippet16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\enumerationinternal16.png" LogicalName="products/syntaxeditor/images/classic/enumerationinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\interfaceprivate16.png" LogicalName="products/syntaxeditor/images/classic/interfaceprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\delegateinternal16.png" LogicalName="products/syntaxeditor/images/classic/delegateinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\enumerationpublic16.png" LogicalName="products/syntaxeditor/images/classic/enumerationpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\methodprivate16.png" LogicalName="products/syntaxeditor/images/classic/methodprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\interfaceprotected16.png" LogicalName="products/syntaxeditor/images/classic/interfaceprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\syntaxeditorlogo.xaml" LogicalName="products/syntaxeditor/images/syntaxeditorlogo.xaml" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\xmlcdatasection16.png" LogicalName="products/syntaxeditor/images/classic/xmlcdatasection16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\interfacepublic16.png" LogicalName="products/syntaxeditor/images/classic/interfacepublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\xmlcomment16.png" LogicalName="products/syntaxeditor/images/classic/xmlcomment16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\propertypublic16.png" LogicalName="products/syntaxeditor/images/classic/propertypublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\methodinternal16.png" LogicalName="products/syntaxeditor/images/classic/methodinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\eventprotected16.png" LogicalName="products/syntaxeditor/images/classic/eventprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\interfaceinternal16.png" LogicalName="products/syntaxeditor/images/classic/interfaceinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\eventprivate16.png" LogicalName="products/syntaxeditor/images/classic/eventprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\structureprivate16.png" LogicalName="products/syntaxeditor/images/classic/structureprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\folderclosed16.png" LogicalName="products/syntaxeditor/images/classic/folderclosed16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\assembly16.png" LogicalName="products/syntaxeditor/images/classic/assembly16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\classprivate16.png" LogicalName="products/syntaxeditor/images/classic/classprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\xmlprocessinginstruction16.png" LogicalName="products/syntaxeditor/images/classic/xmlprocessinginstruction16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\namespace16.png" LogicalName="products/syntaxeditor/images/classic/namespace16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\xmltag16.png" LogicalName="products/syntaxeditor/images/classic/xmltag16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\propertyprotected16.png" LogicalName="products/syntaxeditor/images/classic/propertyprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\structurepublic16.png" LogicalName="products/syntaxeditor/images/classic/structurepublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\genericargument16.png" LogicalName="products/syntaxeditor/images/classic/genericargument16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\standardmodulepublic16.png" LogicalName="products/syntaxeditor/images/classic/standardmodulepublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\delegateprivate16.png" LogicalName="products/syntaxeditor/images/classic/delegateprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\structureinternal16.png" LogicalName="products/syntaxeditor/images/classic/structureinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\parameter16.png" LogicalName="products/syntaxeditor/images/classic/parameter16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\fieldinternal16.png" LogicalName="products/syntaxeditor/images/classic/fieldinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\xmlattribute16.png" LogicalName="products/syntaxeditor/images/classic/xmlattribute16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\classinternal16.png" LogicalName="products/syntaxeditor/images/classic/classinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\fieldpublic16.png" LogicalName="products/syntaxeditor/images/classic/fieldpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\methodprotected16.png" LogicalName="products/syntaxeditor/images/classic/methodprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\xmldeclaration16.png" LogicalName="products/syntaxeditor/images/classic/xmldeclaration16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\eventpublic16.png" LogicalName="products/syntaxeditor/images/classic/eventpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\enumerationprotected16.png" LogicalName="products/syntaxeditor/images/classic/enumerationprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\operator16.png" LogicalName="products/syntaxeditor/images/classic/operator16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\classpublic16.png" LogicalName="products/syntaxeditor/images/classic/classpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\extensionmethodinternal16.png" LogicalName="products/syntaxeditor/images/classic/extensionmethodinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\extensionmethodprotected16.png" LogicalName="products/syntaxeditor/images/classic/extensionmethodprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\constantprotected16.png" LogicalName="products/syntaxeditor/images/classic/constantprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\fieldprotected16.png" LogicalName="products/syntaxeditor/images/classic/fieldprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\constantprivate16.png" LogicalName="products/syntaxeditor/images/classic/constantprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\propertyinternal16.png" LogicalName="products/syntaxeditor/images/classic/propertyinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\warning16.png" LogicalName="products/syntaxeditor/images/classic/warning16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\methodpublic16.png" LogicalName="products/syntaxeditor/images/classic/methodpublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\enumerationprivate16.png" LogicalName="products/syntaxeditor/images/classic/enumerationprivate16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\structureprotected16.png" LogicalName="products/syntaxeditor/images/classic/structureprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\keyword16.png" LogicalName="products/syntaxeditor/images/classic/keyword16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\delegateprotected16.png" LogicalName="products/syntaxeditor/images/classic/delegateprotected16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\constantinternal16.png" LogicalName="products/syntaxeditor/images/classic/constantinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\printpreview16.png" LogicalName="products/syntaxeditor/images/printpreview16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\standardmoduleinternal16.png" LogicalName="products/syntaxeditor/images/classic/standardmoduleinternal16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\delegatepublic16.png" LogicalName="products/syntaxeditor/images/classic/delegatepublic16.png" />
+    <EmbeddedResource Include="products\syntaxeditor\images\classic\fieldprivate16.png" LogicalName="products/syntaxeditor/images/classic/fieldprivate16.png" />
+    <EmbeddedResource Include="ActiproSoftware.Products.SyntaxEditor.Cursors.IncrementalSearchBackward.cur" LogicalName="ActiproSoftware.Products.SyntaxEditor.Cursors.IncrementalSearchBackward.cur" />
+    <EmbeddedResource Include="EG1XQy3R8DljPEJZgd.2OTec8J2J67UU0j8UX" LogicalName="EG1XQy3R8DljPEJZgd.2OTec8J2J67UU0j8UX" />
+    <EmbeddedResource Include="ActiproSoftware.Products.SyntaxEditor.Cursors.IncrementalSearchForward.cur" LogicalName="ActiproSoftware.Products.SyntaxEditor.Cursors.IncrementalSearchForward.cur" />
+    <EmbeddedResource Include="ActiproSoftware.Products.SyntaxEditor.Cursors.ReverseArrow.cur" LogicalName="ActiproSoftware.Products.SyntaxEditor.Cursors.ReverseArrow.cur" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="ActiproSoftware.Shared.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Shared.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="ActiproSoftware.Text.Wpf">
+      <HintPath>..\..\..\..\..\Program Files (x86)\TigerTrade\ActiproSoftware.Text.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Core" />
+    <Reference Include="ReachFramework" />
+    <Reference Include="System.Printing" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="UIAutomationTypes" />
+    <Reference Include="UIAutomationProvider" />
+    <Reference Include="UIAutomationClient" />
+  </ItemGroup>
+</Project>

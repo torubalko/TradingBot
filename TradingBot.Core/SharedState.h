@@ -22,6 +22,7 @@
 #include "Types.h"
 #include "MarketDetails.h"
 #include "OrderBook.h"
+#include "RawOrderBook.h"
 
 namespace TradingBot::Core {
 
@@ -94,6 +95,14 @@ namespace TradingBot::Core {
     public:
         MarketCache marketData;
         std::mutex instrumentsMutex;
+
+        struct RawMetrics {
+            double spread{0.0};
+            double imbalance{0.0};
+            double microprice{0.0};
+            double mid{0.0};
+            int64_t lastUpdateId{0};
+        };
 
         SharedState() {
             // Initialize double buffers for lock-free UI reads
@@ -478,6 +487,77 @@ namespace TradingBot::Core {
             // No render snapshot update - UI will pull when needed
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // Tiger RAW BOOK (fixed arrays, zero alloc) - separate path
+        // ═══════════════════════════════════════════════════════════════
+        void ApplyRawSnapshot(int64_t lastUpdateId,
+                               const Raw::Level* bids, int bidCount,
+                               const Raw::Level* asks, int askCount) {
+            rawBook_.ApplySnapshot(lastUpdateId, bids, bidCount, asks, askCount);
+            rawSnapshotPtr_.store(rawBook_.SnapshotPtr(), std::memory_order_release);
+        }
+
+        bool ApplyRawDelta(int64_t U, int64_t u,
+                            const Raw::Level* bids, int bidCount,
+                            const Raw::Level* asks, int askCount) {
+            bool ok = rawBook_.ApplyDelta(U, u, bids, bidCount, asks, askCount);
+            if (ok) {
+                rawSnapshotPtr_.store(rawBook_.SnapshotPtr(), std::memory_order_release);
+            }
+            return ok;
+        }
+
+        Raw::SnapshotView GetRawSnapshot() const {
+            const Raw::BookState* ptr = rawSnapshotPtr_.load(std::memory_order_acquire);
+            if (!ptr) {
+                Raw::SnapshotView empty{};
+                empty.bids = nullptr;
+                empty.asks = nullptr;
+                empty.lastUpdateId = 0;
+                return empty;
+            }
+            return Raw::SnapshotView{ &ptr->bids, &ptr->asks, ptr->lastUpdateId };
+        }
+
+        // Core metrics from RAW snapshot (spread, imbalance, microprice)
+        RawMetrics GetRawMetrics(int depthLevels) const {
+            RawMetrics m{};
+            auto snap = GetRawSnapshot();
+            const auto* bids = snap.bids;
+            const auto* asks = snap.asks;
+            if (!bids || !asks || bids->size == 0 || asks->size == 0) return m;
+
+            const int depth = depthLevels > 0 ? depthLevels : 1;
+            const int bidDepth = (bids->size < depth) ? bids->size : depth;
+            const int askDepth = (asks->size < depth) ? asks->size : depth;
+
+            double bestBidP = bids->levels[0].price;
+            double bestBidQ = bids->levels[0].qty;
+            double bestAskP = asks->levels[0].price;
+            double bestAskQ = asks->levels[0].qty;
+
+            m.spread = bestAskP - bestBidP;
+            m.mid = (bestBidP + bestAskP) * 0.5;
+
+            double bidSum = 0.0;
+            double askSum = 0.0;
+            for (int i = 0; i < bidDepth; ++i) bidSum += bids->levels[i].qty;
+            for (int i = 0; i < askDepth; ++i) askSum += asks->levels[i].qty;
+            double total = bidSum + askSum;
+            if (total > 1e-12) {
+                m.imbalance = bidSum / total;
+            }
+
+            double denom = bestBidQ + bestAskQ;
+            if (denom > 1e-12) {
+                m.microprice = (bestBidP * bestAskQ + bestAskP * bestBidQ) / denom;
+            } else {
+                m.microprice = m.mid;
+            }
+            m.lastUpdateId = snap.lastUpdateId;
+            return m;
+        }
+
     private:
         struct SpinLock {
             std::atomic_flag flag = ATOMIC_FLAG_INIT;
@@ -585,6 +665,10 @@ namespace TradingBot::Core {
 
         // Core OrderBook (protected by stateLock_)
         Models::OrderBook orderBook_;
+
+        // Tiger RAW order book (single-writer) with atomic snapshot pointer
+        Raw::RawOrderBook rawBook_;
+        std::atomic<const Raw::BookState*> rawSnapshotPtr_{ nullptr };
 
         // ═══════════════════════════════════════════════════════════════
         // DOUBLE BUFFERING for ZERO-LOCK UI reads

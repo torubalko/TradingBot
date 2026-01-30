@@ -1,0 +1,306 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>1.3</value></resheader><resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><data name="UICommandSelectBlockUpText" xml:space="preserve"><value>Select Block Up</value></data>
+  <data name="UICommandMoveSelectedLinesUpText" xml:space="preserve"><value>Move Selected Lines Up</value></data>
+  <data name="UICommandCollapseToDefinitionsText" xml:space="preserve"><value>Collapse to Definitions</value></data>
+  <data name="ExInvalidLanguageDefinitionStream" xml:space="preserve"><value>The supplied stream doesn't contain a valid language definition.</value></data>
+  <data name="UICommandRequestIntelliPromptCompletionSessionText" xml:space="preserve"><value>Completion List</value></data>
+  <data name="ExUnableToRetrieveTextBoundsForOffset" xml:space="preserve"><value>Unable to retrieve TextBounds for offset '{0}'.</value></data>
+  <data name="UICommandMoveDownText" xml:space="preserve"><value>Move Down</value></data>
+  <data name="UICommandSelectBlockRightText" xml:space="preserve"><value>Select Block Right</value></data>
+  <data name="UIKeyOemQuotesText" xml:space="preserve"><value>'</value></data>
+  <data name="UICommandCapitalizeText" xml:space="preserve"><value>Capitalize</value></data>
+  <data name="UIKeyEscapeText" xml:space="preserve"><value>Esc</value></data>
+  <data name="UICommandStartAutomaticOutliningText" xml:space="preserve"><value>Start Automatic Outlining</value></data>
+  <data name="UICommandSelectToNextWordText" xml:space="preserve"><value>Select to Next Word</value></data>
+  <data name="UIMenuItemPasteText" xml:space="preserve"><value>_Paste</value></data>
+  <data name="UIKeyOemQuestionText" xml:space="preserve"><value>/</value></data>
+  <data name="UICommandCopyAndAppendToClipboardText" xml:space="preserve"><value>Copy/Append</value></data>
+  <data name="UICommandDeleteText" xml:space="preserve"><value>Delete</value></data>
+  <data name="UICommandFindNextSelectedText" xml:space="preserve"><value>Find Next Selected</value></data>
+  <data name="UIKeyPageDownText" xml:space="preserve"><value>PgDn</value></data>
+  <data name="UICommandUndoText" xml:space="preserve"><value>Undo</value></data>
+  <data name="UIEditorSearchViewFindAllButtonText" xml:space="preserve"><value>Fin_d All</value></data>
+  <data name="UIKeyD8Text" xml:space="preserve"><value>8</value></data>
+  <data name="UIKeyD9Text" xml:space="preserve"><value>9</value></data>
+  <data name="UIKeyOemCommaText" xml:space="preserve"><value>,</value></data>
+  <data name="UIKeyD0Text" xml:space="preserve"><value>0</value></data>
+  <data name="UIKeyD1Text" xml:space="preserve"><value>1</value></data>
+  <data name="UICommandIndentText" xml:space="preserve"><value>Increase Line Indent</value></data>
+  <data name="UIKeyD2Text" xml:space="preserve"><value>2</value></data>
+  <data name="UIKeyD3Text" xml:space="preserve"><value>3</value></data>
+  <data name="UIKeyD4Text" xml:space="preserve"><value>4</value></data>
+  <data name="UIKeyD5Text" xml:space="preserve"><value>5</value></data>
+  <data name="UIKeyD6Text" xml:space="preserve"><value>6</value></data>
+  <data name="UIKeyD7Text" xml:space="preserve"><value>7</value></data>
+  <data name="UIClassificationTypeCurrentStatement" xml:space="preserve"><value>Current Statement</value></data>
+  <data name="UICommandMoveToPreviousLineStartAfterIndentationText" xml:space="preserve"><value>Move to Previous Line Start After Indentation</value></data>
+  <data name="UICommandTransposeWordsText" xml:space="preserve"><value>Transpose Words</value></data>
+  <data name="UIClassificationTypeCodeSnippetDependentField" xml:space="preserve"><value>Code Snippet Dependent Field</value></data>
+  <data name="UIClassificationTypeOutliningMarginSquare" xml:space="preserve"><value>Outlining Margin Square</value></data>
+  <data name="UIKeyDeleteText" xml:space="preserve"><value>Del</value></data>
+  <data name="UICommandTransposeCharactersText" xml:space="preserve"><value>Transpose Characters</value></data>
+  <data name="UIClassificationTypeFindScopeHighlight" xml:space="preserve"><value>Find Scope Highlight</value></data>
+  <data name="UICommandRequestIntelliPromptInsertSnippetSessionText" xml:space="preserve"><value>Insert Snippet</value></data>
+  <data name="ExOutliningSourceConstructorNotFound" xml:space="preserve"><value>A public constructor that accepts a single ITextSnapshot (or derived class) instance parameter on the outlining source type '{0}' was not found.</value></data>
+  <data name="UICommandMoveToLineStartText" xml:space="preserve"><value>Move to Line Start</value></data>
+  <data name="UICommandSelectWordText" xml:space="preserve"><value>Select Word</value></data>
+  <data name="UICommandMoveToPreviousWordText" xml:space="preserve"><value>Move to Previous Word</value></data>
+  <data name="UICommandCodeBlockSelectionExpandText" xml:space="preserve"><value>Expand Code Block Selection</value></data>
+  <data name="UIMenuItemRedoText" xml:space="preserve"><value>_Redo</value></data>
+  <data name="UIClassificationTypeCollapsedText" xml:space="preserve"><value>Collapsed Text</value></data>
+  <data name="UICommandResetZoomLevelText" xml:space="preserve"><value>Reset Zoom Level</value></data>
+  <data name="UIMenuItemDeleteText" xml:space="preserve"><value>_Delete</value></data>
+  <data name="UISearchOverlayPaneFindAllButtonToolTip" xml:space="preserve"><value>Find All</value></data>
+  <data name="UICommandFormatSelectionText" xml:space="preserve"><value>Format Selection</value></data>
+  <data name="ExInvalidSelectionMode" xml:space="preserve"><value>The selection mode must be set to either ContinuousStream or Block.</value></data>
+  <data name="UIKeyLeftText" xml:space="preserve"><value>Left Arrow</value></data>
+  <data name="UIKeyDecimalText" xml:space="preserve"><value>Num .</value></data>
+  <data name="UIClassificationTypeFindMatchHighlight" xml:space="preserve"><value>Find Match Highlight</value></data>
+  <data name="UIKeyReturnText" xml:space="preserve"><value>Enter</value></data>
+  <data name="UIClassificationTypeSavedChangesMark" xml:space="preserve"><value>Track Changes After Save</value></data>
+  <data name="UIEditorSearchViewSearchUpCheckBoxText" xml:space="preserve"><value>Search _up</value></data>
+  <data name="UICommandSelectBlockToNextWordText" xml:space="preserve"><value>Select Block to Next Word</value></data>
+  <data name="UICommandMovePageUpText" xml:space="preserve"><value>Move Page Up</value></data>
+  <data name="UICommandIncrementalSearchText" xml:space="preserve"><value>Incremental Search</value></data>
+  <data name="UIIntelliPromptPopupContentCodeSnippetShortcutPrefix" xml:space="preserve"><value>Shortcut:</value></data>
+  <data name="ExExtensionMustBeSRExtension" xml:space="preserve"><value>The extension must be of type 'SRExtension'.</value></data>
+  <data name="UICommandDeleteToLineEndText" xml:space="preserve"><value>Delete to Line End</value></data>
+  <data name="UIMenuItemCutText" xml:space="preserve"><value>Cu_t</value></data>
+  <data name="UICommandScrollLineToVisibleMiddleText" xml:space="preserve"><value>Scroll Line to Visible Middle</value></data>
+  <data name="UIClassificationTypeCollapsibleRegion" xml:space="preserve"><value>Collapsible Region</value></data>
+  <data name="UICommandPauseResumeMacroRecordingText" xml:space="preserve"><value>Pause/Resume Macro Recording</value></data>
+  <data name="UICommandMovePageDownText" xml:space="preserve"><value>Move Page Down</value></data>
+  <data name="UICommandCollapseSelectionLeftText" xml:space="preserve"><value>Collapse Selection Left</value></data>
+  <data name="UICommandMoveToVisibleTopText" xml:space="preserve"><value>Move to Visible Top</value></data>
+  <data name="UICommandScrollToDocumentEndText" xml:space="preserve"><value>Scroll to Document End</value></data>
+  <data name="UIKeyUpText" xml:space="preserve"><value>Up Arrow</value></data>
+  <data name="ExNoOutliningNodeDefinition" xml:space="preserve"><value>The IOutliningNode must have a definition.</value></data>
+  <data name="UICommandScrollUpText" xml:space="preserve"><value>Scroll Up</value></data>
+  <data name="ExSessionAlreadyOpen" xml:space="preserve"><value>The session is already open.</value></data>
+  <data name="UISearchOverlayPaneUseRegularExpressionsButtonToolTip" xml:space="preserve"><value>Use Regular Expressions ({0})</value></data>
+  <data name="UIClassificationTypeOutliningMarginVerticalRule" xml:space="preserve"><value>Outlining Margin Vertical Rule</value></data>
+  <data name="UICommandSelectPageUpText" xml:space="preserve"><value>Select Page Up</value></data>
+  <data name="UIEditorSearchViewFindNextButtonText" xml:space="preserve"><value>_Find Next</value></data>
+  <data name="UICommandToggleAllOutliningExpansionText" xml:space="preserve"><value>Toggle All Outlining</value></data>
+  <data name="UIKeyRWinText" xml:space="preserve"><value>Right Windows</value></data>
+  <data name="ExTypeNotFound" xml:space="preserve"><value>The type '{0}' was unable to be loaded.  Please ensure that the '{1}' assembly is referenced by your project.</value></data>
+  <data name="UICommandPasteFromClipboardText" xml:space="preserve"><value>Paste</value></data>
+  <data name="UICommandCodeBlockSelectionContractText" xml:space="preserve"><value>Contract Code Block Selection</value></data>
+  <data name="ExTaggerConstructorNotFound" xml:space="preserve"><value>A public constructor that accepts a single ITextView (or derived class) instance parameter on the tagger type '{0}' was not found.</value></data>
+  <data name="UICommandSelectToLineStartAfterIndentationText" xml:space="preserve"><value>Select to Line Start After Indentation</value></data>
+  <data name="UICommandHideSelectionText" xml:space="preserve"><value>Hide Selection</value></data>
+  <data name="UIKeyOemPipeText" xml:space="preserve"><value>\</value></data>
+  <data name="UIClassificationTypeCurrentLine" xml:space="preserve"><value>Current Line</value></data>
+  <data name="UICommandFindText" xml:space="preserve"><value>Find</value></data>
+  <data name="UICommandRedoText" xml:space="preserve"><value>Redo</value></data>
+  <data name="UICommandMoveSelectedLinesDownText" xml:space="preserve"><value>Move Selected Lines Down</value></data>
+  <data name="UISearchOverlayPaneReplaceNextButtonToolTip" xml:space="preserve"><value>Replace Next ({0})</value></data>
+  <data name="ExOutliningSourceConstructorUnableToLoad" xml:space="preserve"><value>A public constructor that accepts a single ITextSnapshot (or derived class) instance parameter on the outlining source type '{0}' was unable to be loaded.</value></data>
+  <data name="UICommandCutToClipboardText" xml:space="preserve"><value>Cut</value></data>
+  <data name="UIModifierKeysControlText" xml:space="preserve"><value>Ctrl</value></data>
+  <data name="UIIntelliPromptCompletionListNoItemsText" xml:space="preserve"><value>(no items)</value></data>
+  <data name="UICommandScrollLeftText" xml:space="preserve"><value>Scroll Left</value></data>
+  <data name="UICommandMoveToDocumentStartText" xml:space="preserve"><value>Move to Document Start</value></data>
+  <data name="UICommandDeleteToNextWordText" xml:space="preserve"><value>Delete to Next Word</value></data>
+  <data name="UIMenuItemUndoText" xml:space="preserve"><value>_Undo</value></data>
+  <data name="UISearchOverlayPaneReplaceWithTextBoxPlaceholderText" xml:space="preserve"><value>Replace with...</value></data>
+  <data name="UICommandMoveUpText" xml:space="preserve"><value>Move Up</value></data>
+  <data name="UICommandZoomInText" xml:space="preserve"><value>Zoom In</value></data>
+  <data name="UIClassificationTypePlainText" xml:space="preserve"><value>Plain Text</value></data>
+  <data name="UICommandCollapseSelectionText" xml:space="preserve"><value>Collapse Selection</value></data>
+  <data name="UICommandSelectLeftText" xml:space="preserve"><value>Select Left</value></data>
+  <data name="UIKeyOemMinusText" xml:space="preserve"><value>-</value></data>
+  <data name="UICommandOutdentText" xml:space="preserve"><value>Decrease Line Indent</value></data>
+  <data name="UICommandSelectBlockLeftText" xml:space="preserve"><value>Select Block Left</value></data>
+  <data name="UICommandMoveToMatchingBracketText" xml:space="preserve"><value>Move to Matching Bracket</value></data>
+  <data name="UIKeyInsertText" xml:space="preserve"><value>Ins</value></data>
+  <data name="UICommandConvertSpacesToTabsText" xml:space="preserve"><value>Convert Spaces to Tabs</value></data>
+  <data name="UIEditorSearchScopeSelectionText" xml:space="preserve"><value>Selection</value></data>
+  <data name="UICommandBackspaceText" xml:space="preserve"><value>Backspace</value></data>
+  <data name="UICommandCopyToClipboardText" xml:space="preserve"><value>Copy</value></data>
+  <data name="UICommandMoveToVisibleBottomText" xml:space="preserve"><value>Move to Visible Bottom</value></data>
+  <data name="UICommandDeleteToLineStartText" xml:space="preserve"><value>Delete to Line Start</value></data>
+  <data name="UIPrinterPageNumberAndCountText" xml:space="preserve"><value>Page {0} of {1}</value></data>
+  <data name="UICommandExpandAllOutliningText" xml:space="preserve"><value>Expand All Outlining</value></data>
+  <data name="UICommandSelectToMatchingBracketText" xml:space="preserve"><value>Select to Matching Bracket</value></data>
+  <data name="UIIntelliPromptCodeSnippetSelectorSurroundWithText" xml:space="preserve"><value>Surround With:</value></data>
+  <data name="UIModifierKeysShiftText" xml:space="preserve"><value>Shift</value></data>
+  <data name="UIKeyOemTildeText" xml:space="preserve"><value>`</value></data>
+  <data name="UIClassificationTypeLineNumbers" xml:space="preserve"><value>Line Numbers</value></data>
+  <data name="UIKeyOemPlusText" xml:space="preserve"><value>=</value></data>
+  <data name="UIClassificationTypeUnsavedChangesMark" xml:space="preserve"><value>Track Changes Before Save</value></data>
+  <data name="UIClassificationTypeBreakpointEnabled" xml:space="preserve"><value>Breakpoint (Enabled)</value></data>
+  <data name="UICommandRemoveTabStopOrOutdentText" xml:space="preserve"><value>Outdent</value></data>
+  <data name="UISearchOverlayPaneCloseButtonToolTip" xml:space="preserve"><value>Close ({0})</value></data>
+  <data name="UICommandConvertTabsToSpacesText" xml:space="preserve"><value>Convert Tabs to Spaces</value></data>
+  <data name="UICommandDeleteHorizontalWhitespaceText" xml:space="preserve"><value>Delete Horizontal Whitespace</value></data>
+  <data name="UIKeyOemSemicolonText" xml:space="preserve"><value>;</value></data>
+  <data name="UISearchOverlayPaneFindNextButtonToolTip" xml:space="preserve"><value>Find Next ({0})</value></data>
+  <data name="ExAdornmentManagerConstructorNotFound" xml:space="preserve"><value>A public constructor that accepts a single ITextView (or derived class) instance parameter on the adornment manager type '{0}' was not found.</value></data>
+  <data name="UICommandDuplicateText" xml:space="preserve"><value>Duplicate</value></data>
+  <data name="UICommandCancelMacroRecordingText" xml:space="preserve"><value>Cancel Macro Recording</value></data>
+  <data name="UICommandToggleMacroRecordingText" xml:space="preserve"><value>Toggle Macro Recording</value></data>
+  <data name="UISearchOverlayPaneSearchUpButtonToolTip" xml:space="preserve"><value>Search Up ({0})</value></data>
+  <data name="UICommandRunMacroText" xml:space="preserve"><value>Run Macro</value></data>
+  <data name="UICommandSelectDownText" xml:space="preserve"><value>Select Down</value></data>
+  <data name="UICommandMoveRightText" xml:space="preserve"><value>Move Right</value></data>
+  <data name="UISearchOverlayPaneReplaceAllButtonToolTip" xml:space="preserve"><value>Replace All ({0})</value></data>
+  <data name="UIEditorSearchViewFindWhatLabelText" xml:space="preserve"><value>Fi_nd what:</value></data>
+  <data name="UICommandSelectBlockToPreviousWordText" xml:space="preserve"><value>Select Block to Previous Word</value></data>
+  <data name="UICommandMoveToNextWordText" xml:space="preserve"><value>Move to Next Word</value></data>
+  <data name="UICommandStopHidingCurrentText" xml:space="preserve"><value>Stop Hiding Current</value></data>
+  <data name="UICommandInsertLineBreakText" xml:space="preserve"><value>Insert Line Break</value></data>
+  <data name="UIClassificationTypeRevertedChangesMark" xml:space="preserve"><value>Track Reverted Changes</value></data>
+  <data name="UISearchOverlayPaneFindWhatTextBoxPlaceholderText" xml:space="preserve"><value>Find...</value></data>
+  <data name="UIIntelliPromptCodeSnippetSelectorInsertSnippetText" xml:space="preserve"><value>Insert Snippet:</value></data>
+  <data name="UICommandScrollToDocumentStartText" xml:space="preserve"><value>Scroll to Document Start</value></data>
+  <data name="UICommandScrollLineToVisibleBottomText" xml:space="preserve"><value>Scroll Line to Visible Bottom</value></data>
+  <data name="UICommandReverseIncrementalSearchText" xml:space="preserve"><value>Reverse Incremental Search</value></data>
+  <data name="UIEditorSearchViewReplaceAllButtonText" xml:space="preserve"><value>Replace _All</value></data>
+  <data name="UICommandStopOutliningText" xml:space="preserve"><value>Stop Outlining</value></data>
+  <data name="UIKeyDownText" xml:space="preserve"><value>Down Arrow</value></data>
+  <data name="UICommandRequestIntelliPromptAutoCompleteText" xml:space="preserve"><value>Complete Word</value></data>
+  <data name="ExOneAllTabFilter" xml:space="preserve"><value>Only one AllTab filter is permitted at a time in a completion list.</value></data>
+  <data name="UIClassificationTypeVisibleWhitespace" xml:space="preserve"><value>Visible White Space</value></data>
+  <data name="UICommandSelectToLineStartText" xml:space="preserve"><value>Select to Line Start</value></data>
+  <data name="UICommandUncommentLinesText" xml:space="preserve"><value>Uncomment Lines</value></data>
+  <data name="UIEditorSearchViewFindOptionsExpanderHeaderText" xml:space="preserve"><value>Find _options</value></data>
+  <data name="UICommandSelectToLineEndText" xml:space="preserve"><value>Select to Line End</value></data>
+  <data name="UICommandToggleOverwriteModeText" xml:space="preserve"><value>Toggle Overwrite Mode</value></data>
+  <data name="UIKeyNumPad8Text" xml:space="preserve"><value>Num 8</value></data>
+  <data name="UIKeyNumPad9Text" xml:space="preserve"><value>Num 9</value></data>
+  <data name="UIKeyNumPad4Text" xml:space="preserve"><value>Num 4</value></data>
+  <data name="UIKeyNumPad7Text" xml:space="preserve"><value>Num 7</value></data>
+  <data name="UIKeyNumPad5Text" xml:space="preserve"><value>Num 5</value></data>
+  <data name="UIKeyNumPad0Text" xml:space="preserve"><value>Num 0</value></data>
+  <data name="UIKeyNumPad3Text" xml:space="preserve"><value>Num 3</value></data>
+  <data name="UIKeyNumPad6Text" xml:space="preserve"><value>Num 6</value></data>
+  <data name="UIKeyNumPad1Text" xml:space="preserve"><value>Num 1</value></data>
+  <data name="UIKeyNumPad2Text" xml:space="preserve"><value>Num 2</value></data>
+  <data name="UICommandBackspaceToPreviousWordText" xml:space="preserve"><value>Backspace to Previous Word</value></data>
+  <data name="UICommandSelectAllText" xml:space="preserve"><value>Select All</value></data>
+  <data name="ExValueGreaterThanZero" xml:space="preserve"><value>The value must be greater than zero.</value></data>
+  <data name="UICommandReplaceText" xml:space="preserve"><value>Replace</value></data>
+  <data name="UICommandReplaceNextSelectedText" xml:space="preserve"><value>Replace Next Selected</value></data>
+  <data name="UIEditorSearchViewReplaceNextButtonText" xml:space="preserve"><value>_Replace</value></data>
+  <data name="UICommandMoveLeftText" xml:space="preserve"><value>Move Left</value></data>
+  <data name="UIEditorSearchViewMatchWholeWordCheckBoxText" xml:space="preserve"><value>Match _whole word</value></data>
+  <data name="UIPrinterPageNumberText" xml:space="preserve"><value>Page {0}</value></data>
+  <data name="UIKeyAddText" xml:space="preserve"><value>Num +</value></data>
+  <data name="UICommandScrollPageDownText" xml:space="preserve"><value>Scroll Page Down</value></data>
+  <data name="UIClassificationTypeBreakpointDisabled" xml:space="preserve"><value>Breakpoint (Disabled)</value></data>
+  <data name="UIEditorSearchViewReplaceWithLabelText" xml:space="preserve"><value>Re_place with:</value></data>
+  <data name="ExNoStringResource" xml:space="preserve"><value>No string resource name was specified.</value></data>
+  <data name="UIKeyLWinText" xml:space="preserve"><value>Left Windows</value></data>
+  <data name="ExTaggerConstructorUnableToLoad" xml:space="preserve"><value>A public constructor that accepts a single ITextView (or derived class) instance parameter on the tagger type '{0}' was unable to be loaded.</value></data>
+  <data name="UIKeyRightText" xml:space="preserve"><value>Right Arrow</value></data>
+  <data name="ExInvalidStringResourceName" xml:space="preserve"><value>The string resource name '{0}' is not valid.  Please see the 'SRName' enumeration for the valid names.</value></data>
+  <data name="ExNoOutliningSourceDefinitionReturned" xml:space="preserve"><value>An IOutliningNodeDefinition must be returned when an outlining node is started or ended.</value></data>
+  <data name="UIEditorSearchViewReplaceModeText" xml:space="preserve"><value>Quick Replace</value></data>
+  <data name="UICommandSelectToDocumentEndText" xml:space="preserve"><value>Select to Document End</value></data>
+  <data name="UICommandCutAndAppendToClipboardText" xml:space="preserve"><value>Cut/Append</value></data>
+  <data name="UIKeyMultiplyText" xml:space="preserve"><value>Num *</value></data>
+  <data name="UIClassificationTypeDelimiterMatching" xml:space="preserve"><value>Delimiter Matching</value></data>
+  <data name="UIEditorSearchViewSearchTypeLabelText" xml:space="preserve"><value>Search typ_e:</value></data>
+  <data name="UICommandTransposeLinesText" xml:space="preserve"><value>Transpose Lines</value></data>
+  <data name="UICommandMoveToLineStartAfterIndentationText" xml:space="preserve"><value>Move to Line Start After Indentation</value></data>
+  <data name="UICommandTrimAllTrailingWhitespaceText" xml:space="preserve"><value>Trim All Trailing Whitespace</value></data>
+  <data name="UIClassificationTypeInactiveSelectedText" xml:space="preserve"><value>Inactive Selected Text</value></data>
+  <data name="UICommandReplaceNextText" xml:space="preserve"><value>Replace Next</value></data>
+  <data name="UICommandDeleteLineText" xml:space="preserve"><value>Delete Line</value></data>
+  <data name="UICommandScrollRightText" xml:space="preserve"><value>Scroll Right</value></data>
+  <data name="UICommandScrollLineToVisibleTopText" xml:space="preserve"><value>Scroll Line to Visible Top</value></data>
+  <data name="UICommandMoveToLineEndText" xml:space="preserve"><value>Move to Line End</value></data>
+  <data name="UIPrintPreviewWindowTitle" xml:space="preserve"><value>Print Preview</value></data>
+  <data name="UICommandRequestIntelliPromptSurroundWithSessionText" xml:space="preserve"><value>Surround With</value></data>
+  <data name="ExEditActionCannotRecord" xml:space="preserve"><value>The specified IEditAction may not be added to the macro since it is not permitted to be recorded.</value></data>
+  <data name="UISearchOverlayPaneToggleReplaceButtonToolTip" xml:space="preserve"><value>Toggle Replace Mode</value></data>
+  <data name="UICommandUntabifySelectedLinesText" xml:space="preserve"><value>Untabify Selected Lines</value></data>
+  <data name="UICommandMakeUppercaseText" xml:space="preserve"><value>Make Uppercase</value></data>
+  <data name="UICommandSelectToVisibleBottomText" xml:space="preserve"><value>Select to Visible Bottom</value></data>
+  <data name="UICommandCutLineToClipboardText" xml:space="preserve"><value>Cut Line</value></data>
+  <data name="UICommandScrollDownText" xml:space="preserve"><value>Scroll Down</value></data>
+  <data name="UIEditorSearchViewMatchCaseCheckBoxText" xml:space="preserve"><value>Match _case</value></data>
+  <data name="UICommandSelectBlockDownText" xml:space="preserve"><value>Select Block Down</value></data>
+  <data name="UIKeyPauseText" xml:space="preserve"><value>Break</value></data>
+  <data name="UIAmbientHighlightingStyleRegistryDescription" xml:space="preserve"><value>Text Editor</value></data>
+  <data name="UIModifierKeysAltText" xml:space="preserve"><value>Alt</value></data>
+  <data name="UICommandTrimTrailingWhitespaceText" xml:space="preserve"><value>Trim Trailing Whitespace</value></data>
+  <data name="UICommandRequestIntelliPromptQuickInfoSessionText" xml:space="preserve"><value>Quick Info</value></data>
+  <data name="UIClassificationTypeIndicatorMargin" xml:space="preserve"><value>Indicator Margin</value></data>
+  <data name="ExNoAllTabFilter" xml:space="preserve"><value>If Tab filters are specified, there must be a single AllTab filter specified as well.</value></data>
+  <data name="UIKeyBackText" xml:space="preserve"><value>Bkspce</value></data>
+  <data name="UIEditorSearchScopeDocumentText" xml:space="preserve"><value>Document</value></data>
+  <data name="UICommandMakeLowercaseText" xml:space="preserve"><value>Make Lowercase</value></data>
+  <data name="UICommandMoveToDocumentEndText" xml:space="preserve"><value>Move to Document End</value></data>
+  <data name="UICommandSelectToDocumentStartText" xml:space="preserve"><value>Select to Document Start</value></data>
+  <data name="UICommandToggleOutliningExpansionText" xml:space="preserve"><value>Toggle Outlining Expansion</value></data>
+  <data name="UIKeyPageUpText" xml:space="preserve"><value>PgUp</value></data>
+  <data name="UIKeyOemCloseBracketsText" xml:space="preserve"><value>]</value></data>
+  <data name="UICommandOpenLineAboveText" xml:space="preserve"><value>Open Line Above</value></data>
+  <data name="UICommandSelectRightText" xml:space="preserve"><value>Select Right</value></data>
+  <data name="UICommandSelectPageDownText" xml:space="preserve"><value>Select Page Down</value></data>
+  <data name="UIKeyOemPeriodText" xml:space="preserve"><value>.</value></data>
+  <data name="UIKeyDivideText" xml:space="preserve"><value>Num /</value></data>
+  <data name="UICommandFormatDocumentText" xml:space="preserve"><value>Format Document</value></data>
+  <data name="UIMenuItemCopyText" xml:space="preserve"><value>_Copy</value></data>
+  <data name="UICommandOpenLineBelowText" xml:space="preserve"><value>Open Line Below</value></data>
+  <data name="UIClassificationTypeIndentationGuides" xml:space="preserve"><value>Indentation Guides</value></data>
+  <data name="ExAdornmentManagerConstructorUnableToLoad" xml:space="preserve"><value>A public constructor that accepts a single ITextView (or derived class) instance parameter on the adornment manager type '{0}' was not found.</value></data>
+  <data name="UICommandToggleCharacterCasingText" xml:space="preserve"><value>Toggle Character Casing</value></data>
+  <data name="UIKeySubtractText" xml:space="preserve"><value>Num -</value></data>
+  <data name="UIMenuItemSelectAllText" xml:space="preserve"><value>Select _All</value></data>
+  <data name="UIEditorSearchViewSearchScopeLabelText" xml:space="preserve"><value>_Look in:</value></data>
+  <data name="UICommandMoveToNextLineStartAfterIndentationText" xml:space="preserve"><value>Move to Next Line Start After Indentation</value></data>
+  <data name="UIModifierKeysDelimiterText" xml:space="preserve"><value>+</value></data>
+  <data name="UISearchOverlayPaneMatchCaseButtonToolTip" xml:space="preserve"><value>Match Case ({0})</value></data>
+  <data name="UIClassificationTypeCodeSnippetField" xml:space="preserve"><value>Code Snippet Field</value></data>
+  <data name="UICommandCollapseSelectionRightText" xml:space="preserve"><value>Collapse Selection Right</value></data>
+  <data name="UICommandRequestIntelliPromptParameterInfoSessionText" xml:space="preserve"><value>Parameter Info</value></data>
+  <data name="UICommandScrollPageUpText" xml:space="preserve"><value>Scroll Page Up</value></data>
+  <data name="UICommandDeleteBlankLinesText" xml:space="preserve"><value>Delete Blank Lines</value></data>
+  <data name="UICommandTabifySelectedLinesText" xml:space="preserve"><value>Tabify Selected Lines</value></data>
+  <data name="UICommandMacroText" xml:space="preserve"><value>Macro</value></data>
+  <data name="UIEditorSearchViewSearchHiddenTextCheckBoxText" xml:space="preserve"><value>Search _hidden text</value></data>
+  <data name="UICommandApplyDefaultOutliningExpansionText" xml:space="preserve"><value>Apply Default Outlining Expansion</value></data>
+  <data name="UICommandSelectToVisibleTopText" xml:space="preserve"><value>Select to Visible Top</value></data>
+  <data name="UISearchOverlayPaneMatchWholeWordButtonToolTip" xml:space="preserve"><value>Match Whole Word ({0})</value></data>
+  <data name="UICommandInsertTabStopOrIndentText" xml:space="preserve"><value>Indent</value></data>
+  <data name="UICommandCommentLinesText" xml:space="preserve"><value>Comment Lines</value></data>
+  <data name="UICommandSelectToPreviousWordText" xml:space="preserve"><value>Select to Previous Word</value></data>
+  <data name="UIEditorSearchViewFindModeText" xml:space="preserve"><value>Quick Find</value></data>
+  <data name="UIClassificationTypeSelectedText" xml:space="preserve"><value>Selected Text</value></data>
+  <data name="UIKeyOemOpenBracketsText" xml:space="preserve"><value>[</value></data>
+  <data name="UICommandFindNextText" xml:space="preserve"><value>Find Next</value></data>
+  <data name="UICommandSelectUpText" xml:space="preserve"><value>Select Up</value></data>
+  <data name="UICommandZoomOutText" xml:space="preserve"><value>Zoom Out</value></data>
+  <data name="ExInvalidCaretWidth" xml:space="preserve"><value>The value must be within 1 and 8.</value></data>
+  </root>

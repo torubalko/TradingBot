@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <cstring>
 #ifdef _MSC_VER
 #include <immintrin.h>
 #endif
@@ -215,6 +216,9 @@ BinanceDataFeed::BinanceDataFeed(const DataFeedConfig& config)
 
     // Create message queue
     messageQueue_ = CreateMessageQueue(config_.messageQueueSize);
+
+    // Create depth delta queue for Tiger pipeline
+    depthQueue_ = std::make_unique<LockFreeQueue<DepthDelta, 262144>>();
     
     // Create thread pool for parsing
     parserPool_ = std::make_unique<ThreadPool>(config_.numParserThreads, true);
@@ -252,12 +256,24 @@ void BinanceDataFeed::Start() {
     std::cout << "║ Parser threads: " << std::setw(45) << config_.numParserThreads << "║\n";
     std::cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
     
-    // ✅ FETCH REST SNAPSHOT FIRST!
+    // WebSocket first to start buffering deltas
+    CreateSessions();
+    for (auto& session : sessions_) {
+        session->Start();
+    }
+
+    int numIoThreads = std::max(2, static_cast<int>(sessions_.size()));
+    for (int i = 0; i < numIoThreads; ++i) {
+        ioThreads_.emplace_back([this, i] {
+            IoThreadFunc();
+        });
+    }
+
+    // Fetch REST snapshots while WS buffers messages
 #ifdef _WIN32
     OutputDebugStringA("[Snapshot] Fetching initial order book snapshots...\n");
 #endif
     std::cout << "[Snapshot] Fetching initial order book snapshots...\n";
-    
     for (const auto& symbol : config_.symbols) {
         if (!FetchInitialSnapshot(symbol)) {
             std::cerr << "[ERROR] Failed to fetch snapshot for " << symbol << "\n";
@@ -267,31 +283,35 @@ void BinanceDataFeed::Start() {
 #endif
         }
     }
-    
+
 #ifdef _WIN32
-    OutputDebugStringA("[Snapshot] All snapshots loaded. Starting WebSocket...\n\n");
+    OutputDebugStringA("[Snapshot] All snapshots loaded. Starting processors...\n\n");
 #endif
-    std::cout << "[Snapshot] All snapshots loaded. Starting WebSocket...\n\n";
-    
-    // Then start WebSocket
-    CreateSessions();
-    
+    std::cout << "[Snapshot] All snapshots loaded. Starting processors...\n\n";
+
     // Processor threads must be single consumer for SPSC queue
     processorThreads_.emplace_back([this] {
         ProcessorThreadFunc();
     });
-    
-    for (auto& session : sessions_) {
-        session->Start();
-    }
-    
-    int numIoThreads = std::max(2, static_cast<int>(sessions_.size()));
-    for (int i = 0; i < numIoThreads; ++i) {
-        ioThreads_.emplace_back([this, i] {
-            IoThreadFunc();
-        });
-    }
-    
+
+    // OrderBook thread consuming depth deltas
+    obThreadRunning_.store(true, std::memory_order_release);
+    orderBookThread_ = std::thread([this] {
+        while (obThreadRunning_.load(std::memory_order_relaxed)) {
+            // Burst-drain to keep up with producer bursts
+            for (int batch = 0; batch < 1024; ++batch) {
+                auto delta = depthQueue_->TryPop();
+                if (!delta) break;
+                if (rawDeltaCallback_) {
+                    rawDeltaCallback_(*delta);
+                }
+            }
+#ifdef _MSC_VER
+            _mm_pause();
+#endif
+        }
+    });
+
     if (connectedCallback_) {
         connectedCallback_();
     }
@@ -304,6 +324,8 @@ void BinanceDataFeed::Stop() {
     if (!running_.load()) return;
     
     running_.store(false);
+
+    obThreadRunning_.store(false, std::memory_order_release);
     
     // Stop sessions
     for (auto& session : sessions_) {
@@ -324,6 +346,8 @@ void BinanceDataFeed::Stop() {
     for (auto& t : processorThreads_) {
         if (t.joinable()) t.join();
     }
+
+    if (orderBookThread_.joinable()) orderBookThread_.join();
 
     if (timeSyncThread_.joinable()) timeSyncThread_.join();
     
@@ -547,38 +571,31 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                 lastRawNetworkDeltaMs_.store(HighResTimer::UnixMs() - update.transactionTime, std::memory_order_relaxed);
 
                 // VALIDATE SYNC FIRST - Only process if internal orderbook accepts it
-                auto it = orderBooks_.find(update.symbol);
-                bool shouldCallback = false;
-                
-                if (it != orderBooks_.end()) {
-                    auto result = it->second->ApplyDepthUpdate(
-                        update.eventTime,
-                        update.transactionTime,
-                        update.firstUpdateId,
-                        update.lastUpdateId,
-                        update.bids,
-                        update.asks
-                    );
-                    
-                    // Only callback if update was actually applied
-                    shouldCallback = (result == OrderBook::UpdateResult::Applied);
-                    
-                    // Handle out-of-sync - trigger resync
-                    if (result == OrderBook::UpdateResult::OutOfSync) {
-#ifdef _WIN32
-                        OutputDebugStringA("[DataFeed] OUT OF SYNC - Need to refetch snapshot!\n");
-#endif
-                        // TODO: Trigger automatic resync here
-                    }
+                // Build DepthDelta and enqueue to SPSC ring for OrderBook thread
+                DepthDelta delta{};
+                delta.eventTime = update.eventTime;
+                delta.transactionTime = update.transactionTime;
+                delta.firstUpdateId = update.firstUpdateId;
+                delta.lastUpdateId = update.lastUpdateId;
+                std::memset(delta.symbol, 0, sizeof(delta.symbol));
+                const std::string& sym = update.symbol;
+                std::memcpy(delta.symbol, sym.data(), std::min<size_t>(sym.size(), sizeof(delta.symbol) - 1));
+
+                const int bcnt = static_cast<int>(std::min<size_t>(update.bids.size(), MAX_DELTA_LEVELS));
+                const int acnt = static_cast<int>(std::min<size_t>(update.asks.size(), MAX_DELTA_LEVELS));
+                delta.bidCount = bcnt;
+                delta.askCount = acnt;
+                for (int i = 0; i < bcnt; ++i) {
+                    delta.bids[i].price = update.bids[i].first;
+                    delta.bids[i].qty = update.bids[i].second;
+                }
+                for (int i = 0; i < acnt; ++i) {
+                    delta.asks[i].price = update.asks[i].first;
+                    delta.asks[i].qty = update.asks[i].second;
                 }
 
-                // FAST PATH: Direct callback ONLY if update was validated
-                if (shouldCallback && depthCallback_) [[likely]] {
-                    const int64_t cbStart = config_.enableLatencyTracking ? HighResTimer::NowNs() : 0;
-                    depthCallback_(update.symbol, update);
-                    if (config_.enableLatencyTracking) {
-                        latencyTracker_.RecordCallbackLatency(HighResTimer::NowNs() - cbStart);
-                    }
+                if (!depthQueue_->TryPush(std::move(delta))) {
+                    droppedMessages_.fetch_add(1, std::memory_order_relaxed);
                 }
 
                 if (config_.enableLatencyTracking) {
@@ -1000,30 +1017,38 @@ bool BinanceDataFeed::FetchInitialSnapshot(const std::string& symbol) {
             }
         }
         
-        // Apply snapshot to OrderBook
+        // Apply snapshot to legacy OrderBook (for diagnostics)
         auto it = orderBooks_.find(upperSymbol);
         if (it != orderBooks_.end()) {
             it->second->ApplySnapshot(lastUpdateId, bids, asks);
-            
-            std::cout << "[Snapshot] " << upperSymbol << " initialized with " 
-                      << bids.size() << " bids, " 
-                      << asks.size() << " asks, lastUpdateId=" << lastUpdateId << "\n";
-                      
-#ifdef _WIN32
-            std::ostringstream oss;
-            oss << "[Snapshot] " << upperSymbol << " initialized with " 
-                << bids.size() << " bids, " 
-                << asks.size() << " asks, lastUpdateId=" << lastUpdateId << "\n";
-            OutputDebugStringA(oss.str().c_str());
-#endif
         }
+
+        // Convert to RAW depth levels
+        std::vector<DepthLevel> rawBids;
+        std::vector<DepthLevel> rawAsks;
+        rawBids.reserve(bids.size());
+        rawAsks.reserve(asks.size());
+        for (const auto& [p, q] : bids) rawBids.push_back({p, q});
+        for (const auto& [p, q] : asks) rawAsks.push_back({p, q});
+
+        std::cout << "[Snapshot] " << upperSymbol << " initialized with " 
+                  << bids.size() << " bids, " 
+                  << asks.size() << " asks, lastUpdateId=" << lastUpdateId << "\n";
+                  
+#ifdef _WIN32
+        std::ostringstream oss;
+        oss << "[Snapshot] " << upperSymbol << " initialized with " 
+            << bids.size() << " bids, " 
+            << asks.size() << " asks, lastUpdateId=" << lastUpdateId << "\n";
+        OutputDebugStringA(oss.str().c_str());
+#endif
         
-        // ✅ CRITICAL: Propagate snapshot to SharedState via callback
+        // Propagate snapshot to SharedState via callbacks
         if (snapshotCallback_) {
             snapshotCallback_(upperSymbol, bids, asks);
-#ifdef _WIN32
-            OutputDebugStringA("[Snapshot] Callback fired - SharedState should now have snapshot\n");
-#endif
+        }
+        if (rawSnapshotCallback_) {
+            rawSnapshotCallback_(upperSymbol, lastUpdateId, rawBids, rawAsks);
         }
         
         return true;
