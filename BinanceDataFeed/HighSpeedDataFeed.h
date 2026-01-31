@@ -23,6 +23,7 @@
 #include "LockFreeQueue.h"
 #include "LatencyTracker.h"
 #include "DepthDelta.h"
+#include "UserStream.h"
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -75,6 +76,11 @@ struct DataFeedConfig {
     // Buffer sizes
     size_t readBufferSize = 64 * 1024;    // 64KB
     size_t messageQueueSize = 65536;      // Larger queue for bursts
+
+    // User stream (private account events)
+    bool enableUserStream = true;
+    std::string apiKey;
+    int userStreamKeepAliveSeconds = 25 * 60;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -96,6 +102,7 @@ using SnapshotCallback = std::function<void(const std::string& symbol,
 using RawSnapshotCallback = std::function<void(const std::string& symbol, int64_t lastUpdateId,
     const std::vector<DepthLevel>& bids, const std::vector<DepthLevel>& asks)>;
 using RawDeltaCallback = std::function<void(const DepthDelta&)>;
+using UserStreamCallback = std::function<void(const std::string& payload)>;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WebSocket Session (one per stream)
@@ -170,6 +177,7 @@ public:
     void SetSnapshotCallback(SnapshotCallback cb) { snapshotCallback_ = std::move(cb); }
     void SetRawSnapshotCallback(RawSnapshotCallback cb) { rawSnapshotCallback_ = std::move(cb); }
     void SetRawDeltaCallback(RawDeltaCallback cb) { rawDeltaCallback_ = std::move(cb); }
+    void SetUserStreamCallback(UserStreamCallback cb) { userStreamCallback_ = std::move(cb); }
     
     // Order Book Access
     OrderBook& GetOrderBook(const std::string& symbol);
@@ -198,6 +206,8 @@ private:
     void MaybeLogDiagnostics();
     
     std::string BuildStreamPath();
+
+    std::string ResolveApiKey() const;
     
     DataFeedConfig config_;
     
@@ -253,6 +263,8 @@ private:
     std::atomic<bool> obThreadRunning_{false};
     RawSnapshotCallback rawSnapshotCallback_;
     RawDeltaCallback rawDeltaCallback_;
+    UserStreamCallback userStreamCallback_;
+    std::unique_ptr<UserStreamClient> userStream_;
 };
 
 inline std::string upper_symbol(const std::string& s) {
@@ -261,4 +273,4 @@ inline std::string upper_symbol(const std::string& s) {
     return out;
 }
 
-} // namespace hft} // namespace hft
+} // namespace hft

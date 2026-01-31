@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <sstream>
+#include <functional>
+#include <atomic>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -14,11 +16,21 @@
 // ???????????????????????????????????????????????????????????????????????????????
 class BinanceFeedAdapter {
 public:
+    using ResyncCallback = std::function<void(const std::string&)>;
+
     BinanceFeedAdapter(std::shared_ptr<TradingBot::Core::SharedState> state)
         : state_(std::move(state)) {
         // Pre-allocate conversion buffers
         bidBuffer_.reserve(256);
         askBuffer_.reserve(256);
+    }
+
+    void SetResyncCallback(ResyncCallback cb) {
+        resyncCallback_ = std::move(cb);
+    }
+
+    void ResetResyncState() {
+        resyncPending_.store(false, std::memory_order_relaxed);
     }
 
     // ???????????????????????????????????????????????????????????????????????????????
@@ -65,6 +77,7 @@ public:
             rawAsks_[i].qty = asks[i].qty;
         }
         state_->ApplyRawSnapshot(lastUpdateId, rawBids_, bcnt, rawAsks_, acnt);
+        resyncPending_.store(false, std::memory_order_relaxed);
     }
 
     // Tiger RAW delta handler (OrderBook thread)
@@ -82,8 +95,13 @@ public:
         }
         bool ok = state_->ApplyRawDelta(d.firstUpdateId, d.lastUpdateId, rawBids_, bcnt, rawAsks_, acnt);
         if (!ok) {
-            // Force resync: consumer should trigger snapshot fetch
             state_->ResetOrderBook();
+            if (resyncCallback_) {
+                bool expected = false;
+                if (resyncPending_.compare_exchange_strong(expected, true, std::memory_order_relaxed)) {
+                    resyncCallback_(std::string(d.symbol));
+                }
+            }
         }
     }
 
@@ -142,6 +160,8 @@ public:
 
 private:
     std::shared_ptr<TradingBot::Core::SharedState> state_;
+    ResyncCallback resyncCallback_;
+    std::atomic<bool> resyncPending_{false};
     
     // PRE-ALLOCATED buffers for zero-allocation in hot path
     std::vector<TradingBot::Core::OrderBookLevel> bidBuffer_;

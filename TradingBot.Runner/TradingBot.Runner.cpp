@@ -649,9 +649,20 @@ void StartFeedForSymbol(const std::string& sym) {
     cfg.symbols = { upperSym };
 
     g_Feed = std::make_unique<hft::BinanceDataFeed>(cfg);
+    if (g_FeedAdapter) {
+        g_FeedAdapter->ResetResyncState();
+        g_FeedAdapter->SetResyncCallback([](const std::string& symbol) {
+            if (g_Feed) {
+                g_Feed->FetchInitialSnapshot(symbol);
+            }
+        });
+    }
 
     g_Feed->SetBookTickerCallback([adapter = g_FeedAdapter.get()](const std::string& symbol, const hft::ParsedBookTicker& bt) {
         if (adapter) adapter->OnBookTicker(symbol, bt);
+    });
+    g_Feed->SetDepthUpdateCallback([adapter = g_FeedAdapter.get()](const std::string& symbol, const hft::ParsedDepthUpdate& upd) {
+        if (adapter) adapter->OnDepth(symbol, upd);
     });
     g_Feed->SetAggTradeCallback([adapter = g_FeedAdapter.get()](const std::string& symbol, const hft::ParsedAggTrade& tr) {
         if (adapter) adapter->OnAggTrade(symbol, tr);
@@ -675,6 +686,12 @@ void StartFeedForSymbol(const std::string& sym) {
 
     g_Feed->SetRawDeltaCallback([adapter = g_FeedAdapter.get()](const hft::DepthDelta& d) {
         if (adapter) adapter->OnRawDelta(d);
+    });
+
+    g_Feed->SetUserStreamCallback([](const std::string& payload) {
+        if (g_SharedState) {
+            g_SharedState->ApplyUserStreamPayload(payload);
+        }
     });
 
     if (g_SharedState) {

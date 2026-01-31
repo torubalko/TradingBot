@@ -1,19 +1,55 @@
 ﻿#include "HighSpeedDataFeed.h"
 #include "HttpClient.h"  // ← ADD HTTP CLIENT
+#include "UserStream.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
 #include <cstring>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #ifdef _MSC_VER
 #include <immintrin.h>
 #endif
 #ifdef _WIN32
 #include <windows.h>
+#include <wincrypt.h>
+#pragma comment(lib, "crypt32.lib")
 #endif
 #include "../TradingBot.Core/ThreadPriority.h"
 
 namespace hft {
+
+namespace {
+    void AddWindowsRootCerts(ssl::context& ctx) {
+#ifdef _WIN32
+        HCERTSTORE storeHandle = CertOpenSystemStoreA(0, "ROOT");
+        if (!storeHandle) return;
+        X509_STORE* store = SSL_CTX_get_cert_store(ctx.native_handle());
+        PCCERT_CONTEXT certCtx = nullptr;
+        while ((certCtx = CertEnumCertificatesInStore(storeHandle, certCtx)) != nullptr) {
+            const unsigned char* encoded = certCtx->pbCertEncoded;
+            X509* cert = d2i_X509(nullptr, &encoded, certCtx->cbCertEncoded);
+            if (cert) {
+                X509_STORE_add_cert(store, cert);
+                X509_free(cert);
+            }
+        }
+        CertCloseStore(storeHandle, 0);
+#endif
+    }
+
+    bool VerifyHostName(bool preverified, ssl::verify_context& ctx, const std::string& host) {
+        if (!preverified) {
+            return false;
+        }
+        X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
+        if (!cert) {
+            return false;
+        }
+        return X509_check_host(cert, host.c_str(), host.size(), 0, nullptr) == 1;
+    }
+}
 
 WebSocketSession::WebSocketSession(
     net::io_context& ioc,
@@ -218,7 +254,8 @@ BinanceDataFeed::BinanceDataFeed(const DataFeedConfig& config)
 {
     // Configure SSL
     sslCtx_.set_default_verify_paths();
-    sslCtx_.set_verify_mode(ssl::verify_none);
+    AddWindowsRootCerts(sslCtx_);
+    sslCtx_.set_verify_mode(ssl::verify_peer);
     
     // Create work guard to keep io_context running
     workGuard_ = std::make_unique<WorkGuard>(net::make_work_guard(ioc_));
@@ -269,6 +306,25 @@ void BinanceDataFeed::Start() {
     CreateSessions();
     for (auto& session : sessions_) {
         session->Start();
+    }
+
+    if (config_.enableUserStream) {
+        const auto apiKey = ResolveApiKey();
+        if (!apiKey.empty()) {
+            userStream_ = std::make_unique<UserStreamClient>(
+                apiKey,
+                "fapi.binance.com",
+                "fstream.binance.com",
+                config_.port,
+                config_.userStreamKeepAliveSeconds,
+                [this](const std::string& payload) {
+                    if (userStreamCallback_) {
+                        userStreamCallback_(payload);
+                    }
+                }
+            );
+            userStream_->Start();
+        }
     }
 
     int numIoThreads = std::max(2, static_cast<int>(sessions_.size()));
@@ -340,6 +396,11 @@ void BinanceDataFeed::Stop() {
     for (auto& session : sessions_) {
         session->Stop();
     }
+
+    if (userStream_) {
+        userStream_->Stop();
+        userStream_.reset();
+    }
     
     // Release work guard to allow io_context to finish
     workGuard_.reset();
@@ -351,7 +412,7 @@ void BinanceDataFeed::Stop() {
     for (auto& t : ioThreads_) {
         if (t.joinable()) t.join();
     }
-    
+
     for (auto& t : processorThreads_) {
         if (t.joinable()) t.join();
     }
@@ -369,6 +430,18 @@ void BinanceDataFeed::Stop() {
     }
     
     std::cout << "[DataFeed] Stopped\n";
+}
+
+std::string BinanceDataFeed::ResolveApiKey() const {
+#ifdef _WIN32
+    if (!config_.apiKey.empty()) return config_.apiKey;
+    char buffer[512];
+    DWORD size = GetEnvironmentVariableA("BINANCE_API_KEY", buffer, static_cast<DWORD>(sizeof(buffer)));
+    if (size > 0 && size < sizeof(buffer)) {
+        return std::string(buffer, buffer + size);
+    }
+#endif
+    return config_.apiKey;
 }
 
 void BinanceDataFeed::SyncClockThread() {
@@ -607,6 +680,14 @@ void BinanceDataFeed::ProcessMessage(RawMessage&& msg) {
                     droppedMessages_.fetch_add(1, std::memory_order_relaxed);
                 }
 
+                if (depthCallback_) {
+                    int64_t cbStart = HighResTimer::NowNs();
+                    depthCallback_(update.symbol, update);
+                    if (config_.enableLatencyTracking) {
+                        latencyTracker_.RecordCallbackLatency(HighResTimer::NowNs() - cbStart);
+                    }
+                }
+
                 if (config_.enableLatencyTracking) {
                     latencyTracker_.RecordProcessLatency(HighResTimer::NowNs() - afterParseNs);
                     latencyTracker_.RecordEndToEndNs(HighResTimer::NowNs() - msg.ReceiveTimestampNs());
@@ -809,13 +890,19 @@ int64_t BinanceDataFeed::FetchServerTimeMs() {
             net::io_context ioc;
             ssl::context ctx{ssl::context::tlsv12_client};
             ctx.set_default_verify_paths();
-            ctx.set_verify_mode(ssl::verify_none);
+            AddWindowsRootCerts(ctx);
+            ctx.set_verify_mode(ssl::verify_peer);
 
             tcp::resolver resolver(ioc);
             auto const results = resolver.resolve(host, port);
 
             beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
             beast::error_code ec;
+
+            stream.set_verify_mode(ssl::verify_peer);
+            stream.set_verify_callback([host](bool preverified, ssl::verify_context& ctx) {
+                return VerifyHostName(preverified, ctx, host);
+            });
 
             beast::get_lowest_layer(stream).connect(results, ec);
             if (ec) {

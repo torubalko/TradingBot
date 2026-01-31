@@ -33,6 +33,7 @@
     <ClInclude Include="ThreadPriority.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="..\simdjson\simdjson-master\singleheader\simdjson.h" />
+    <ClInclude Include="UserStreamState.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

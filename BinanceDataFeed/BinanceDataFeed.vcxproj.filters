@@ -16,6 +16,7 @@
     <ClInclude Include="SimdJsonParser.h" />
     <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="UserStream.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

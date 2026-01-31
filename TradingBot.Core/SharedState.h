@@ -7,6 +7,7 @@
 #include <atomic>
 #include <chrono>
 #include <sstream>
+#include <string_view>
 #include <thread>
 #include <immintrin.h>
 #include <deque>
@@ -23,6 +24,7 @@
 #include "MarketDetails.h"
 #include "OrderBook.h"
 #include "RawOrderBook.h"
+#include "UserStreamState.h"
 
 namespace TradingBot::Core {
 
@@ -70,6 +72,7 @@ namespace TradingBot::Core {
             bids.reserve(50);
             asks.reserve(50);
         }
+
     };
 
     struct BatchMetrics {
@@ -133,6 +136,17 @@ namespace TradingBot::Core {
             // Initialize best prices
             lastBestBid_.store(0.0, std::memory_order_relaxed);
             lastBestAsk_.store(0.0, std::memory_order_relaxed);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // User-stream (positions)
+        // ═══════════════════════════════════════════════════════════════
+        void ApplyUserStreamPayload(std::string_view payload) {
+            userStreamState_.ApplyPayload(payload);
+        }
+
+        const UserStreamState& GetUserStreamState() const {
+            return userStreamState_;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -725,6 +739,8 @@ namespace TradingBot::Core {
         std::vector<Models::PriceLevel> tempBids_;
         std::vector<Models::PriceLevel> tempAsks_;
         std::atomic<int64_t> lastUpdateNs_{0};
+
+        UserStreamState userStreamState_;
 
         static int64_t HighResNowNs() {
             return std::chrono::duration_cast<std::chrono::nanoseconds>(

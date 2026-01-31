@@ -5,6 +5,9 @@
 - Second general instruction
 - Use the cloned official Binance docs in `C:\BOT\TradingBot\binance_docs` as the source of truth; no external knowledge.
 
+## Performance Considerations
+- Ensure changes to the Binance trading bot preserve minimal latency and support multithreading behavior.
+
 ## Debug Configuration for TradingBot
 - For projects like TradingBot (especially BinanceDataFeed), ensure the following settings in Debug configuration:
   - Disable optimization: `<Optimization>Disabled</Optimization>` (/Od)

@@ -95,6 +95,8 @@ public:
         buffers_[1].asks.Clear();
         buffers_[0].lastUpdateId = 0;
         buffers_[1].lastUpdateId = 0;
+        snapshotLastUpdateId_ = 0;
+        synced_ = false;
     }
 
     void Reset() {
@@ -105,6 +107,8 @@ public:
         buffers_[0].lastUpdateId = 0;
         buffers_[1].lastUpdateId = 0;
         active_.store(0, std::memory_order_release);
+        snapshotLastUpdateId_ = 0;
+        synced_ = false;
     }
 
     // REST snapshot (deep). Uplevels expected sorted.
@@ -115,6 +119,8 @@ public:
         target.bids.Clear();
         target.asks.Clear();
         target.lastUpdateId = lastUpdateId;
+        snapshotLastUpdateId_ = lastUpdateId;
+        synced_ = false;
 
         const int bc = (bidCount > MAX_LEVELS) ? MAX_LEVELS : bidCount;
         for (int i = 0; i < bc; ++i) {
@@ -139,13 +145,33 @@ public:
         BookState& target = buffers_[NextIndex()];
         const BookState& prev = buffers_[ActiveIndex()];
 
+        if (snapshotLastUpdateId_ == 0) {
+            return false;
+        }
+
+        // Drop stale events before snapshot
+        if (!synced_ && u <= snapshotLastUpdateId_) {
+            return true;
+        }
+
+        // First valid event after snapshot: U <= snapshotId+1 <= u
+        if (!synced_) {
+            if (U > snapshotLastUpdateId_ + 1) {
+                return false;
+            }
+            if (!(U <= snapshotLastUpdateId_ + 1 && u >= snapshotLastUpdateId_ + 1)) {
+                return true;
+            }
+            synced_ = true;
+        } else {
+            // Enforce strict sequence after sync
+            if (U != prev.lastUpdateId + 1) {
+                return false;
+            }
+        }
+
         // initial copy
         target = prev;
-
-        // Accept any forward-moving update; drop only stale
-        if (u <= prev.lastUpdateId) {
-            return false; // stale
-        }
 
         for (int i = 0; i < bidCount; ++i) {
             target.bids.Upsert<true>(bidUpd[i].price, bidUpd[i].qty);
@@ -176,6 +202,8 @@ private:
 
     BookState buffers_[2];
     std::atomic<int> active_;
+    int64_t snapshotLastUpdateId_{0};
+    bool synced_{false};
 };
 
 // Compression layer (read-only). groupSize>0.
