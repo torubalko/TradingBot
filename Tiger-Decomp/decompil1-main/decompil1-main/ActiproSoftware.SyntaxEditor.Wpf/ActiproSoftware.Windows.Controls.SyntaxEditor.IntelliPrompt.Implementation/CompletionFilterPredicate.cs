@@ -1,3 +1,0 @@
-namespace ActiproSoftware.Windows.Controls.SyntaxEditor.IntelliPrompt.Implementation;
-
-public delegate CompletionFilterResult CompletionFilterPredicate(ICompletionSession session, ICompletionItem item);

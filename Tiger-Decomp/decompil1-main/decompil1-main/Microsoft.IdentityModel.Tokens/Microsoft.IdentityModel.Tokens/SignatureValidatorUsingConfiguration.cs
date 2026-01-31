@@ -1,3 +1,0 @@
-namespace Microsoft.IdentityModel.Tokens;
-
-public delegate SecurityToken SignatureValidatorUsingConfiguration(string token, TokenValidationParameters validationParameters, BaseConfiguration configuration);
